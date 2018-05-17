@@ -1,0 +1,67 @@
+buildscript {
+    repositories {
+        mavenLocal()
+        jcenter()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+        maven {
+            url artifactoryURL
+            credentials {
+                username = artifactoryUser
+                password = artifactoryPassword
+            }
+        }
+    }
+    dependencies {
+        classpath 'org.ajoberstar:gradle-git:1.7.2'
+        classpath 'net.ltgt.gradle:gradle-errorprone-plugin:0.0.13'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
+    }
+}
+
+// must be set prior to 'release-opinion' plugin getting applied
+// as they are magically used behind the scenes.
+if (!Boolean.valueOf(project.ciRelease)) {
+    rootProject.ext.setProperty('release.stage', releaseStage.trim())
+    rootProject.ext.setProperty('release.scope', releaseScope.trim())
+}
+
+apply plugin: 'org.ajoberstar.release-opinion'
+
+// Task used for local kicking of CI/Production release
+release {
+    def credentials = new org.ajoberstar.grgit.Credentials(releaseUsername, releasePassword)
+    grgit = org.ajoberstar.grgit.Grgit.open(dir: project.rootDir.absolutePath, creds: credentials)
+    versionStrategy org.ajoberstar.gradle.git.release.semver.RebuildVersionStrategy.INSTANCE
+    versionStrategy org.ajoberstar.gradle.git.release.opinion.Strategies.FINAL
+    defaultVersionStrategy = org.ajoberstar.gradle.git.release.opinion.Strategies.SNAPSHOT
+    tagStrategy {
+        generateMessage = { version -> "Version ${->project.version}" }
+    }
+}
+
+// only publish to Bintray and Github if done from CI environment.
+if (Boolean.valueOf(project.ciRelease)) {
+
+    // 1.) The release process must first build the main/sub projects.
+    def buildTasks = ['build']
+    tasks.release.dependsOn(buildTasks.collect { task ->
+        allprojects.collect {
+            rootProject.name == it.name ? ":${task}" : ":${it.name}:${task}"
+        }.flatten()
+    }.flatten())
+
+    // 2.) The release process, when finished, can now upload artifacts.
+    def publishTasks = [uploadTask]
+    if (Boolean.valueOf(publishGithubPages).booleanValue() && releaseStage.trim().equals('final')) {
+        publishTasks << 'gitPublishPush'
+    }
+    tasks.release.finalizedBy(publishTasks.collect { task ->
+        allprojects.collect {
+            rootProject.name == it.name ? ":${task}" : ":${it.name}:${task}"
+        }.flatten()
+    }.flatten())
+}
+
+apply from: "$rootDir/gradle/projects.gradle"

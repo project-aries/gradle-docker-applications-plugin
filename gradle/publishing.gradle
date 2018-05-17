@@ -1,0 +1,110 @@
+/*
+ * Allows for publishing artifacts either to Bintray or to Artifactory. Bintray is
+ * the default choice but this can be configured within <root-project>/gradle.properties.
+ */
+
+buildscript {
+    repositories {
+        mavenLocal()
+        jcenter()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+        maven {
+            url artifactoryURL
+            credentials {
+                username = artifactoryUser
+                password = artifactoryPassword
+            }
+        }
+    }
+    dependencies {
+        classpath 'org.jfrog.buildinfo:build-info-extractor-gradle:4.5.0'
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.6'
+        classpath 'org.ajoberstar:gradle-git-publish:0.3.2'
+    }
+}
+
+apply from: "$rootDir/gradle/common.gradle"
+
+// properties MUST be applied PRIOR to applying publish plugin or they won't take effect.
+System.setProperty('org.ajoberstar.grgit.auth.username', resolveProperty('releaseUsername'))
+System.setProperty('org.ajoberstar.grgit.auth.password', resolveProperty('releasePassword'))
+System.setProperty('org.ajoberstar.grgit.auth.interactive.allow', 'false')
+
+apply plugin: 'maven'
+apply plugin: 'maven-publish'
+apply plugin: org.jfrog.gradle.plugin.artifactory.ArtifactoryPlugin
+apply plugin: com.jfrog.bintray.gradle.BintrayPlugin
+apply plugin: org.ajoberstar.gradle.git.publish.GitPublishPlugin
+
+publishing {
+    publications {
+        mavenJava (MavenPublication) {
+            from components.java
+            artifact sourcesJar
+            artifact docsJar
+            artifact testsJar
+        }
+    }
+}
+
+ext {
+    githubSite = 'https://github.com'
+    orgName = rootProject.findProperty('organization')
+    publishRepository = (rootProject.findProperty('release.stage') == 'final'
+        || Boolean.valueOf(rootProject.findProperty('ciRelease')))
+            ? releaseRepository
+            : snapshotRepository
+}
+
+artifactory {
+    contextUrl = artifactoryURL
+    publish {
+        repository {
+            repoKey = project.publishRepository
+            username = artifactoryUser
+            password = artifactoryPassword
+            mavenCompatible = true
+        }
+        defaults {
+            publications ('mavenJava')
+        }
+    }
+}
+
+bintray {
+
+    user = resolveProperty('bintrayUsername')
+    key = resolveProperty('bintrayKey')
+    publications = ['mavenJava']
+    publish = true
+
+    pkg {
+        userOrg = project.orgName
+        repo = project.publishRepository
+        name = rootProject.name
+        websiteUrl = "${githubSite}/${project.orgName}/${project.name}"
+        issueTrackerUrl = "${githubSite}/${project.orgName}/${project.name}/issues"
+        vcsUrl = "${githubSite}/${project.orgName}/${project.name}.git"
+        licenses = ['Apache-2.0']
+        publicDownloadNumbers = true
+        githubRepo = "${project.orgName}/${project.name}"
+        githubReleaseNotesFile = 'RELEASE_NOTES.md'
+
+        version {
+            released  = new Date()
+            vcsTag = "v${project.version}"
+        }
+    }
+}
+
+gitPublish {
+    repoUri = "${githubSite}/${project.orgName}/${project.name}.git"
+    branch = "${project.name}-gh-pages"
+    contents {
+        from zipTree(docsJar.archivePath)
+        into 'docs'
+    }
+}
+gitPublishPush.dependsOn docsJar

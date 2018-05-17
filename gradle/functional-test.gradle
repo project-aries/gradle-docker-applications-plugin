@@ -1,0 +1,47 @@
+apply plugin: 'java-gradle-plugin'
+apply from: "$rootDir/gradle/common.gradle"
+
+sourceSets {
+    functionalTest {
+        groovy.srcDir file("${project.rootProject.path}/src/functionalTest/groovy")
+        resources.srcDir file("${project.rootProject.path}/src/functionalTest/resources")
+        compileClasspath += sourceSets.main.output + configurations.testRuntime
+        runtimeClasspath += output + compileClasspath
+    }
+}
+
+task functionalTest(type: Test) {
+    description = 'Runs the functional tests.'
+    group = 'verification'
+    testClassesDirs = sourceSets.functionalTest.output.classesDirs
+    classpath = sourceSets.functionalTest.runtimeClasspath
+    maxHeapSize = '512m'
+    forkEvery = 1
+    maxParallelForks = 1
+    mustRunAfter test
+
+    reports {
+        html.destination = project.file("$html.destination/functional")
+        junitXml.destination = project.file("$junitXml.destination/functional")
+    }
+    testLogging {
+        showStandardStreams = true
+        events 'started', 'passed', 'failed'
+    }
+
+    def testingProperties = [:]
+    testingProperties << propertyInSystemFormat('testKubernetesEndpoint')
+    testingProperties << propertyInSystemFormat('testKubernetesUsername')
+    testingProperties << propertyInSystemFormat('testKubernetesPassword')
+    testingProperties << propertyInSystemFormat('testKubernetesOffline')
+
+    systemProperties = testingProperties
+}
+
+dependencies {
+    functionalTestCompile 'commons-lang:commons-lang:2.6'
+}
+
+gradlePlugin {
+    testSourceSets sourceSets.functionalTest
+}

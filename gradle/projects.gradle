@@ -1,0 +1,79 @@
+allprojects {
+
+    apply plugin: 'groovy'
+    apply plugin: 'net.ltgt.errorprone'
+    apply from: "$rootDir/gradle/artifacts.gradle"
+    apply from: "$rootDir/gradle/jacoco.gradle"
+    apply from: "$rootDir/gradle/pmd.gradle"
+    apply from: "$rootDir/gradle/checkstyle.gradle"
+    //apply from: "$rootDir/gradle/findbugs.gradle"
+    apply from: "$rootDir/gradle/publishing.gradle"
+    apply from: "$rootDir/gradle/functional-test.gradle"
+
+    repositories {
+        mavenLocal()
+        jcenter()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }        
+        maven { 
+            url artifactoryURL
+            credentials {
+                username = artifactoryUser
+                password = artifactoryPassword
+            }
+        }
+    }
+
+    dependencies {
+        errorprone 'com.google.errorprone:error_prone_core:2.0.21'
+
+        compile localGroovy(), gradleApi()
+        compile group: 'org.xeustechnologies', name: 'jcl-core', version: '2.8'
+        compile group: 'net.jodah', name: 'failsafe', version: '1.0.5'
+
+        testCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
+            exclude group: 'org.codehaus.groovy'
+        }
+
+        testCompile "junit:junit:4.12" 
+        testCompile ('org.assertj:assertj-core:3.8.0') 
+    }
+
+    tasks.withType(GroovyCompile) {
+        options.compilerArgs += ['-Xlint:-options', '-XepAllDisabledChecksAsWarnings', '-Xep:Var:OFF', '-Werror']
+        sourceCompatibility = '1.8'
+        targetCompatibility = '1.8'
+    }
+    
+    tasks.withType (Test) {
+        maxParallelForks = 2
+        testLogging {
+            showStandardStreams = true
+            events 'started', 'passed', 'failed'
+        }
+        jacoco {
+            append = false
+            destinationFile = file("$buildDir/jacoco/${name}.exec")
+            classDumpDir = file("$buildDir/jacoco/${name}_ClassDump")
+        }
+    }
+    
+    test {
+        description 'Used for running unit tests.'
+        exclude '**/**MockTest.class'
+        exclude '**/**IntegTest.class'
+    }
+    
+    task mockTest(type: Test) {
+        description 'Used for running mock tests.'
+        include '**/**MockTest.class'
+    }
+
+    task integTest(type: Test) {
+        description 'Used for running integ tests.'
+        include '**/**IntegTest.class'
+    }
+
+    build.finalizedBy jacocoTestReport, jacocoTestCoverageVerification
+}
