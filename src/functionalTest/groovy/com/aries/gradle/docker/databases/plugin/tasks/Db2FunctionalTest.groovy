@@ -36,9 +36,9 @@ class Db2FunctionalTest extends AbstractFunctionalTest {
         """
 
         when:
-            BuildResult result = build('workflow')
+            BuildResult result = buildAndFail('workflow')
 
         then:
-            result.output.contains('Pulling repository')
+            result.output.contains('repository does not exist')
     }
 }
