@@ -10,6 +10,9 @@ package com.aries.gradle.docker.databases.plugin.extensions
  *  Db2 specific extension point.
  */
 class Db2 extends BaseDatabase {
-	
+
+    String repository() {
+        this.repository ?: 'db2'
+    }
 }
 

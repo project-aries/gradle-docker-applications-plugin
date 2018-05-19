@@ -10,6 +10,9 @@ package com.aries.gradle.docker.databases.plugin.extensions
  *  Postgres specific extension point.
  */
 class Postgres extends BaseDatabase {
-	
+
+    String repository() {
+        this.repository ?: 'postgres'
+    }
 }
 

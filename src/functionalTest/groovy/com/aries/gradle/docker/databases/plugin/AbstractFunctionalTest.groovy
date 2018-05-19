@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package com.bmuschko.gradle.kubernetes.plugin
+package com.aries.gradle.docker.databases.plugin
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
+
 import spock.lang.Specification
 
 /**
@@ -29,23 +31,11 @@ import spock.lang.Specification
  */
 abstract class AbstractFunctionalTest extends Specification {
 
-    public static final String RESPONSE_SET_MESSAGE = 'Response object was properly set'
-    public static final String ON_ERROR_NOT_REACHED = 'onError: we should NOT reach here'
-    public static final String ON_NEXT_REACHED = 'onNext: output is NOT null'
-    public static final String ON_COMPLETE_REACHED = 'onComplete: we are done'
-    public static final String SHOULD_NOT_REACH_HERE = "NOT A GOOD PLACE TO BE"
-    public static final String SHOULD_REACH_HERE = "WE ARE HERE"
-
-    final String possibleEndpoint = System.getProperty('test.kubernetes.endpoint')
-    final String possibleUsername = System.getProperty('test.kubernetes.username')
-    final String possiblePassword = System.getProperty('test.kubernetes.password')
-    final String possibleOffline = System.getProperty('test.kubernetes.offline')
+    static final String possibleOffline = System.getProperty('test.offline')
 
     @Rule
     TemporaryFolder temporaryFolder = new TemporaryFolder()
 
-    File defaultDeploymentFile = new File(loadResource('/deployments/nginx-deployment.yaml').getFile())
-    File defaultPodFile = new File(loadResource('/pods/nginx-pod.yaml').getFile())
     File projectDir
     File buildFile
 
@@ -53,13 +43,6 @@ abstract class AbstractFunctionalTest extends Specification {
     def setup() {
         projectDir = temporaryFolder.root
         setupBuildfile()
-
-        when:
-            BuildResult result = build('kubernetesConfig')
-
-        then:
-            result.output.contains('Api-Version: ')
-            result.output.contains('Master-URL: ')
     }
 
     protected void setupBuildfile() {
@@ -71,32 +54,13 @@ abstract class AbstractFunctionalTest extends Specification {
 
         buildFile << """
             plugins {
-                id 'gradle-kubernetes-plugin'
+                id 'gradle-docker-databases-plugin'
             }
 
             repositories {
                 mavenLocal()
                 jcenter()
             }
-        """
-        if (possibleEndpoint) {
-            buildFile << """
-                kubernetes { config { withMasterUrl '$possibleEndpoint' } }
-            """  
-        }
-        if (possibleUsername) {
-            buildFile << """
-                kubernetes { config { withUsername '$possibleUsername' } }
-            """  
-        }
-        if (possiblePassword) {
-            buildFile << """
-                kubernetes { config { withPassword '$possiblePassword' } }
-            """  
-        }
-
-        buildFile << """
-            task kubernetesConfig(type: com.bmuschko.gradle.kubernetes.plugin.tasks.system.Configuration)
         """
     }
 
@@ -122,7 +86,7 @@ abstract class AbstractFunctionalTest extends Specification {
     }
 
     public static String randomString() {
-        'gkp-' + UUID.randomUUID().toString().replaceAll("-", "")
+        'gddp-' + UUID.randomUUID().toString().replaceAll("-", "")
     }
 
     /**

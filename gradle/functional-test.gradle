@@ -30,10 +30,7 @@ task functionalTest(type: Test) {
     }
 
     def testingProperties = [:]
-    testingProperties << propertyInSystemFormat('testKubernetesEndpoint')
-    testingProperties << propertyInSystemFormat('testKubernetesUsername')
-    testingProperties << propertyInSystemFormat('testKubernetesPassword')
-    testingProperties << propertyInSystemFormat('testKubernetesOffline')
+    testingProperties << propertyInSystemFormat('testOffline')
 
     systemProperties = testingProperties
 }

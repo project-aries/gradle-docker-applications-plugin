@@ -11,5 +11,8 @@ package com.aries.gradle.docker.databases.plugin.extensions
  */
 class Databases extends BaseDatabase {
 
+    String repository() {
+        this.repository ?: null
+    }
 }
 

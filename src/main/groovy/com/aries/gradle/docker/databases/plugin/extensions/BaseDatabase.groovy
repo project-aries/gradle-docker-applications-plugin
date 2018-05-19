@@ -6,11 +6,30 @@
 
 package com.aries.gradle.docker.databases.plugin.extensions
 
+import org.gradle.api.tasks.Optional
+
 /**
  *
- * @author dancc
+ *
+ *  Base class for all databases to inherit common functionality from.
+ *  
  */
-class BaseDatabase {
-	
+public abstract class BaseDatabase {
+
+    @Optional
+    String repository
+
+    @Optional
+    String tag
+
+    abstract String repository()
+    
+    String tag() {
+        this.tag ?: 'latest'
+    }
+
+    String image() {
+        "${repository()}:${tag()}"
+    }
 }
 

@@ -32,16 +32,18 @@ import com.aries.gradle.docker.databases.plugin.extensions.Sqlserver
  */
 class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
-    public static final String DEFAULT_TASK_GROUP = 'DockerDatabases'
     public static final List<Class> DATABASES = [Db2, Oracle, Postgres, Sqlserver].asImmutable()
 
     @Override
     void apply(final Project project) {
 
-        // 1.) create all database extension points
+        // 1.) apply required plugins
+        project.plugins.apply('com.bmuschko.docker-remote-api')
+
+        // 2.) create all database extension points
         createDatabaseExtensionPoints(project)
 
-        // 2.) create all database tasks
+        // 3.) create all database tasks
         createDatabaseTasks(project)
     }
 
@@ -49,9 +51,9 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
      * Create our various database extension points.
      */
     private createDatabaseExtensionPoints(final Project project) {
-        project.extensions.create(Databases.simpleName.toLowerCase, Databases)
-        DATABASES.each {
-            project.extensions.create(it.simpleName.toLowerCase, it)
+        project.extensions.create(Databases.simpleName.toLowerCase(), Databases)
+        DATABASES.each { dbClass ->
+            project.extensions.create(dbClass.simpleName.toLowerCase(), dbClass)
         }
     }
 
@@ -59,6 +61,18 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
      *  Create common tasks for all databases
      */
     private createDatabaseTasks(final Project project) {
-        
+        DATABASES.each { dbClass ->
+            final String dbType = dbClass.simpleName
+            final def dbExtension = project.extensions.getByName(dbType.toLowerCase())
+
+            project.task("${dbType}PullImage",
+                type: com.bmuschko.gradle.docker.tasks.image.DockerPullImage) {
+
+                mustRunAfter: 'clean'
+                group: "${dbType}-database"
+                repository = dbExtension.repository()
+                tag = dbExtension.tag()
+            }
+        }
     }
 }

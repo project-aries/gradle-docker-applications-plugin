@@ -1,12 +1,9 @@
 allprojects {
 
     apply plugin: 'groovy'
-    apply plugin: 'net.ltgt.errorprone'
     apply from: "$rootDir/gradle/artifacts.gradle"
     apply from: "$rootDir/gradle/jacoco.gradle"
-    apply from: "$rootDir/gradle/pmd.gradle"
     apply from: "$rootDir/gradle/checkstyle.gradle"
-    //apply from: "$rootDir/gradle/findbugs.gradle"
     apply from: "$rootDir/gradle/publishing.gradle"
     apply from: "$rootDir/gradle/functional-test.gradle"
 
@@ -26,11 +23,8 @@ allprojects {
     }
 
     dependencies {
-        errorprone 'com.google.errorprone:error_prone_core:2.0.21'
-
         compile localGroovy(), gradleApi()
-        compile group: 'org.xeustechnologies', name: 'jcl-core', version: '2.8'
-        compile group: 'net.jodah', name: 'failsafe', version: '1.0.5'
+        compile group: 'com.bmuschko', name: 'gradle-docker-plugin', version: '3.2.8'
 
         testCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
             exclude group: 'org.codehaus.groovy'
@@ -41,7 +35,7 @@ allprojects {
     }
 
     tasks.withType(GroovyCompile) {
-        options.compilerArgs += ['-Xlint:-options', '-XepAllDisabledChecksAsWarnings', '-Xep:Var:OFF', '-Werror']
+        options.compilerArgs += ['-Xlint:-options']
         sourceCompatibility = '1.8'
         targetCompatibility = '1.8'
     }

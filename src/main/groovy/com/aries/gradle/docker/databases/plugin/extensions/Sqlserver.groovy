@@ -10,6 +10,9 @@ package com.aries.gradle.docker.databases.plugin.extensions
  *  Sqlserver specific extension point.
  */
 class Sqlserver extends BaseDatabase {
-	
+
+    String repository() {
+        this.repository ?: 'microsoft/mssql-server-linux'
+    }
 }
 

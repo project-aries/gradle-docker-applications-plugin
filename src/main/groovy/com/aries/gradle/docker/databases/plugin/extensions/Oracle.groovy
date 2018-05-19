@@ -10,6 +10,9 @@ package com.aries.gradle.docker.databases.plugin.extensions
  *  Oracle specific extension point.
  */
 class Oracle extends BaseDatabase {
-	
+
+    String repository() {
+        this.repository ?: 'oracle'
+    }
 }
 
