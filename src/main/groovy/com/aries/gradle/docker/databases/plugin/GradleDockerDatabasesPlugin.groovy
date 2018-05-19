@@ -63,15 +63,33 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
     private createDatabaseTasks(final Project project) {
         DATABASES.each { dbClass ->
             final String dbType = dbClass.simpleName
+            final String dbGroup = "${dbType}-database"
             final def dbExtension = project.extensions.getByName(dbType.toLowerCase())
 
             project.task("${dbType}PullImage",
                 type: com.bmuschko.gradle.docker.tasks.image.DockerPullImage) {
 
-                mustRunAfter: 'clean'
-                group: "${dbType}-database"
+                group: dbGroup
+                description: 'Pull database image'
                 repository = dbExtension.repository()
                 tag = dbExtension.tag()
+            }
+
+
+            
+            project.task("${dbType}Up") {
+                group: dbGroup
+                description: 'Start database container stack if not already started'
+            }
+
+            project.task("${dbType}Down") {
+                group: dbGroup
+                description: 'Stop database container stack if not already stopped'
+            }
+
+            project.task("${dbType}Remove") {
+                group: dbGroup
+                description: 'Remove database container stack if not already removed'
             }
         }
     }
