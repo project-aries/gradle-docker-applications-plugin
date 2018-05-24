@@ -81,6 +81,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                     if (ext.imageAvailableLocally == false) {
                         possibleImage.repoTags.each { rep ->
                             if (ext.imageAvailableLocally == false && rep.first() == dbExtension.image()) {
+                                logger.info 'Image found locally. No need to attempt a pull.'
                                 ext.imageAvailableLocally = true
                             }
                         }
@@ -88,7 +89,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 }
             }
 
-            final def pullImageTaskName = "${dbType}ListImages"
+            final def pullImageTaskName = "${dbType}PullImage"
             project.task(pullImageTaskName,
                 type: com.bmuschko.gradle.docker.tasks.image.DockerPullImage,
                 dependsOn: [listImagesTaskName]) {

@@ -36,9 +36,9 @@ class Db2FunctionalTest extends AbstractFunctionalTest {
         """
 
         when:
-            BuildResult result = buildAndFail('workflow')
+            BuildResult result = build('workflow')
 
         then:
-            result.output.contains('repository does not exist')
+            result.output.contains('Pulling repository') || result.output.contains(':Db2PullImage SKIPPED')
     }
 }

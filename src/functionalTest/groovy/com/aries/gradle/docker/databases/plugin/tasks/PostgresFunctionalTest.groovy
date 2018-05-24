@@ -39,6 +39,6 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
             BuildResult result = build('workflow')
 
         then:
-            result.output.contains('Pulling repository')
+            result.output.contains('Pulling repository') || result.output.contains(':PostgresPullImage SKIPPED')
     }
 }
