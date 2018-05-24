@@ -12,7 +12,7 @@ package com.aries.gradle.docker.databases.plugin.extensions
 class Oracle extends BaseDatabase {
 
     String repository() {
-        this.repository ?: 'oracle'
+        this.repository ?: 'oracle/database'
     }
 }
 

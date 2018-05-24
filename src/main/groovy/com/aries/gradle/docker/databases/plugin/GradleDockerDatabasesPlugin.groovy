@@ -66,8 +66,33 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             final String dbGroup = "${dbType}-database"
             final def dbExtension = project.extensions.getByName(dbType.toLowerCase())
 
-            project.task("${dbType}PullImage",
-                type: com.bmuschko.gradle.docker.tasks.image.DockerPullImage) {
+            final def listImagesTaskName = "${dbType}ListImages"
+            project.task(listImagesTaskName,
+                type: com.bmuschko.gradle.docker.tasks.image.DockerListImages) {
+
+                group: dbGroup
+                description: 'List database images'
+                imageName = dbExtension.repository()
+
+                // check if the image we need is already available so that we don't
+                // have to pull it further below
+                ext.imageAvailableLocally = false
+                onNext { possibleImage ->
+                    if (ext.imageAvailableLocally == false) {
+                        possibleImage.repoTags.each { rep ->
+                            if (ext.imageAvailableLocally == false && rep.first() == dbExtension.image()) {
+                                ext.imageAvailableLocally = true
+                            }
+                        }
+                    }
+                }
+            }
+
+            final def pullImageTaskName = "${dbType}ListImages"
+            project.task(pullImageTaskName,
+                type: com.bmuschko.gradle.docker.tasks.image.DockerPullImage,
+                dependsOn: [listImagesTaskName]) {
+                onlyIf { project.tasks.getByName(listImagesTaskName).ext.imageAvailableLocally == false }
 
                 group: dbGroup
                 description: 'Pull database image'
@@ -75,19 +100,20 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 tag = dbExtension.tag()
             }
 
-
-            
-            project.task("${dbType}Up") {
+            final def upTaskName = "${dbType}Up"
+            project.task(upTaskName) {
                 group: dbGroup
                 description: 'Start database container stack if not already started'
             }
 
-            project.task("${dbType}Down") {
+            final def downTaskName = "${dbType}Down"
+            project.task(downTaskName) {
                 group: dbGroup
                 description: 'Stop database container stack if not already stopped'
             }
 
-            project.task("${dbType}Remove") {
+            final def removeTaskName = "${dbType}Remove"
+            project.task(removeTaskName) {
                 group: dbGroup
                 description: 'Remove database container stack if not already removed'
             }

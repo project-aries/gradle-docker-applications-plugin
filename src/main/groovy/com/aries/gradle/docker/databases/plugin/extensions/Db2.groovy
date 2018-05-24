@@ -12,7 +12,7 @@ package com.aries.gradle.docker.databases.plugin.extensions
 class Db2 extends BaseDatabase {
 
     String repository() {
-        this.repository ?: 'db2'
+        this.repository ?: 'ibmcom/db2express-c'
     }
 }
 

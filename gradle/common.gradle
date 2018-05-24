@@ -22,7 +22,7 @@ ext.propertyInSystemFormat = { gradlePropertyToFind ->
     def possibleValue = rootProject.findProperty(gradlePropertyToFind)?.trim()
     if (possibleValue) {
         def parts = gradlePropertyToFind.split(project.ext.camelCaseSplitRegex)*.toLowerCase()
-        logger.quiet "Setting kubernetes '${parts.last()}' for functional testing to '${possibleValue}'"
+        logger.quiet "Setting docker-databases '${parts.last()}' for functional testing to '${possibleValue}'"
         propertyMap[parts.join('.')] = possibleValue
     }
     propertyMap
