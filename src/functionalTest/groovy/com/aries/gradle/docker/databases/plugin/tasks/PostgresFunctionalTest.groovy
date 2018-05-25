@@ -30,7 +30,7 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
     def "Can pull a Postgres image"() {
         buildFile << """
 
-            task pullImage(dependsOn: ['PostgresPullImage'])
+            task pullImage(dependsOn: ['PostgresRemoveDataContainer'])
 
             task workflow(dependsOn: pullImage)
         """
@@ -40,7 +40,7 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
 
         then:
             result.output.contains('Pulling repository') || result.output.contains(':PostgresPullImage SKIPPED')
-            result.output.contains("Container with ID") && result.output.contains("is not present")
+            result.output.contains('fish8')
             !result.output.contains(':PostgresListImages SKIPPED')
     }
 }

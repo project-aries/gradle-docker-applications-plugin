@@ -68,9 +68,34 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             final String dbGroup = "${dbType}-database"
             final def dbExtension = project.extensions.getByName(dbType.toLowerCase())
 
+            final def availableDataContainerTaskName = "${dbType}AvailableDataContainer"
+            project.task(availableDataContainerTaskName,
+                type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer) {
+
+                group: dbGroup
+                description: 'Check if data container is available.'
+                containerId = dbExtension.databaseDataId()
+
+                ext.exists = false
+                ext.running = false
+                onNext { possibleContainer ->
+                    ext.exists = true
+                    ext.running = possibleContainer.getState().getRunning() // data container _should_ never be running
+                    logger.quiet "Container with ID '${dbExtension.databaseDataId()}' is available and is ${ext.running == false ? 'not ' : ''}running."
+                }
+                onError { err ->
+                    if (err.class.simpleName != 'NotFoundException') {
+                        throw err
+                    } else {
+                        logger.quiet "Container with ID '${dbExtension.databaseDataId()}' is not available."
+                    }
+                }
+            }
+
             final def availableContainerTaskName = "${dbType}AvailableContainer"
             project.task(availableContainerTaskName,
-                type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer) {
+                type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer,
+                dependsOn: [availableDataContainerTaskName]) {
 
                 group: dbGroup
                 description: 'Check if container is available and possibly running.'
@@ -81,6 +106,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 onNext { possibleContainer ->
                     ext.exists = true
                     ext.running = possibleContainer.getState().getRunning()
+                    logger.quiet "Container with ID '${dbExtension.databaseId()}' is available and is ${ext.running == false ? 'not ' : ''}running."
                 }
                 onError { err ->
                     if (err.class.simpleName != 'NotFoundException') {
@@ -164,13 +190,11 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 tag = dbExtension.tag()
             }
 
-
-            /*
             final def removeContainerTaskName = "${dbType}RemoveContainer"
             project.task(removeContainerTaskName,
                 type: com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer,
                 dependsOn: [pullImageTaskName]) {
-                onlyIf { !project.tasks.getByName('isDatabaseStarted').running() }
+                onlyIf { project.tasks.getByName(availableContainerTaskName).ext.exists == true }
 
                 group: dbGroup
                 description: 'Remove database container'
@@ -178,14 +202,20 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 removeVolumes = true
                 force = true
                 targetContainerId { dbExtension.databaseId() }
-                onError removeContainerClosure
+                onError { err ->
+                    if (err.class.simpleName != 'NotFoundException') {
+                        throw err
+                    } else {
+                        logger.quiet "Container with ID '${dbExtension.databaseId()}' has been removed."
+                    }
+                }
             }
 
             final def removeDataContainerTaskName = "${dbType}RemoveDataContainer"
             project.task(removeDataContainerTaskName,
                 type: com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer,
                 dependsOn: [removeContainerTaskName]) {
-                onlyIf { !project.tasks.getByName('isDatabaseStarted').running() }
+                onlyIf { project.tasks.getByName(availableDataContainerTaskName).ext.exists == true }
 
                 group: dbGroup
                 description: 'Remove database data container'
@@ -193,11 +223,14 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 removeVolumes = true
                 force = true
                 targetContainerId { dbExtension.databaseDataId() }
-                onError removeContainerClosure
+                onError { err ->
+                    if (err.class.simpleName != 'NotFoundException') {
+                        throw err
+                    } else {
+                        logger.quiet "Container with ID '${dbExtension.databaseDataId()}' has been removed."
+                    }
+                }
             }
-            */
-
-
 
             final def upTaskName = "${dbType}Up"
             project.task(upTaskName) {
