@@ -170,7 +170,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                     if (ext.imageAvailableLocally == false) {
                         possibleImage.repoTags.each { rep ->
                             if (ext.imageAvailableLocally == false && rep.first() == dbExtension.image()) {
-                                logger.quiet "Image with ID '${dbExtension.image()}' was found locally. No need to pull."
+                                logger.quiet "Image with ID '${dbExtension.image()}' was found locally: pull not required."
                                 ext.imageAvailableLocally = true
                             }
                         }
