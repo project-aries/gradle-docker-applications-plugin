@@ -91,10 +91,26 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 }
             }
 
+            final def restartContainerTaskName = "${dbType}RestartContainer"
+            project.task(restartContainerTaskName,
+                type: com.bmuschko.gradle.docker.tasks.container.DockerRestartContainer,
+                dependsOn: [inspectContainerTaskName]) {
+                onlyIf { project.tasks.getByName(inspectContainerTaskName).ext.exists == true &&
+                    project.tasks.getByName(inspectContainerTaskName).ext.running == false }
+
+                group: dbGroup
+                description: 'Restart container if it is present and not running.'
+                targetContainerId { dbExtension.databaseId() }
+                timeout = 30000
+                onComplete {
+                    logger.quiet "Container with ID '${dbExtension.databaseId()}' has been restarted."
+                }
+            }
+
             final def listImagesTaskName = "${dbType}ListImages"
             project.task(listImagesTaskName,
                 type: com.bmuschko.gradle.docker.tasks.image.DockerListImages,
-                dependsOn: [inspectContainerTaskName]) {
+                dependsOn: [restartContainerTaskName]) {
                 onlyIf { project.tasks.getByName(inspectContainerTaskName).ext.exists == false }
 
                 group: dbGroup
