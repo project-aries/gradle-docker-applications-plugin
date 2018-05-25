@@ -6,13 +6,19 @@
 
 package com.aries.gradle.docker.databases.plugin.extensions
 
+import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
+
 /**
  *  Postgres specific extension point.
  */
-class Postgres extends BaseDatabase {
+class Postgres extends BaseDatabase implements ExtensionHelpers {
 
     String repository() {
         this.repository ?: 'postgres'
+    }
+
+    String defaultPort() {
+        "5432"
     }
 }
 

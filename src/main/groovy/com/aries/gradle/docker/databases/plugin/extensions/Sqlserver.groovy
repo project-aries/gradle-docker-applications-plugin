@@ -6,13 +6,19 @@
 
 package com.aries.gradle.docker.databases.plugin.extensions
 
+import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
+
 /**
  *  Sqlserver specific extension point.
  */
-class Sqlserver extends BaseDatabase {
+class Sqlserver extends BaseDatabase implements ExtensionHelpers {
 
     String repository() {
         this.repository ?: 'microsoft/mssql-server-linux'
+    }
+
+    String defaultPort() {
+        "1433"
     }
 }
 

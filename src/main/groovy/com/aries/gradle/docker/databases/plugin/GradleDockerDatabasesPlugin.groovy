@@ -62,16 +62,43 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
      */
     private createDatabaseTasks(final Project project) {
         DATABASES.each { dbClass ->
+
+            // commmon variables used by all tasks below
             final String dbType = dbClass.simpleName
             final String dbGroup = "${dbType}-database"
             final def dbExtension = project.extensions.getByName(dbType.toLowerCase())
 
-            final def listImagesTaskName = "${dbType}ListImages"
-            project.task(listImagesTaskName,
-                type: com.bmuschko.gradle.docker.tasks.image.DockerListImages) {
+            final def inspectContainerTaskName = "${dbType}InspectContainer"
+            project.task(inspectContainerTaskName,
+                type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer) {
 
                 group: dbGroup
-                description: 'List database images'
+                description: 'Check if container is present and possibly running'
+                containerId = dbExtension.databaseId()
+
+                ext.exists = false
+                ext.running = false
+                onNext { possibleContainer ->
+                    ext.exists = true
+                    ext.running = possibleContainer.getState().getRunning()
+                }
+                onError { err ->
+                    if (err.class.simpleName != 'NotFoundException') {
+                        throw err
+                    } else {
+                        logger.quiet "Container with ID '${dbExtension.databaseId()}' is not present."
+                    }
+                }
+            }
+
+            final def listImagesTaskName = "${dbType}ListImages"
+            project.task(listImagesTaskName,
+                type: com.bmuschko.gradle.docker.tasks.image.DockerListImages,
+                dependsOn: [inspectContainerTaskName]) {
+                onlyIf { project.tasks.getByName(inspectContainerTaskName).ext.exists == false }
+
+                group: dbGroup
+                description: 'Check if database image exists locally'
                 imageName = dbExtension.repository()
 
                 // check if the image we need is already available so that we don't
@@ -81,7 +108,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                     if (ext.imageAvailableLocally == false) {
                         possibleImage.repoTags.each { rep ->
                             if (ext.imageAvailableLocally == false && rep.first() == dbExtension.image()) {
-                                logger.info 'Image found locally. No need to attempt a pull.'
+                                logger.quiet "Image with ID '${dbExtension.image()}' was found locally. No need to pull."
                                 ext.imageAvailableLocally = true
                             }
                         }

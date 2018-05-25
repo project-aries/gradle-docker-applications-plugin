@@ -6,13 +6,19 @@
 
 package com.aries.gradle.docker.databases.plugin.extensions
 
+import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
+
 /**
  *  Oracle specific extension point.
  */
-class Oracle extends BaseDatabase {
+class Oracle extends BaseDatabase implements ExtensionHelpers {
 
     String repository() {
         this.repository ?: 'oracle/database'
+    }
+
+    String defaultPort() {
+        "1521"
     }
 }
 

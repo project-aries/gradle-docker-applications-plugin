@@ -40,5 +40,7 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
 
         then:
             result.output.contains('Pulling repository') || result.output.contains(':PostgresPullImage SKIPPED')
+            result.output.contains("Container with ID") && result.output.contains("is not present")
+            !result.output.contains(':PostgresListImages SKIPPED')
     }
 }
