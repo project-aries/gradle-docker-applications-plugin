@@ -30,7 +30,7 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
     def "Can pull a Postgres image"() {
         buildFile << """
 
-            task pullImage(dependsOn: ['PostgresCreateContainer'])
+            task pullImage(dependsOn: ['PostgresUp'])
 
             task workflow(dependsOn: pullImage)
         """
