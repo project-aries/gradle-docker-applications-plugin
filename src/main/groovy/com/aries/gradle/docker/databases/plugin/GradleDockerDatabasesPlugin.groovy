@@ -68,217 +68,297 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             final String dbGroup = "${dbType}-database"
             final def dbExtension = project.extensions.getByName(dbType.toLowerCase())
 
-            final def availableDataContainerTaskName = "${dbType}AvailableDataContainer"
-            project.task(availableDataContainerTaskName,
-                type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer) {
+            createTaskChain_Up(project, dbType, dbGroup, dbExtension)
+            createTaskChain_Stop(project, dbType, dbGroup, dbExtension)
+            createTaskChain_Down(project, dbType, dbGroup, dbExtension)
+        }
+    }
 
-                group: dbGroup
-                description: 'Check if data container is available.'
-                containerId = dbExtension.databaseDataId()
+    private createTaskChain_Up(final Project project, final String dbType, final String dbGroup, final def dbExtension) {
 
+        final def availableDataContainerTaskName = "${dbType}AvailableDataContainer"
+        project.task(availableDataContainerTaskName,
+            type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer) {
+
+            group: dbGroup
+            description: 'Check if data container is available.'
+            containerId = dbExtension.databaseDataId()
+
+            ext.exists = true
+            onNext {} // defining so that the output will get piped to nowhere as we don't need it
+            onError { err ->
+                if (err.class.simpleName != 'NotFoundException') {
+                    throw err
+                } else {
+                    ext.exists = false
+                    logger.quiet "Container with ID '${dbExtension.databaseDataId()}' is not available to inspect."
+                }
+            }
+        }
+
+        final def availableContainerTaskName = "${dbType}AvailableContainer"
+        project.task(availableContainerTaskName,
+            type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer,
+            dependsOn: [availableDataContainerTaskName]) {
+
+            group: dbGroup
+            description: 'Check if container is available and possibly running.'
+            containerId = dbExtension.databaseId()
+
+            ext.exists = true
+            ext.running = false
+            onNext { possibleContainer ->
+                ext.running = possibleContainer.getState().getRunning()
+            }
+            onError { err ->
+                if (err.class.simpleName != 'NotFoundException') {
+                    throw err
+                } else {
+                    ext.exists = false
+                    logger.quiet "Container with ID '${dbExtension.databaseId()}' is not available to inspect."
+                }
+            }
+        }
+
+        final def restartContainerTaskName = "${dbType}RestartContainer"
+        project.task(restartContainerTaskName,
+            type: com.bmuschko.gradle.docker.tasks.container.DockerRestartContainer,
+            dependsOn: [availableContainerTaskName]) {
+            onlyIf { project.tasks.getByName(availableContainerTaskName).ext.exists == true &&
+                project.tasks.getByName(availableContainerTaskName).ext.running == false }
+
+            group: dbGroup
+            description: 'Restart container if it is present and not running.'
+            targetContainerId { dbExtension.databaseId() }
+            timeout = 30000
+        }
+
+        final def inspectContainerTaskName = "${dbType}InspectContainer"
+        project.task(inspectContainerTaskName,
+            type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer,
+            dependsOn: [restartContainerTaskName]) {
+            onlyIf { project.tasks.getByName(restartContainerTaskName).state.didWork }
+
+            group: dbGroup
+            description: 'Check if container is available and still running after restart.'
+            containerId = dbExtension.databaseId()
+
+            ext.exists = false
+            ext.running = false
+            onNext { possibleContainer ->
                 ext.exists = true
-                onNext {} // defining so that the output will get piped to nowhere as we don't need it
-                onError { err ->
-                    if (err.class.simpleName != 'NotFoundException') {
-                        throw err
-                    } else {
-                        ext.exists = false
-                        logger.quiet "Container with ID '${dbExtension.databaseDataId()}' is not available."
-                    }
-                }
+                ext.running = possibleContainer.getState().getRunning()
             }
+        }
 
-            final def availableContainerTaskName = "${dbType}AvailableContainer"
-            project.task(availableContainerTaskName,
-                type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer,
-                dependsOn: [availableDataContainerTaskName]) {
+        // if a previous main/data container is present than the assumption is that
+        // the image in question must also be present and so we don't need to check
+        // for the existence of its backing image
+        final def listImagesTaskName = "${dbType}ListImages"
+        project.task(listImagesTaskName,
+            type: com.bmuschko.gradle.docker.tasks.image.DockerListImages,
+            dependsOn: [inspectContainerTaskName]) {
+            onlyIf { project.tasks.getByName(availableDataContainerTaskName).ext.exists == false &&
+                project.tasks.getByName(availableContainerTaskName).ext.exists == false }
 
-                group: dbGroup
-                description: 'Check if container is available and possibly running.'
-                containerId = dbExtension.databaseId()
+            group: dbGroup
+            description: 'Check if database image exists locally'
+            imageName = dbExtension.repository()
 
-                ext.exists = true
-                ext.running = false
-                onNext { possibleContainer ->
-                    ext.running = possibleContainer.getState().getRunning()
-                }
-                onError { err ->
-                    if (err.class.simpleName != 'NotFoundException') {
-                        throw err
-                    } else {
-                        ext.exists = false
-                        logger.quiet "Container with ID '${dbExtension.databaseId()}' is not available."
-                    }
-                }
-            }
-
-            final def restartContainerTaskName = "${dbType}RestartContainer"
-            project.task(restartContainerTaskName,
-                type: com.bmuschko.gradle.docker.tasks.container.DockerRestartContainer,
-                dependsOn: [availableContainerTaskName]) {
-                onlyIf { project.tasks.getByName(availableContainerTaskName).ext.exists == true &&
-                    project.tasks.getByName(availableContainerTaskName).ext.running == false }
-
-                group: dbGroup
-                description: 'Restart container if it is present and not running.'
-                targetContainerId { dbExtension.databaseId() }
-                timeout = 30000
-            }
-
-            final def inspectContainerTaskName = "${dbType}InspectContainer"
-            project.task(inspectContainerTaskName,
-                type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer,
-                dependsOn: [restartContainerTaskName]) {
-                onlyIf { project.tasks.getByName(restartContainerTaskName).state.didWork }
-
-                group: dbGroup
-                description: 'Check if container is available and still running after restart.'
-                containerId = dbExtension.databaseId()
-
-                ext.exists = false
-                ext.running = false
-                onNext { possibleContainer ->
-                    ext.exists = true
-                    ext.running = possibleContainer.getState().getRunning()
-                }
-            }
-
-            // if a previous main/data container is present than the assumption is that
-            // the image in question must also be present and so we don't need to check
-            // for the existence of its backing image
-            final def listImagesTaskName = "${dbType}ListImages"
-            project.task(listImagesTaskName,
-                type: com.bmuschko.gradle.docker.tasks.image.DockerListImages,
-                dependsOn: [inspectContainerTaskName]) {
-                onlyIf { project.tasks.getByName(availableDataContainerTaskName).ext.exists == false &&
-                    project.tasks.getByName(availableContainerTaskName).ext.exists == false }
-
-                group: dbGroup
-                description: 'Check if database image exists locally'
-                imageName = dbExtension.repository()
-
-                // check if the image we need is already available so that we don't
-                // have to pull it further below
-                ext.imageAvailableLocally = false
-                onNext { possibleImage ->
-                    if (ext.imageAvailableLocally == false) {
-                        possibleImage.repoTags.each { rep ->
-                            if (ext.imageAvailableLocally == false && rep.first() == dbExtension.image()) {
-                                logger.quiet "Image with ID '${dbExtension.image()}' was found locally: pull not required."
-                                ext.imageAvailableLocally = true
-                            }
+            // check if the image we need is already available so that we don't
+            // have to pull it further below
+            ext.imageAvailableLocally = false
+            onNext { possibleImage ->
+                if (ext.imageAvailableLocally == false) {
+                    possibleImage.repoTags.each { rep ->
+                        if (ext.imageAvailableLocally == false && rep.first() == dbExtension.image()) {
+                            logger.quiet "Image with ID '${dbExtension.image()}' was found locally: pull not required."
+                            ext.imageAvailableLocally = true
                         }
                     }
                 }
             }
+        }
 
-            final def pullImageTaskName = "${dbType}PullImage"
-            project.task(pullImageTaskName,
-                type: com.bmuschko.gradle.docker.tasks.image.DockerPullImage,
-                dependsOn: [listImagesTaskName]) {
-                onlyIf { (project.tasks.getByName(availableDataContainerTaskName).ext.exists == false &&
-                    project.tasks.getByName(availableContainerTaskName).ext.exists == false) &&
-                    project.tasks.getByName(listImagesTaskName).ext.imageAvailableLocally == false }
+        final def pullImageTaskName = "${dbType}PullImage"
+        project.task(pullImageTaskName,
+            type: com.bmuschko.gradle.docker.tasks.image.DockerPullImage,
+            dependsOn: [listImagesTaskName]) {
+            onlyIf { (project.tasks.getByName(availableDataContainerTaskName).ext.exists == false &&
+                project.tasks.getByName(availableContainerTaskName).ext.exists == false) &&
+                project.tasks.getByName(listImagesTaskName).ext.imageAvailableLocally == false }
 
-                group: dbGroup
-                description: 'Pull database image'
-                repository = dbExtension.repository()
-                tag = dbExtension.tag()
-            }
+            group: dbGroup
+            description: 'Pull database image'
+            repository = dbExtension.repository()
+            tag = dbExtension.tag()
+        }
 
-            final def removeContainerTaskName = "${dbType}RemoveContainer"
-            project.task(removeContainerTaskName,
-                type: com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer,
-                dependsOn: [pullImageTaskName]) {
-                onlyIf { project.tasks.getByName(availableContainerTaskName).ext.exists == true &&
-                    project.tasks.getByName(availableContainerTaskName).ext.running == false &&
-                    project.tasks.getByName(restartContainerTaskName).state.didWork == false }
+        final def removeContainerTaskName = "${dbType}RemoveContainer"
+        project.task(removeContainerTaskName,
+            type: com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer,
+            dependsOn: [pullImageTaskName]) {
+            onlyIf { project.tasks.getByName(availableContainerTaskName).ext.exists == true &&
+                project.tasks.getByName(availableContainerTaskName).ext.running == false &&
+                project.tasks.getByName(restartContainerTaskName).state.didWork == false }
 
-                group: dbGroup
-                description: 'Remove database container'
+            group: dbGroup
+            description: 'Remove database container'
 
-                removeVolumes = true
-                force = true
-                targetContainerId { dbExtension.databaseId() }
+            removeVolumes = true
+            force = true
+            targetContainerId { dbExtension.databaseId() }
 
-                onError { err ->
-                    if (err.class.simpleName != 'NotFoundException') {
-                        throw err
-                    }
+            onError { err ->
+                if (err.class.simpleName != 'NotFoundException') {
+                    throw err
+                } else {
+                    logger.quiet "Container with ID '${dbExtension.databaseId()}' is not available to remove."
                 }
             }
+        }
 
-            final def removeDataContainerTaskName = "${dbType}RemoveDataContainer"
-            project.task(removeDataContainerTaskName,
-                type: com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer,
-                dependsOn: [removeContainerTaskName]) {
-                onlyIf { project.tasks.getByName(availableDataContainerTaskName).ext.exists == true &&
-                    project.tasks.getByName(restartContainerTaskName).state.didWork == false &&
-                    project.tasks.getByName(removeContainerTaskName).state.didWork == true }
+        final def removeDataContainerTaskName = "${dbType}RemoveDataContainer"
+        project.task(removeDataContainerTaskName,
+            type: com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer,
+            dependsOn: [removeContainerTaskName]) {
+            onlyIf { project.tasks.getByName(availableDataContainerTaskName).ext.exists == true &&
+                project.tasks.getByName(restartContainerTaskName).state.didWork == false &&
+                project.tasks.getByName(removeContainerTaskName).state.didWork == true }
 
-                group: dbGroup
-                description: 'Remove database data container'
+            group: dbGroup
+            description: 'Remove database data container'
 
-                removeVolumes = true
-                force = true
-                targetContainerId { dbExtension.databaseDataId() }
+            removeVolumes = true
+            force = true
+            targetContainerId { dbExtension.databaseDataId() }
 
-                onError { err ->
-                    if (err.class.simpleName != 'NotFoundException') {
-                        throw err
-                    }
+            onError { err ->
+                if (err.class.simpleName != 'NotFoundException') {
+                    throw err
+                } else {
+                    logger.quiet "Container with ID '${dbExtension.databaseDataId()}' is not available to remove."
                 }
             }
+        }
 
-            final def createDataContainerTaskName = "${dbType}CreateDataContainer"
-            project.task(createDataContainerTaskName,
-                type: com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer,
-                dependsOn: [removeDataContainerTaskName]) {
-                onlyIf { project.tasks.getByName(availableDataContainerTaskName).ext.exists == false }
+        final def createDataContainerTaskName = "${dbType}CreateDataContainer"
+        project.task(createDataContainerTaskName,
+            type: com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer,
+            dependsOn: [removeDataContainerTaskName]) {
+            onlyIf { project.tasks.getByName(availableDataContainerTaskName).ext.exists == false }
 
-                targetImageId { dbExtension.image() }
-                containerName = dbExtension.databaseDataId()
-                volumes = ["/var/lib/postgresql/data"]
+            targetImageId { dbExtension.image() }
+            containerName = dbExtension.databaseDataId()
+            volumes = ["/var/lib/postgresql/data"]
+        }
+
+        final def createContainerTaskName = "${dbType}CreateContainer"
+        project.task(createContainerTaskName,
+            type: com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer,
+            dependsOn: [createDataContainerTaskName]) {
+            onlyIf { project.tasks.getByName(availableContainerTaskName).ext.exists == false }
+
+            targetImageId { dbExtension.image() }
+            containerName = dbExtension.databaseId()
+            volumesFrom = [dbExtension.databaseDataId()]
+        }
+
+        final def startContainerTaskName = "${dbType}StartContainer"
+        project.task(startContainerTaskName,
+            type: com.bmuschko.gradle.docker.tasks.container.DockerStartContainer,
+            dependsOn: [createContainerTaskName]) {
+            onlyIf { project.tasks.getByName(createContainerTaskName).state.didWork }
+
+            targetContainerId { dbExtension.databaseId() }
+        }
+
+        final def upTaskName = "${dbType}Up"
+        project.task(upTaskName,
+            dependsOn: [startContainerTaskName]) {
+            group: dbGroup
+            description: 'Start database container stack if not already started.'
+        }
+    }
+
+    private createTaskChain_Stop(final Project project, final String dbType, final String dbGroup, final def dbExtension) {
+
+        final def stopContainerTaskName = "${dbType}StopContainer"
+        project.task(stopContainerTaskName,
+            type: com.bmuschko.gradle.docker.tasks.container.DockerStopContainer) {
+
+            group: dbGroup
+            description: 'Stop database container.'
+
+            timeout = 30000
+            targetContainerId { dbExtension.databaseId() }
+
+            onError { err ->
+                if (err.class.simpleName != 'NotFoundException') {
+                    throw err
+                } else {
+                    logger.quiet "Container with ID '${dbExtension.databaseId()}' is not available to stop."
+                }
             }
+        }
 
-            final def createContainerTaskName = "${dbType}CreateContainer"
-            project.task(createContainerTaskName,
-                type: com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer,
-                dependsOn: [createDataContainerTaskName]) {
-                onlyIf { project.tasks.getByName(availableContainerTaskName).ext.exists == false }
+        final def stopTaskName = "${dbType}Stop"
+        project.task(stopTaskName,
+            dependsOn: [stopContainerTaskName]) {
+            group: dbGroup
+            description: 'Stop database container stack if not already stopped.'
+        }
+    }
 
-                targetImageId { dbExtension.image() }
-                containerName = dbExtension.databaseId()
-                volumesFrom = [dbExtension.databaseDataId()]
+    private createTaskChain_Down(final Project project, final String dbType, final String dbGroup, final def dbExtension) {
+
+        final def deleteContainerTaskName = "${dbType}DeleteContainer"
+        project.task(deleteContainerTaskName,
+            type: com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer) {
+
+            group: dbGroup
+            description: 'Delete database container.'
+
+            removeVolumes = true
+            force = true
+            targetContainerId { dbExtension.databaseId() }
+
+            onError { err ->
+                if (err.class.simpleName != 'NotFoundException') {
+                    throw err
+                } else {
+                    logger.quiet "Container with ID '${dbExtension.databaseId()}' is not available to delete."
+                }
             }
+        }
 
-            final def startContainerTaskName = "${dbType}StartContainer"
-            project.task(startContainerTaskName,
-                type: com.bmuschko.gradle.docker.tasks.container.DockerStartContainer,
-                dependsOn: [createContainerTaskName]) {
-                onlyIf { project.tasks.getByName(createContainerTaskName).state.didWork }
+        final def deleteDataContainerTaskName = "${dbType}DeleteDataContainer"
+        project.task(deleteDataContainerTaskName,
+            type: com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer,
+            dependsOn: [deleteContainerTaskName]) {
 
-                targetContainerId { dbExtension.databaseId() }
+            group: dbGroup
+            description: 'Delete database data container.'
+
+            removeVolumes = true
+            force = true
+            targetContainerId { dbExtension.databaseDataId() }
+
+            onError { err ->
+                if (err.class.simpleName != 'NotFoundException') {
+                    throw err
+                } else {
+                    logger.quiet "Container with ID '${dbExtension.databaseDataId()}' is not available to delete."
+                }
             }
+        }
 
-            final def upTaskName = "${dbType}Up"
-            project.task(upTaskName,
-                dependsOn: [startContainerTaskName]) {
-                group: dbGroup
-                description: 'Start database container stack if not already started.'
-            }
+        final def downTaskName = "${dbType}Down"
+        project.task(downTaskName,
+            dependsOn: [deleteDataContainerTaskName]) {
 
-            final def stopTaskName = "${dbType}Stop"
-            project.task(stopTaskName) {
-                group: dbGroup
-                description: 'Stop database container stack if not already stopped.'
-            }
-
-            final def downTaskName = "${dbType}Down"
-            project.task(downTaskName) {
-                group: dbGroup
-                description: 'Remove database container stack if not already removed.'
-            }
+            group: dbGroup
+            description: 'Delete database container stack if not already deleted.'
         }
     }
 }
