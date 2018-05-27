@@ -27,16 +27,28 @@ import spock.lang.Requires
  */
 class PostgresFunctionalTest extends AbstractFunctionalTest {
 
-    def "Can pull a Postgres image"() {
+    def "Can standup, stop and then shutdown postgres stack"() {
+
+        def String uuid = randomString()
         buildFile << """
 
-            task pullImage(dependsOn: ['PostgresDown'])
+            databases {
+                id = "${uuid}"
+            }
 
-            task workflow(dependsOn: pullImage)
+            postgres {
+                id = "${uuid}"
+            }
+            
+            task up(dependsOn: ['PostgresUp'])
+            
+            task stop(dependsOn: ['PostgresStop'])
+
+            task down(dependsOn: ['PostgresDown'])
         """
 
         when:
-            BuildResult result = build('workflow')
+            BuildResult result = build('up', 'stop', 'down')
 
         then:
             result.output.contains('Pulling repository') || result.output.contains(':PostgresPullImage SKIPPED')

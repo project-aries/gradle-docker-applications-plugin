@@ -82,7 +82,8 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
             group: dbGroup
             description: 'Check if data container is available.'
-            containerId = dbExtension.databaseDataId()
+
+            targetContainerId { dbExtension.databaseDataId() }
 
             ext.exists = true
             onNext {} // defining so that the output will get piped to nowhere as we don't need it
@@ -103,7 +104,8 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
             group: dbGroup
             description: 'Check if container is available and possibly running.'
-            containerId = dbExtension.databaseId()
+            
+            targetContainerId { dbExtension.databaseDataId() }
 
             ext.exists = true
             ext.running = false

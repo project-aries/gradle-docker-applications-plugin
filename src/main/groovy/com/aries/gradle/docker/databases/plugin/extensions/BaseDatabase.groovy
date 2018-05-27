@@ -58,12 +58,12 @@ public abstract class BaseDatabase {
         "${repository()}:${tag()}"
     }
 
-    // helper method to set the `DockerCreateDatabase` closure
+    // helper method to configure the `DockerCreateDatabase` closure
     void createDatabase(Closure closure) {
         this.createDatabase = closure
     }
 
-    // helper method to set the `DockerStartDatabase` closure
+    // helper method to configure the `DockerStartDatabase` closure
     void startDatabase(Closure closure) {
         this.startDatabase = closure
     }
