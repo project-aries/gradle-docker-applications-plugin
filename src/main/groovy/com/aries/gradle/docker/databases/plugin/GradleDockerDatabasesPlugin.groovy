@@ -104,7 +104,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
             group: dbGroup
             description: 'Check if container is available and possibly running.'
-            
+
             targetContainerId { dbExtension.databaseDataId() }
 
             ext.exists = true
@@ -131,6 +131,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
             group: dbGroup
             description: 'Restart container if it is present and not running.'
+
             targetContainerId { dbExtension.databaseId() }
             timeout = 30000
         }
@@ -143,7 +144,8 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
             group: dbGroup
             description: 'Check if container is available and still running after restart.'
-            containerId = dbExtension.databaseId()
+
+            targetContainerId { dbExtension.databaseDataId() }
 
             ext.exists = false
             ext.running = false
@@ -165,6 +167,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
             group: dbGroup
             description: 'Check if database image exists locally'
+
             imageName = dbExtension.repository()
 
             // check if the image we need is already available so that we don't
@@ -192,6 +195,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
             group: dbGroup
             description: 'Pull database image'
+            
             repository = dbExtension.repository()
             tag = dbExtension.tag()
         }
