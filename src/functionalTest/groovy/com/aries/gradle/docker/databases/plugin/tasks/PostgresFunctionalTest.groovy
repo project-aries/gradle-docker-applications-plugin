@@ -16,9 +16,11 @@
 
 package com.aries.gradle.docker.databases.plugin.tasks
 
+import static java.util.concurrent.TimeUnit.SECONDS
+
 import com.aries.gradle.docker.databases.plugin.AbstractFunctionalTest
 import org.gradle.testkit.runner.BuildResult
-import spock.lang.Requires
+import spock.lang.Timeout
 
 /**
  *
@@ -27,17 +29,18 @@ import spock.lang.Requires
  */
 class PostgresFunctionalTest extends AbstractFunctionalTest {
 
+    @Timeout(value = 60, unit = SECONDS)
     def "Can standup, stop and then shutdown postgres stack"() {
 
         def String uuid = randomString()
         buildFile << """
 
             databases {
-                id = "${uuid}"
+                id = "bears"
             }
 
             postgres {
-                id = "${uuid}"
+                id = "bears"
             }
             
             task up(dependsOn: ['PostgresUp'])
@@ -48,7 +51,7 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
         """
 
         when:
-            BuildResult result = build('up', 'stop', 'down')
+            BuildResult result = build('up', 'down')
 
         then:
             result.output.contains('Pulling repository') || result.output.contains(':PostgresPullImage SKIPPED')

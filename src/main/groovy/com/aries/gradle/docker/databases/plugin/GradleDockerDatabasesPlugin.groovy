@@ -68,9 +68,11 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             final String dbGroup = "${dbType}-database"
             final def dbExtension = project.extensions.getByName(dbType.toLowerCase())
 
-            createTaskChain_Up(project, dbType, dbGroup, dbExtension)
-            createTaskChain_Stop(project, dbType, dbGroup, dbExtension)
-            createTaskChain_Down(project, dbType, dbGroup, dbExtension)
+            project.afterEvaluate {
+                createTaskChain_Up(project, dbType, dbGroup, dbExtension)
+                createTaskChain_Stop(project, dbType, dbGroup, dbExtension)
+                createTaskChain_Down(project, dbType, dbGroup, dbExtension)
+            }
         }
     }
 
@@ -105,7 +107,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             group: dbGroup
             description: 'Check if container is available and possibly running.'
 
-            targetContainerId { dbExtension.databaseDataId() }
+            targetContainerId { dbExtension.databaseId() }
 
             ext.exists = true
             ext.running = false
@@ -145,7 +147,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             group: dbGroup
             description: 'Check if container is available and still running after restart.'
 
-            targetContainerId { dbExtension.databaseDataId() }
+            targetContainerId { dbExtension.databaseId() }
 
             ext.exists = false
             ext.running = false
@@ -195,7 +197,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
             group: dbGroup
             description: 'Pull database image'
-            
+
             repository = dbExtension.repository()
             tag = dbExtension.tag()
         }
