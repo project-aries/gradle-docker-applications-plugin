@@ -20,5 +20,9 @@ class Sqlserver extends BaseDatabase implements ExtensionHelpers {
     String defaultPort() {
         "1433"
     }
+
+    String liveOnLog() {
+        this.liveOnLog ?: 'database system is ready to accept connections'
+    }
 }
 

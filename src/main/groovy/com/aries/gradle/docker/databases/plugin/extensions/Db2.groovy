@@ -20,5 +20,9 @@ class Db2 extends BaseDatabase implements ExtensionHelpers {
     String defaultPort() {
         "50000"
     }
+
+    String liveOnLog() {
+        this.liveOnLog ?: 'database system is ready to accept connections'
+    }
 }
 

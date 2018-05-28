@@ -29,6 +29,9 @@ public abstract class BaseDatabase {
     String port // what port to expose database on. if set to an empty string a random port will be picked.
 
     @Optional
+    String liveOnLog // the log line within the container we will use to confirm it is "live"
+
+    @Optional
     Closure createDatabase // closure to further configure the `DockerCreateDatabase` task.
 
     @Optional
@@ -37,6 +40,8 @@ public abstract class BaseDatabase {
     abstract String repository()
 
     abstract String defaultPort()
+
+    abstract String liveOnLog()
 
     String id() {
         this.id ?: System.getProperty("user.name")

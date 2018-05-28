@@ -20,5 +20,9 @@ class Postgres extends BaseDatabase implements ExtensionHelpers {
     String defaultPort() {
         "5432"
     }
+
+    String liveOnLog() {
+        this.liveOnLog ?: 'database system is ready to accept connections'
+    }
 }
 

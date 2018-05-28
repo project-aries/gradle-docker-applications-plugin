@@ -20,5 +20,9 @@ class Oracle extends BaseDatabase implements ExtensionHelpers {
     String defaultPort() {
         "1521"
     }
+
+    String liveOnLog() {
+        this.liveOnLog ?: 'database system is ready to accept connections'
+    }
 }
 

@@ -20,5 +20,9 @@ class Databases extends BaseDatabase implements ExtensionHelpers {
     String defaultPort() {
         null
     }
+
+    String liveOnLog() {
+        this.liveOnLog
+    }
 }
 
