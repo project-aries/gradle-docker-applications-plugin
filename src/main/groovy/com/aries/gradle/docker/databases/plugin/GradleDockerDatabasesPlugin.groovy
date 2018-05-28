@@ -68,6 +68,8 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             final String dbGroup = "${dbType}-database"
             final def dbExtension = project.extensions.getByName(dbType.toLowerCase())
 
+            // create tasks after evaluation so that we can pick up any changes
+            // made to our various extension points.
             project.afterEvaluate {
                 createTaskChain_Up(project, dbType, dbGroup, dbExtension)
                 createTaskChain_Stop(project, dbType, dbGroup, dbExtension)

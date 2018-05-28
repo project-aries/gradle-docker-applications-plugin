@@ -43,7 +43,11 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
                 id = "bears"
             }
             
-            task up(dependsOn: ['PostgresUp'])
+            task up(dependsOn: ['PostgresUp']) {
+                doLast {
+                    sleep 10000 // hack put in place until we can get a proper 'live check' in place.
+                }
+            }
             
             task stop(dependsOn: ['PostgresStop'])
 
@@ -51,7 +55,7 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
         """
 
         when:
-            BuildResult result = build('up', 'down')
+            BuildResult result = build('up', 'stop', 'down')
 
         then:
             result.output.contains('Pulling repository') || result.output.contains(':PostgresPullImage SKIPPED')
