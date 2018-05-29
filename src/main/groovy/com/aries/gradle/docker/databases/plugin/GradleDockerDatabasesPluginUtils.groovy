@@ -18,6 +18,10 @@ package com.aries.gradle.docker.databases.plugin
 
 import org.gradle.api.Project
 import org.gradle.internal.logging.progress.ProgressLoggerFactory
+import org.gradle.internal.logging.progress.ProgressLogger
+import org.gradle.internal.service.ServiceRegistry
+
+import javax.annotation.Nullable
 
 /**
  *
@@ -27,18 +31,27 @@ import org.gradle.internal.logging.progress.ProgressLoggerFactory
 class GradleDockerDatabasesPluginUtils {
 
     /**
-     * Random String prepended with, by default, the token `gddp-`
-     * which is shorthand for `gradle-docker-databases-plugin`.
+     * Get a random string prepended with some identifer.
+     *
+     * @param prependWith optional string to prepend to generated random string. Defaults to `gddp-` if null or not specified.
+     * @return
      */
     static String randomString(def prependWith = 'gddp-') {
         prependWith + UUID.randomUUID().toString().replaceAll("-", "")
     }
 
-    static def createProgressLogger(final Project project, final Class clazz){
-        def serviceFactory = project.gradle.getServices()
-        def progressLoggerFactory = serviceFactory.get(ProgressLoggerFactory)
-        def progressLogger = progressLoggerFactory.newOperation(clazz)
-        progressLogger.setDescription("Progress logger for ${clazz.getSimpleName()}")
+    /**
+     * Create a progress logger for an arbitrary project and class.
+     *
+     * @param project the project to create a ProgressLogger for.
+     * @param clazz optional class to pair the ProgressLogger to. Defaults to _this_ class if null.
+     * @return instance of ProgressLogger.
+     */
+    static ProgressLogger createProgressLogger(final Project project, final Class clazz = GradleDockerDatabasesPluginUtils){
+        final ServiceRegistry serviceFactory = project.gradle.getServices()
+        final ProgressLoggerFactory progressLoggerFactory = serviceFactory.get(ProgressLoggerFactory)
+        final ProgressLogger progressLogger = progressLoggerFactory.newOperation(Objects.requireNonNull(clazz))
+        progressLogger.setDescription("ProgressLogger for ${clazz.getSimpleName()}")
         progressLogger.setLoggingHeader(null)
     }
 

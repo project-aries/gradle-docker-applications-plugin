@@ -32,12 +32,8 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
     @Timeout(value = 5, unit = MINUTES)
     def "Can standup, stop and then shutdown postgres stack"() {
 
-        def String uuid = randomString()
+        String uuid = randomString()
         buildFile << """
-
-            databases {
-                id = "bears"
-            }
 
             postgres {
                 id = "bears"

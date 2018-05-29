@@ -82,6 +82,7 @@ abstract class AbstractFunctionalTest extends Specification {
         if (arguments) {
             args.addAll(arguments)
         }
+
         GradleRunner.create().withProjectDir(projectDir).withArguments(args).withPluginClasspath()
     }
 

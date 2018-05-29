@@ -1,12 +1,28 @@
-package com.aries.gradle.docker.databases.plugin.tasks
+/*
+ * Copyright 2014 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import com.bmuschko.gradle.docker.tasks.container.DockerLogsContainer
+package com.aries.gradle.docker.databases.plugin.tasks
 
 import static com.aries.gradle.docker.databases.plugin.GradleDockerDatabasesPluginUtils.createProgressLogger
 
-import org.gradle.internal.logging.progress.ProgressLoggerFactory
+import com.bmuschko.gradle.docker.tasks.container.DockerLogsContainer
+
+import com.aries.gradle.docker.databases.plugin.domain.Probe
+
 import org.gradle.api.GradleException
-import org.gradle.api.Project
 import org.gradle.api.tasks.Input
 
 /**
@@ -25,36 +41,41 @@ class DockerLivenessProbeContainer extends DockerLogsContainer {
         final def progressLogger = createProgressLogger(project, DockerLivenessProbeContainer)
         progressLogger.started()
 
-        StringWriter writer = new StringWriter()
         boolean matchFound = false
         long localPollTime = probe.pollTime
         int pollTimes = 0
 
-        while (localPollTime > 0) {
+        // 1.) Write the content of the logs into a StringWriter which we zero-out
+        //     below after each successive log grab.
+        setSink(new StringWriter())
 
-            // 1.) check if container is actually running
+        while (localPollTime > 0) {
+            pollTimes = pollTimes + 1
+
+            // 2.) check if container is actually running
             def container = dockerClient.inspectContainerCmd(getContainerId()).exec()
             if (container.getState().getRunning() == false) {
                 throw new GradleException("Container with ID '${getContainerId()}' is not running and so can't perform liveness probe.");
             }
 
-            // 2.) check if next log line has the message we're interested in
-            pollTimes = pollTimes + 1
-            this.sink = writer
+            // 3.) execute our "special" version of `runRemoteCommand` to
+            //     check if next log line has the message we're interested in
+            //     which in turn will have its output written into the sink.
             specialRunRemoteCommand(dockerClient)
-            String logLine = writer.toString()
-            println "====================> FOUND LOG: ${logLine}"
-            if (logLine && logLine.contains(probe.message)) {
+
+            // 4.) check if log contains expected message otherwise sleep
+            String logLine = getSink().toString()
+            if (logLine && logLine.contains(probe.logContains)) {
                 matchFound = true
                 break
             } else {
-                progressLogger.progress(sprintf('waiting for %010dms', pollTimes *probe.pollInterval ))
+                progressLogger.progress(sprintf('probing for %010dms', pollTimes *probe.pollInterval ))
                 try {
 
                     // zero'ing out the below so as to save on memory for potentially
                     // big logs returned from container.
                     logLine = null
-                    writer.getBuffer().setLength(0)
+                    getSink().getBuffer().setLength(0)
 
                     localPollTime = localPollTime - probe.pollInterval
                     sleep(probe.pollInterval)
@@ -70,48 +91,23 @@ class DockerLivenessProbeContainer extends DockerLogsContainer {
         }
     }
 
+    /**
+     * Define the probe options for this liveness check.
+     *
+     * @param pollTime how long we will poll for
+     * @param pollInterval interval between poll requests
+     * @param logContains content within container log we will search for
+     * @return instance of Probe
+     */
+    def probe(final long pollTime, final long pollInterval, final String logContains) {
+        this.probe = new Probe(pollTime, pollInterval, logContains)
+    }
+
     // overridden version of `DockerLogsContainer` method `runRemoteCommand` to get the
     // same functionality but without the `logger.quiet` call that gets run every time.
     private specialRunRemoteCommand(dockerClient) {
         def logCommand = dockerClient.logContainerCmd(getContainerId())
         super.setContainerCommandConfig(logCommand)
         logCommand.exec(super.createCallback())?.awaitCompletion()
-    }
-
-
-    void probe(final long pollTime, final long pollInterval, final String message) {
-        this.probe = new Probe(pollTime, pollInterval, message)
-    }
-
-    static class Probe {
-
-        @Input
-        long pollTime // how long we poll until match is found
-
-        @Input
-        long pollInterval // how long we wait until next poll
-
-        @Input
-        String message // halt polling on logs containing this String
-
-        Probe(long pollTime, long pollInterval, String message) {
-            if (pollInterval > pollTime) {
-                throw new GradleException("pollInterval must be greater than pollTime: pollInterval=${pollInterval}, pollTime=${pollTime}")
-            }
-
-            String localMessage = message.trim()
-            if (localMessage) {
-                this.pollTime = pollTime
-                this.pollInterval = pollInterval
-                this.message = localMessage
-            } else {
-                throw new GradleException("message must be a valid non-empty String")
-            }
-        }
-
-        @Override
-        String toString() {
-            "pollTime=${pollTime}, pollInterval=${pollInterval}, message='${message}'"
-        }
     }
 }

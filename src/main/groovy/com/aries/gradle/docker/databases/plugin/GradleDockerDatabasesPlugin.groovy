@@ -17,6 +17,7 @@
 package com.aries.gradle.docker.databases.plugin
 
 import com.aries.gradle.docker.databases.plugin.tasks.DockerLivenessProbeContainer
+
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import com.aries.gradle.docker.databases.plugin.extensions.Databases
@@ -76,6 +77,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
         }
     }
 
+    // create required tasks for invoking the "up" chain.
     private createTaskChain_Up(final Project project, final String dbType, final String dbGroup, final def dbExtension) {
 
         final def availableDataContainerTaskName = "${dbType}AvailableDataContainer"
@@ -320,6 +322,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
         }
     }
 
+    // create required tasks for invoking the "stop" chain.
     private createTaskChain_Stop(final Project project, final String dbType, final String dbGroup, final def dbExtension) {
 
         final def stopContainerTaskName = "${dbType}StopContainer"
@@ -349,6 +352,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
         }
     }
 
+    // create required tasks for invoking the "down" chain.
     private createTaskChain_Down(final Project project, final String dbType, final String dbGroup, final def dbExtension) {
 
         final def deleteContainerTaskName = "${dbType}DeleteContainer"
