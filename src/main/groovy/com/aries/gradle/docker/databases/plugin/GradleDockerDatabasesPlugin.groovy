@@ -33,6 +33,8 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
     public static final List<Class> DATABASES = [Db2, Oracle, Postgres, Sqlserver].asImmutable()
 
+    public static final String NOT_PRESENT_REGEX = '^(NotModifiedException|NotFoundException)$'
+
     @Override
     void apply(final Project project) {
 
@@ -92,7 +94,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             ext.exists = true
             onNext {} // defining so that the output will get piped to nowhere as we don't need it
             onError { err ->
-                if (err.class.simpleName != 'NotFoundException') {
+                if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
                     ext.exists = false
@@ -117,7 +119,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 ext.running = possibleContainer.getState().getRunning()
             }
             onError { err ->
-                if (err.class.simpleName != 'NotFoundException') {
+                if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
                     ext.exists = false
@@ -220,7 +222,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             targetContainerId { dbExtension.databaseId() }
 
             onError { err ->
-                if (err.class.simpleName != 'NotFoundException') {
+                if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
                     logger.quiet "Container with ID '${dbExtension.databaseId()}' is not available to remove."
@@ -244,7 +246,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             targetContainerId { dbExtension.databaseDataId() }
 
             onError { err ->
-                if (err.class.simpleName != 'NotFoundException') {
+                if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
                     logger.quiet "Container with ID '${dbExtension.databaseDataId()}' is not available to remove."
@@ -336,7 +338,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             targetContainerId { dbExtension.databaseId() }
 
             onError { err ->
-                if (err.class.simpleName != 'NotFoundException') {
+                if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
                     logger.quiet "Container with ID '${dbExtension.databaseId()}' is not available to stop."
@@ -367,7 +369,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             targetContainerId { dbExtension.databaseId() }
 
             onError { err ->
-                if (err.class.simpleName != 'NotFoundException') {
+                if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
                     logger.quiet "Container with ID '${dbExtension.databaseId()}' is not available to delete."
@@ -388,7 +390,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             targetContainerId { dbExtension.databaseDataId() }
 
             onError { err ->
-                if (err.class.simpleName != 'NotFoundException') {
+                if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
                     logger.quiet "Container with ID '${dbExtension.databaseDataId()}' is not available to delete."
