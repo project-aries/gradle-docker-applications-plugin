@@ -16,11 +16,9 @@
 
 package com.aries.gradle.docker.databases.plugin
 
+import com.aries.gradle.docker.databases.plugin.tasks.DockerLivenessProbeContainer
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.artifacts.Configuration
-import org.gradle.api.file.FileCollection
-
 import com.aries.gradle.docker.databases.plugin.extensions.Databases
 import com.aries.gradle.docker.databases.plugin.extensions.Db2
 import com.aries.gradle.docker.databases.plugin.extensions.Oracle
@@ -170,7 +168,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 project.tasks.getByName(availableContainerTaskName).ext.exists == false }
 
             group: dbGroup
-            description: 'Check if database image exists locally'
+            description: 'Check if database image exists locally.'
 
             imageName = dbExtension.repository()
 
@@ -198,7 +196,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 project.tasks.getByName(listImagesTaskName).ext.imageAvailableLocally == false }
 
             group: dbGroup
-            description: 'Pull database image'
+            description: 'Pull database image.'
 
             repository = dbExtension.repository()
             tag = dbExtension.tag()
@@ -213,7 +211,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 project.tasks.getByName(restartContainerTaskName).state.didWork == false }
 
             group: dbGroup
-            description: 'Remove database container'
+            description: 'Remove database container.'
 
             removeVolumes = true
             force = true
@@ -237,7 +235,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 project.tasks.getByName(removeContainerTaskName).state.didWork == true }
 
             group: dbGroup
-            description: 'Remove database data container'
+            description: 'Remove database data container.'
 
             removeVolumes = true
             force = true
@@ -258,6 +256,9 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             dependsOn: [removeDataContainerTaskName]) {
             onlyIf { project.tasks.getByName(availableDataContainerTaskName).ext.exists == false }
 
+            group: dbGroup
+            description: 'Create database data container.'
+
             targetImageId { dbExtension.image() }
             containerName = dbExtension.databaseDataId()
             volumes = ["/var/lib/postgresql/data"]
@@ -268,6 +269,9 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             type: com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer,
             dependsOn: [createDataContainerTaskName]) {
             onlyIf { project.tasks.getByName(availableContainerTaskName).ext.exists == false }
+
+            group: dbGroup
+            description: 'Create database container.'
 
             targetImageId { dbExtension.image() }
             containerName = dbExtension.databaseId()
@@ -280,12 +284,37 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             dependsOn: [createContainerTaskName]) {
             onlyIf { project.tasks.getByName(createContainerTaskName).state.didWork }
 
+            group: dbGroup
+            description: 'Start database container.'
+
+            doFirst {
+                ext.startTime = new Date()
+            }
             targetContainerId { dbExtension.databaseId() }
+        }
+
+        final def livenessProbeContainerTaskName = "${dbType}LivenessProbeContainer"
+        project.task(livenessProbeContainerTaskName,
+            type: DockerLivenessProbeContainer,
+            dependsOn: [startContainerTaskName]) {
+            onlyIf { project.tasks.getByName(startContainerTaskName).state.didWork }
+
+            group: dbGroup
+            description: 'Check if database container is live.'
+
+            targetContainerId { dbExtension.databaseId() }
+
+            doFirst {
+                since = project.tasks.getByName(startContainerTaskName).ext.startTime
+            }
+            tailCount = 10
+            showTimestamps = true
+            probe(300000, 30000, dbExtension.liveOnLog())
         }
 
         final def upTaskName = "${dbType}Up"
         project.task(upTaskName,
-            dependsOn: [startContainerTaskName]) {
+            dependsOn: [livenessProbeContainerTaskName]) {
             group: dbGroup
             description: 'Start database container stack if not already started.'
         }

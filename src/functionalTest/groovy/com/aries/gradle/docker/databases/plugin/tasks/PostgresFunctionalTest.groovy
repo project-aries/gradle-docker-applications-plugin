@@ -16,7 +16,7 @@
 
 package com.aries.gradle.docker.databases.plugin.tasks
 
-import static java.util.concurrent.TimeUnit.SECONDS
+import static java.util.concurrent.TimeUnit.MINUTES
 
 import com.aries.gradle.docker.databases.plugin.AbstractFunctionalTest
 import org.gradle.testkit.runner.BuildResult
@@ -29,7 +29,7 @@ import spock.lang.Timeout
  */
 class PostgresFunctionalTest extends AbstractFunctionalTest {
 
-    @Timeout(value = 60, unit = SECONDS)
+    @Timeout(value = 5, unit = MINUTES)
     def "Can standup, stop and then shutdown postgres stack"() {
 
         def String uuid = randomString()
@@ -43,11 +43,7 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
                 id = "bears"
             }
             
-            task up(dependsOn: ['PostgresUp']) {
-                doLast {
-                    sleep 10000 // hack put in place until we can get a proper 'live check' in place.
-                }
-            }
+            task up(dependsOn: ['PostgresUp'])
             
             task stop(dependsOn: ['PostgresStop'])
 

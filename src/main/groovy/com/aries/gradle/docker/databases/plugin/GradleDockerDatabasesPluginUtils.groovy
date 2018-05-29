@@ -16,10 +16,13 @@
 
 package com.aries.gradle.docker.databases.plugin
 
+import org.gradle.api.Project
+import org.gradle.internal.logging.progress.ProgressLoggerFactory
+
 /**
- * 
+ *
  * Place to house project wide static methods.
- * 
+ *
  */
 class GradleDockerDatabasesPluginUtils {
 
@@ -29,6 +32,14 @@ class GradleDockerDatabasesPluginUtils {
      */
     static String randomString(def prependWith = 'gddp-') {
         prependWith + UUID.randomUUID().toString().replaceAll("-", "")
+    }
+
+    static def createProgressLogger(final Project project, final Class clazz){
+        def serviceFactory = project.gradle.getServices()
+        def progressLoggerFactory = serviceFactory.get(ProgressLoggerFactory)
+        def progressLogger = progressLoggerFactory.newOperation(clazz)
+        progressLogger.setDescription("Progress logger for ${clazz.getSimpleName()}")
+        progressLogger.setLoggingHeader(null)
     }
 
     private GradleDockerDatabasesPluginUtils() {
