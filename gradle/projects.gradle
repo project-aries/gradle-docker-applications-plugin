@@ -12,8 +12,8 @@ allprojects {
         jcenter()
         maven {
             url "https://plugins.gradle.org/m2/"
-        }        
-        maven { 
+        }
+        maven {
             url artifactoryURL
             credentials {
                 username = artifactoryUser
@@ -24,14 +24,14 @@ allprojects {
 
     dependencies {
         compile localGroovy(), gradleApi()
-        compile group: 'com.bmuschko', name: 'gradle-docker-plugin', version: '3.2.8'
+        compile group: 'com.bmuschko', name: 'gradle-docker-plugin', version: '3.3.0'
 
         testCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
             exclude group: 'org.codehaus.groovy'
         }
 
-        testCompile "junit:junit:4.12" 
-        testCompile ('org.assertj:assertj-core:3.8.0') 
+        testCompile "junit:junit:4.12"
+        testCompile ('org.assertj:assertj-core:3.8.0')
     }
 
     tasks.withType(GroovyCompile) {
@@ -39,7 +39,7 @@ allprojects {
         sourceCompatibility = '1.8'
         targetCompatibility = '1.8'
     }
-    
+
     tasks.withType (Test) {
         maxParallelForks = 2
         testLogging {
@@ -52,13 +52,13 @@ allprojects {
             classDumpDir = file("$buildDir/jacoco/${name}_ClassDump")
         }
     }
-    
+
     test {
         description 'Used for running unit tests.'
         exclude '**/**MockTest.class'
         exclude '**/**IntegTest.class'
     }
-    
+
     task mockTest(type: Test) {
         description 'Used for running mock tests.'
         include '**/**MockTest.class'
