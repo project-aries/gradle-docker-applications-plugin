@@ -24,7 +24,7 @@ import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
 class Oracle extends BaseDatabase implements ExtensionHelpers {
 
     String repository() {
-        this.repository ?: 'oracle/database'
+        this.repository ?: 'sath89/oracle-12c'
     }
 
     String defaultPort() {
@@ -32,7 +32,7 @@ class Oracle extends BaseDatabase implements ExtensionHelpers {
     }
 
     String liveOnLog() {
-        this.liveOnLog ?: 'database system is ready to accept connections'
+        this.liveOnLog ?: 'Database ready to use.'
     }
 }
 

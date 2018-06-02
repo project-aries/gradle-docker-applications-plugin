@@ -32,7 +32,7 @@ class Sqlserver extends BaseDatabase implements ExtensionHelpers {
     }
 
     String liveOnLog() {
-        this.liveOnLog ?: 'database system is ready to accept connections'
+        this.liveOnLog ?: 'SQL Server is now ready for client connections.'
     }
 }
 

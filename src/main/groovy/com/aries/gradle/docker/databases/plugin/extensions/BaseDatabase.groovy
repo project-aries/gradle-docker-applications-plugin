@@ -30,7 +30,7 @@ public abstract class BaseDatabase {
     String id
 
     @Optional
-    String repository // docker image id (e.g. postgres)
+    String repository // docker repository portion of image (e.g. postgres)
 
     @Optional
     String tag // docker tag id (e.g. latest or 10.0)

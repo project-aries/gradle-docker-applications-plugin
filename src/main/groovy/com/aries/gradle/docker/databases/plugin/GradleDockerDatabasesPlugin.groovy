@@ -16,7 +16,6 @@
 
 package com.aries.gradle.docker.databases.plugin
 
-import com.aries.gradle.docker.databases.plugin.tasks.DockerLivenessProbeContainer
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -99,7 +98,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                     throw err
                 } else {
                     ext.exists = false
-                    logger.quiet "Container with ID '${taskGroupExtension.databaseDataId()}' is not available to inspect."
+                    logger.quiet "Container with ID '${taskGroupExtension.databaseDataId()}' is not running/available to inspect."
                 }
             }
         }
@@ -123,7 +122,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                     throw err
                 } else {
                     ext.exists = false
-                    logger.quiet "Container with ID '${taskGroupExtension.databaseId()}' is not available to inspect."
+                    logger.quiet "Container with ID '${taskGroupExtension.databaseId()}' is not running/available to inspect."
                 }
             }
         }
@@ -274,7 +273,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
         }
 
         final Task livenessProbeContainerTask = project.task("${taskNamePrefix}LivenessProbeContainer",
-            type: DockerLivenessProbeContainer,
+            type: com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessProbeContainer,
             dependsOn: [startContainerTask]) {
             onlyIf { startContainerTask.state.didWork ||
                 restartContainerTask.state.didWork }
@@ -292,7 +291,6 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                     restartContainerTask.ext.startTime
             }
             tailCount = 10
-            showTimestamps = true
             probe(300000, 30000, taskGroupExtension.liveOnLog())
         }
 
@@ -307,19 +305,24 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
     private createTaskChain_Stop(final Project project, final String taskNamePrefix, final String taskGroup, final def taskGroupExtension) {
 
         final Task stopContainerTask = project.task("${taskNamePrefix}StopContainer",
-            type: com.bmuschko.gradle.docker.tasks.container.DockerStopContainer) {
+            type: com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer) {
 
             group: taskGroup
             description: "Stop '${taskNamePrefix}' container."
 
-            timeout = 30000
             targetContainerId { taskGroupExtension.databaseId() }
-
+            cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
+            successOnExitCodes = [0, 127, 137]
+            timeout = 60000
+            probe(60000, 10000)
+            onNext { output ->
+                // pipe output to nowhere for the time being
+            }
             onError { err ->
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${taskGroupExtension.databaseId()}' is not available to stop."
+                    logger.quiet "Container with ID '${taskGroupExtension.databaseId()}' is not running/available to stop."
                 }
             }
         }

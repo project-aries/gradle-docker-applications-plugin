@@ -27,6 +27,11 @@ class Postgres extends BaseDatabase implements ExtensionHelpers {
         this.repository ?: 'postgres'
     }
 
+    @Override
+    String tag() {
+        'alpine'
+    }
+
     String defaultPort() {
         "5432"
     }
