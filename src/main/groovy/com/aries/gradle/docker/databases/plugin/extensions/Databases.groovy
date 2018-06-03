@@ -21,10 +21,10 @@ import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
 /**
  *  Extension point that can be applied to all databases.
  */
-class Databases extends BaseDatabase implements ExtensionHelpers {
+class Databases extends AbstractDatabase implements ExtensionHelpers {
 
-    String repository() {
-        this.repository ?: null
+    String containerRepository() {
+        this.containerRepository ?: null
     }
 
     String defaultPort() {

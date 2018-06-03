@@ -21,10 +21,10 @@ import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
 /**
  *  Db2 specific extension point.
  */
-class Db2 extends BaseDatabase implements ExtensionHelpers {
+class Db2 extends AbstractDatabase implements ExtensionHelpers {
 
-    String repository() {
-        this.repository ?: 'ibmcom/db2express-c'
+    String containerRepository() {
+        this.containerRepository ?: 'ibmcom/db2express-c'
     }
 
     String defaultPort() {

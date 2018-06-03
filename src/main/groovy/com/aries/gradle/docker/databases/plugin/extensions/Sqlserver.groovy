@@ -21,10 +21,10 @@ import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
 /**
  *  Sqlserver specific extension point.
  */
-class Sqlserver extends BaseDatabase implements ExtensionHelpers {
+class Sqlserver extends AbstractDatabase implements ExtensionHelpers {
 
-    String repository() {
-        this.repository ?: 'microsoft/mssql-server-linux'
+    String containerRepository() {
+        this.containerRepository ?: 'microsoft/mssql-server-linux'
     }
 
     String defaultPort() {

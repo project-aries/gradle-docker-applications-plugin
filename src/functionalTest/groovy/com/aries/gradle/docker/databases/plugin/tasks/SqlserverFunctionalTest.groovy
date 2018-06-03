@@ -39,6 +39,6 @@ class SqlserverFunctionalTest extends AbstractFunctionalTest {
             BuildResult result = build('workflow')
 
         then:
-            result.output.contains('Pulling repository') || result.output.contains(':SqlserverPullImage SKIPPED')
+            result.output.contains('Pulling containerRepository') || result.output.contains(':SqlserverPullImage SKIPPED')
     }
 }

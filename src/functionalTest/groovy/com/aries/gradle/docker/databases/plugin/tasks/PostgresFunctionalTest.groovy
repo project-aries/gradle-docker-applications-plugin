@@ -37,6 +37,14 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
 
             postgres {
                 id = "bears"
+                main {
+                    repository = 'postgres'
+                    tag = 'alpine'
+                }
+                data {
+                    repository = 'postgres'
+                    tag = 'alpine'
+                }
             }
             
             task up(dependsOn: ['PostgresUp'])
@@ -50,7 +58,7 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
             BuildResult result = build('up', 'stop', 'down')
 
         then:
-            result.output.contains('Pulling repository') || result.output.contains(':PostgresPullImage SKIPPED')
+            result.output.contains('Pulling containerRepository') || result.output.contains(':PostgresPullImage SKIPPED')
             result.output.contains('fish8')
             !result.output.contains(':PostgresListImages SKIPPED')
     }

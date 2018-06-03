@@ -89,7 +89,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             group: taskGroup
             description: "Check if '${taskNamePrefix}' data container is available."
 
-            targetContainerId { taskGroupExtension.databaseDataId() }
+            targetContainerId { taskGroupExtension.containerDataId() }
 
             ext.exists = true
             onNext {} // defining so that the output will get piped to nowhere as we don't need it
@@ -98,7 +98,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                     throw err
                 } else {
                     ext.exists = false
-                    logger.quiet "Container with ID '${taskGroupExtension.databaseDataId()}' is not running/available to inspect."
+                    logger.quiet "Container with ID '${taskGroupExtension.containerDataId()}' is not running/available to inspect."
                 }
             }
         }
@@ -110,7 +110,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             group: taskGroup
             description: "Check if '${taskNamePrefix}' container is available."
 
-            targetContainerId { taskGroupExtension.databaseId() }
+            targetContainerId { taskGroupExtension.containerId() }
 
             ext.exists = true
             ext.inspection = null
@@ -122,7 +122,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                     throw err
                 } else {
                     ext.exists = false
-                    logger.quiet "Container with ID '${taskGroupExtension.databaseId()}' is not running/available to inspect."
+                    logger.quiet "Container with ID '${taskGroupExtension.containerId()}' is not running/available to inspect."
                 }
             }
         }
@@ -139,13 +139,13 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             doFirst {
                 ext.startTime = new Date()
             }
-            targetContainerId { taskGroupExtension.databaseId() }
+            targetContainerId { taskGroupExtension.containerId() }
             timeout = 30000
         }
 
         // if a previous main/data container is present than the assumption is that
-        // the image in question must also be present and so we don't need to check
-        // for the existence of its backing image
+        // the containerImage in question must also be present and so we don't need to check
+        // for the existence of its backing containerImage
         final Task listImagesTask = project.task("${taskNamePrefix}ListImages",
             type: com.bmuschko.gradle.docker.tasks.image.DockerListImages,
             dependsOn: [restartContainerTask]) {
@@ -153,18 +153,18 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 availableContainerTask.ext.exists == false }
 
             group: taskGroup
-            description: "Check if image for '${taskNamePrefix}' exists locally."
+            description: "Check if containerImage for '${taskNamePrefix}' exists locally."
 
-            imageName = taskGroupExtension.repository()
+            imageName = taskGroupExtension.containerRepository()
 
-            // check if the image we need is already available so that we don't
+            // check if the containerImage we need is already available so that we don't
             // have to pull it further below
             ext.imageAvailableLocally = false
             onNext { possibleImage ->
                 if (ext.imageAvailableLocally == false) {
                     possibleImage.repoTags.each { rep ->
-                        if (ext.imageAvailableLocally == false && rep.first() == taskGroupExtension.image()) {
-                            logger.quiet "Image with ID '${taskGroupExtension.image()}' was found locally: pull not required."
+                        if (ext.imageAvailableLocally == false && rep.first() == taskGroupExtension.containerImage()) {
+                            logger.quiet "Image with ID '${taskGroupExtension.containerImage()}' was found locally: pull not required."
                             ext.imageAvailableLocally = true
                         }
                     }
@@ -180,10 +180,10 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 listImagesTask.ext.imageAvailableLocally == false }
 
             group: taskGroup
-            description: "Pull image for '${taskNamePrefix}'."
+            description: "Pull containerImage for '${taskNamePrefix}'."
 
-            repository = taskGroupExtension.repository()
-            tag = taskGroupExtension.tag()
+            repository = taskGroupExtension.containerRepository()
+            tag = taskGroupExtension.containerTag()
         }
 
         final Task removeContainerTask = project.task("${taskNamePrefix}RemoveContainer",
@@ -198,13 +198,13 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
             removeVolumes = true
             force = true
-            targetContainerId { taskGroupExtension.databaseId() }
+            targetContainerId { taskGroupExtension.containerId() }
 
             onError { err ->
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${taskGroupExtension.databaseId()}' is not available to remove."
+                    logger.quiet "Container with ID '${taskGroupExtension.containerId()}' is not available to remove."
                 }
             }
         }
@@ -221,13 +221,13 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
             removeVolumes = true
             force = true
-            targetContainerId { taskGroupExtension.databaseDataId() }
+            targetContainerId { taskGroupExtension.containerDataId() }
 
             onError { err ->
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${taskGroupExtension.databaseDataId()}' is not available to remove."
+                    logger.quiet "Container with ID '${taskGroupExtension.containerDataId()}' is not available to remove."
                 }
             }
         }
@@ -240,8 +240,8 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             group: taskGroup
             description: "Create '${taskNamePrefix}' data container."
 
-            targetImageId { taskGroupExtension.image() }
-            containerName = taskGroupExtension.databaseDataId()
+            targetImageId { taskGroupExtension.containerImage() }
+            containerName = taskGroupExtension.containerDataId()
             volumes = ["/var/lib/postgresql/data"]
         }
 
@@ -253,9 +253,9 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             group: taskGroup
             description: "Create '${taskNamePrefix}' container."
 
-            targetImageId { taskGroupExtension.image() }
-            containerName = taskGroupExtension.databaseId()
-            volumesFrom = [taskGroupExtension.databaseDataId()]
+            targetImageId { taskGroupExtension.containerImage() }
+            containerName = taskGroupExtension.containerId()
+            volumesFrom = [taskGroupExtension.containerDataId()]
         }
 
         final Task startContainerTask = project.task("${taskNamePrefix}StartContainer",
@@ -269,7 +269,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             doFirst {
                 ext.startTime = new Date()
             }
-            targetContainerId { taskGroupExtension.databaseId() }
+            targetContainerId { taskGroupExtension.containerId() }
         }
 
         final Task livenessProbeContainerTask = project.task("${taskNamePrefix}LivenessProbeContainer",
@@ -281,7 +281,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             group: taskGroup
             description: "Check if '${taskNamePrefix}' container is live."
 
-            targetContainerId { taskGroupExtension.databaseId() }
+            targetContainerId { taskGroupExtension.containerId() }
 
             // only 2 ways this task can kick so we will proceed to configure
             // it based upon which one did actual work
@@ -310,7 +310,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
             group: taskGroup
             description: "Stop '${taskNamePrefix}' container."
 
-            targetContainerId { taskGroupExtension.databaseId() }
+            targetContainerId { taskGroupExtension.containerId() }
             cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
             successOnExitCodes = [0, 127, 137]
             timeout = 60000
@@ -322,7 +322,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${taskGroupExtension.databaseId()}' is not running/available to stop."
+                    logger.quiet "Container with ID '${taskGroupExtension.containerId()}' is not running/available to stop."
                 }
             }
         }
@@ -345,13 +345,13 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
             removeVolumes = true
             force = true
-            targetContainerId { taskGroupExtension.databaseId() }
+            targetContainerId { taskGroupExtension.containerId() }
 
             onError { err ->
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${taskGroupExtension.databaseId()}' is not available to delete."
+                    logger.quiet "Container with ID '${taskGroupExtension.containerId()}' is not available to delete."
                 }
             }
         }
@@ -365,13 +365,13 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
 
             removeVolumes = true
             force = true
-            targetContainerId { taskGroupExtension.databaseDataId() }
+            targetContainerId { taskGroupExtension.containerDataId() }
 
             onError { err ->
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${taskGroupExtension.databaseDataId()}' is not available to delete."
+                    logger.quiet "Container with ID '${taskGroupExtension.containerDataId()}' is not available to delete."
                 }
             }
         }

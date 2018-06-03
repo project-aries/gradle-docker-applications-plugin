@@ -21,10 +21,10 @@ import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
 /**
  *  Oracle specific extension point.
  */
-class Oracle extends BaseDatabase implements ExtensionHelpers {
+class Oracle extends AbstractDatabase implements ExtensionHelpers {
 
-    String repository() {
-        this.repository ?: 'sath89/oracle-12c'
+    String containerRepository() {
+        this.containerRepository ?: 'sath89/oracle-12c'
     }
 
     String defaultPort() {
