@@ -15,13 +15,16 @@
  */
 
 package com.aries.gradle.docker.application.plugin.extensions
+
+import com.aries.gradle.docker.application.plugin.common.ImageInfo
+
 /**
  *  Db2 specific extension point.
  */
 class Db2 extends AbstractDatabase {
 
     public Db2() {
-        this.main = new com.aries.gradle.docker.application.plugin.common.ImageInfo(repository: 'ibmcom/db2express-c', tag: 'latest')
+        this.main = new ImageInfo(repository: 'ibmcom/db2express-c', tag: 'latest')
     }
 
     @Override

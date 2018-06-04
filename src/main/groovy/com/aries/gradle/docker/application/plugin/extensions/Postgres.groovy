@@ -15,13 +15,16 @@
  */
 
 package com.aries.gradle.docker.application.plugin.extensions
+
+import com.aries.gradle.docker.application.plugin.common.ImageInfo
+
 /**
  *  Postgres specific extension point.
  */
 class Postgres extends AbstractDatabase {
 
     public Postgres() {
-        this.main = new com.aries.gradle.docker.application.plugin.common.ImageInfo(repository: 'postgres', tag: 'alpine')
+        this.main = newImageInfo(repository: 'postgres', tag: 'alpine')
     }
 
     @Override

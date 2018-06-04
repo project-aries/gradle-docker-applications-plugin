@@ -15,13 +15,16 @@
  */
 
 package com.aries.gradle.docker.application.plugin.extensions
+
+import com.aries.gradle.docker.application.plugin.common.ImageInfo
+
 /**
  *  Oracle specific extension point.
  */
 class Oracle extends AbstractDatabase {
 
     public Oracle() {
-        this.main = new com.aries.gradle.docker.application.plugin.common.ImageInfo(repository: 'sath89/oracle-12c', tag: 'latest')
+        this.main = new ImageInfo(repository: 'sath89/oracle-12c', tag: 'latest')
     }
 
     @Override

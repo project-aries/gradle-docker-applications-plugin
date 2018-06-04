@@ -15,6 +15,7 @@
  */
 
 package com.aries.gradle.docker.application.plugin.extensions
+
 /**
  *  Extension point that can be applied to all databases.
  */
