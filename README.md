@@ -1,6 +1,6 @@
 # gradle-docker-application-plugin
 
-Highly opinionated gradle plugin to start, stop, and tear down a docker application.
+Highly opinionated gradle plugin to start (Up), pause (Stop), and delete (Down) a docker application.
 
 ## Status
 
