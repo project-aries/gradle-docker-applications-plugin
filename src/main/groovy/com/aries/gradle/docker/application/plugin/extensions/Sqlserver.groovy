@@ -16,12 +16,10 @@
 
 package com.aries.gradle.docker.application.plugin.extensions
 
-import com.aries.gradle.docker.application.plugin.common.ExtensionHelpers
-
 /**
  *  Sqlserver specific extension point.
  */
-class Sqlserver extends AbstractDatabase implements ExtensionHelpers {
+class Sqlserver extends AbstractDatabase {
 
     public Sqlserver() {
         this.main = new com.aries.gradle.docker.application.plugin.common.ImageInfo(repository: 'microsoft/mssql-server-linux', tag: 'latest')

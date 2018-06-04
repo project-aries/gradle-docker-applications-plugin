@@ -18,7 +18,7 @@ package com.aries.gradle.docker.application.plugin.extensions
 /**
  *  Db2 specific extension point.
  */
-class Db2 extends AbstractDatabase implements com.aries.gradle.docker.application.plugin.common.ExtensionHelpers {
+class Db2 extends AbstractDatabase {
 
     public Db2() {
         this.main = new com.aries.gradle.docker.application.plugin.common.ImageInfo(repository: 'ibmcom/db2express-c', tag: 'latest')

@@ -18,7 +18,7 @@ package com.aries.gradle.docker.application.plugin.extensions
 /**
  *  Extension point that can be applied to all databases.
  */
-class Databases extends AbstractDatabase implements com.aries.gradle.docker.application.plugin.common.ExtensionHelpers {
+class Databases extends AbstractDatabase {
 
     String mainRepository() {
         this.containerRepository ?: null

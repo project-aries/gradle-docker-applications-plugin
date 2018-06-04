@@ -49,7 +49,7 @@ class PostgresFunctionalTest extends com.aries.gradle.docker.application.plugin.
         """
 
         when:
-            BuildResult result = build('up')
+            BuildResult result = build('up', 'stop', 'down')
 
         then:
             result.output.contains('Pulling mainRepository') || result.output.contains(':PostgresPullImage SKIPPED')
