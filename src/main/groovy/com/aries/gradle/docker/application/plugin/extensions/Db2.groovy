@@ -14,18 +14,14 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.databases.plugin.extensions
-
-import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
-import com.aries.gradle.docker.databases.plugin.common.ImageInfo
-
+package com.aries.gradle.docker.application.plugin.extensions
 /**
- *  Postgres specific extension point.
+ *  Db2 specific extension point.
  */
-class Postgres extends AbstractDatabase implements ExtensionHelpers {
+class Db2 extends AbstractDatabase implements com.aries.gradle.docker.application.plugin.common.ExtensionHelpers {
 
-    public Postgres() {
-        this.main = new ImageInfo(repository: 'postgres', tag: 'alpine')
+    public Db2() {
+        this.main = new com.aries.gradle.docker.application.plugin.common.ImageInfo(repository: 'ibmcom/db2express-c', tag: 'latest')
     }
 
     @Override

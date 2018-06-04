@@ -14,24 +14,25 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.databases.plugin
+package com.aries.gradle.docker.application.plugin
 
-import com.aries.gradle.docker.databases.plugin.extensions.AbstractDatabase
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
-import com.aries.gradle.docker.databases.plugin.extensions.Databases
-import com.aries.gradle.docker.databases.plugin.extensions.Db2
-import com.aries.gradle.docker.databases.plugin.extensions.Oracle
-import com.aries.gradle.docker.databases.plugin.extensions.Postgres
-import com.aries.gradle.docker.databases.plugin.extensions.Sqlserver
+import com.aries.gradle.docker.application.plugin.extensions.AbstractDatabase
+import com.aries.gradle.docker.application.plugin.extensions.Databases
+import com.aries.gradle.docker.application.plugin.extensions.Db2
+import com.aries.gradle.docker.application.plugin.extensions.Oracle
+import com.aries.gradle.docker.application.plugin.extensions.Postgres
+import com.aries.gradle.docker.application.plugin.extensions.Sqlserver
+
 import org.gradle.api.Task
 import org.gradle.api.tasks.StopExecutionException
 
 /**
  *  Plugin providing common tasks for interacting with various dockerized databases.
  */
-class GradleDockerDatabasesPlugin implements Plugin<Project> {
+class GradleDockerApplicationPlugin implements Plugin<Project> {
 
     public static final List<Class> DATABASES = [Db2, Oracle, Postgres, Sqlserver].asImmutable()
 
@@ -44,16 +45,16 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
         project.plugins.apply('com.bmuschko.docker-remote-api')
 
         // 2.) create all database extension points
-        createDatabaseExtensionPoints(project)
+        createApplicationExtensionPoints(project)
 
         // 3.) create all database tasks
-        createDatabaseTasks(project)
+        createApplicationTasks(project)
     }
 
     /*
-     * Create our various database extension points.
+     * Create our various application extension points.
      */
-    private createDatabaseExtensionPoints(final Project project) {
+    private createApplicationExtensionPoints(final Project project) {
         project.extensions.create(Databases.simpleName.toLowerCase(), Databases)
         DATABASES.each { dbClass ->
             project.extensions.create(dbClass.simpleName.toLowerCase(), dbClass)
@@ -63,7 +64,7 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
     /*
      *  Create common tasks for all databases
      */
-    private createDatabaseTasks(final Project project) {
+    private createApplicationTasks(final Project project) {
         DATABASES.each { dbClass ->
 
             // commmon variables used by all tasks below
@@ -82,7 +83,10 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
     }
 
     // create required tasks for invoking the "up" chain.
-    private createTaskChain_Up(final Project project, final String taskNamePrefix, final String taskGroup, final AbstractDatabase taskGroupExtension) {
+    private createTaskChain_Up(final Project project,
+                               final String taskNamePrefix,
+                               final String taskGroup,
+                               final AbstractDatabase taskGroupExtension) {
 
         final Task availableDataContainerTask = project.task("${taskNamePrefix}AvailableDataContainer",
             type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer) {
@@ -345,7 +349,10 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
     }
 
     // create required tasks for invoking the "stop" chain.
-    private createTaskChain_Stop(final Project project, final String taskNamePrefix, final String taskGroup, final AbstractDatabase taskGroupExtension) {
+    private createTaskChain_Stop(final Project project,
+                                 final String taskNamePrefix,
+                                 final String taskGroup,
+                                 final AbstractDatabase taskGroupExtension) {
 
         final Task stopContainerTask = project.task("${taskNamePrefix}StopContainer",
             type: com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer) {
@@ -378,7 +385,10 @@ class GradleDockerDatabasesPlugin implements Plugin<Project> {
     }
 
     // create required tasks for invoking the "down" chain.
-    private createTaskChain_Down(final Project project, final String taskNamePrefix, final String taskGroup, final AbstractDatabase taskGroupExtension) {
+    private createTaskChain_Down(final Project project,
+                                 final String taskNamePrefix,
+                                 final String taskGroup,
+                                 final AbstractDatabase taskGroupExtension) {
 
         final Task deleteContainerTask = project.task("${taskNamePrefix}DeleteContainer",
             type: com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer) {

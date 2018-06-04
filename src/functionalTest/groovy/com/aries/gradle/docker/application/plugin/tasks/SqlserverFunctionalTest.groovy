@@ -14,31 +14,29 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.databases.plugin.tasks
+package com.aries.gradle.docker.application.plugin.tasks
 
-import com.aries.gradle.docker.databases.plugin.AbstractFunctionalTest
 import org.gradle.testkit.runner.BuildResult
-import spock.lang.Requires
 
 /**
  *
- *  Functional tests for the `oracle` tasks.
+ *  Functional tests for the `sqlserver` tasks.
  *
  */
-class OracleFunctionalTest extends AbstractFunctionalTest {
+class SqlserverFunctionalTest extends com.aries.gradle.docker.application.plugin.AbstractFunctionalTest {
 
-    def "Can pull a Oracle image"() {
+    def "Can pull a Sqlserver image"() {
         buildFile << """
 
-            task pullImage(dependsOn: ['OraclePullImage'])
+            task pullImage(dependsOn: ['SqlserverPullImage'])
 
             task workflow(dependsOn: pullImage)
         """
 
         when:
-            BuildResult result = buildAndFail('workflow')
+            BuildResult result = build('workflow')
 
         then:
-            result.output.contains('Pulling mainRepository') || result.output.contains(':OraclePullImage SKIPPED')
+            result.output.contains('Pulling mainRepository') || result.output.contains(':SqlserverPullImage SKIPPED')
     }
 }

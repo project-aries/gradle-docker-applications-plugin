@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.databases.plugin.extensions
+package com.aries.gradle.docker.application.plugin.extensions
 
-import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
-import com.aries.gradle.docker.databases.plugin.common.ImageInfo
+import com.aries.gradle.docker.application.plugin.common.ExtensionHelpers
 
 /**
  *  Sqlserver specific extension point.
@@ -25,7 +24,7 @@ import com.aries.gradle.docker.databases.plugin.common.ImageInfo
 class Sqlserver extends AbstractDatabase implements ExtensionHelpers {
 
     public Sqlserver() {
-        this.main = new ImageInfo(repository: 'microsoft/mssql-server-linux', tag: 'latest')
+        this.main = new com.aries.gradle.docker.application.plugin.common.ImageInfo(repository: 'microsoft/mssql-server-linux', tag: 'latest')
     }
 
     @Override

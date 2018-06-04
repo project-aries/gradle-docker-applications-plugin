@@ -14,23 +14,20 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.databases.plugin.extensions
+package com.aries.gradle.docker.application.plugin.common
 
-import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
-import com.aries.gradle.docker.databases.plugin.common.ImageInfo
+trait ExtensionHelpers {
 
-/**
- *  Db2 specific extension point.
- */
-class Db2 extends AbstractDatabase implements ExtensionHelpers {
-
-    public Db2() {
-        this.main = new ImageInfo(repository: 'ibmcom/db2express-c', tag: 'latest')
-    }
-
-    @Override
-    String liveOnLog() {
-        this.liveOnLog ?: 'database system is ready to accept connections'
+    List portMappings() {
+        def ports = []
+        if (this.port != null) {
+            def localPort = this.port.trim()
+            if (localPort.contains(':')) {
+                ports << localPort
+            } else {
+                ports << "${localPort}:${defaultPort() ?: localPort}"
+            }
+        }
+        ports
     }
 }
-

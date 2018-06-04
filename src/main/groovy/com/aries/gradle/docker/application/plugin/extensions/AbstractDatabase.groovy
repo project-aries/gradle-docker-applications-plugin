@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.databases.plugin.extensions
+package com.aries.gradle.docker.application.plugin.extensions
 
-import com.aries.gradle.docker.databases.plugin.common.ImageInfo
+import com.aries.gradle.docker.application.plugin.common.ImageInfo
 
 import org.gradle.api.tasks.Optional
 import org.gradle.util.ConfigureUtil

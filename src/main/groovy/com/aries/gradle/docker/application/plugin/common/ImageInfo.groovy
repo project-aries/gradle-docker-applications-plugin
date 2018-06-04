@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.databases.plugin.extensions
+package com.aries.gradle.docker.application.plugin.common
 
-import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
+class ImageInfo {
 
-/**
- *  Extension point that can be applied to all databases.
- */
-class Databases extends AbstractDatabase implements ExtensionHelpers {
+    String repository
+    String tag
 
-    String mainRepository() {
-        this.containerRepository ?: null
+    String repository() {
+        this.repository ?: 'alpine'
     }
 
-    @Override
-    String liveOnLog() {
-        this.liveOnLog
+    String tag() {
+        this.tag ?: 'latest'
+    }
+
+    String image() {
+        "${this.repository()}:${this.tag()}"
     }
 }
-

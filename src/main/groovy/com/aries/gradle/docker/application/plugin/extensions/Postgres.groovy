@@ -14,22 +14,19 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.databases.plugin.common
+package com.aries.gradle.docker.application.plugin.extensions
+/**
+ *  Postgres specific extension point.
+ */
+class Postgres extends AbstractDatabase implements com.aries.gradle.docker.application.plugin.common.ExtensionHelpers {
 
-class ImageInfo {
-
-    String repository
-    String tag
-
-    String repository() {
-        this.repository ?: 'alpine'
+    public Postgres() {
+        this.main = new com.aries.gradle.docker.application.plugin.common.ImageInfo(repository: 'postgres', tag: 'alpine')
     }
 
-    String tag() {
-        this.tag ?: 'latest'
-    }
-
-    String image() {
-        "${this.repository()}:${this.tag()}"
+    @Override
+    String liveOnLog() {
+        this.liveOnLog ?: 'database system is ready to accept connections'
     }
 }
+

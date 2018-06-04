@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.databases.plugin.common
+package com.aries.gradle.docker.application.plugin.extensions
+/**
+ *  Oracle specific extension point.
+ */
+class Oracle extends AbstractDatabase implements com.aries.gradle.docker.application.plugin.common.ExtensionHelpers {
 
-trait ExtensionHelpers {
+    public Oracle() {
+        this.main = new com.aries.gradle.docker.application.plugin.common.ImageInfo(repository: 'sath89/oracle-12c', tag: 'latest')
+    }
 
-    List portMappings() {
-        def ports = []
-        if (this.port != null) {
-            def localPort = this.port.trim()
-            if (localPort.contains(':')) {
-                ports << localPort
-            } else {
-                ports << "${localPort}:${defaultPort() ?: localPort}"
-            }
-        }
-        ports
+    @Override
+    String liveOnLog() {
+        this.liveOnLog ?: 'Database ready to use.'
     }
 }
+

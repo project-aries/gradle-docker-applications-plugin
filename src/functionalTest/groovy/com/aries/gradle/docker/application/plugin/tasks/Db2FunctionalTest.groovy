@@ -14,23 +14,29 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.databases.plugin.extensions
+package com.aries.gradle.docker.application.plugin.tasks
 
-import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
-import com.aries.gradle.docker.databases.plugin.common.ImageInfo
+import org.gradle.testkit.runner.BuildResult
 
 /**
- *  Oracle specific extension point.
+ *
+ *  Functional tests for the `db2` tasks.
+ *
  */
-class Oracle extends AbstractDatabase implements ExtensionHelpers {
+class Db2FunctionalTest extends com.aries.gradle.docker.application.plugin.AbstractFunctionalTest {
 
-    public Oracle() {
-        this.main = new ImageInfo(repository: 'sath89/oracle-12c', tag: 'latest')
-    }
+    def "Can pull a Db2 image"() {
+        buildFile << """
 
-    @Override
-    String liveOnLog() {
-        this.liveOnLog ?: 'Database ready to use.'
+            task pullImage(dependsOn: ['Db2PullImage'])
+
+            task workflow(dependsOn: pullImage)
+        """
+
+        when:
+            BuildResult result = build('workflow')
+
+        then:
+            result.output.contains('Pulling mainRepository') || result.output.contains(':Db2PullImage SKIPPED')
     }
 }
-

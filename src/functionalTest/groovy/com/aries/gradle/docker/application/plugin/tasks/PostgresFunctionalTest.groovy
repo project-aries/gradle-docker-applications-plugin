@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.databases.plugin.tasks
+package com.aries.gradle.docker.application.plugin.tasks
 
 import static java.util.concurrent.TimeUnit.MINUTES
 
-import com.aries.gradle.docker.databases.plugin.AbstractFunctionalTest
 import org.gradle.testkit.runner.BuildResult
 import spock.lang.Timeout
 
@@ -27,7 +26,7 @@ import spock.lang.Timeout
  *  Functional tests for the `postgres` tasks.
  *
  */
-class PostgresFunctionalTest extends AbstractFunctionalTest {
+class PostgresFunctionalTest extends com.aries.gradle.docker.application.plugin.AbstractFunctionalTest {
 
     @Timeout(value = 5, unit = MINUTES)
     def "Can standup, stop and then shutdown postgres stack"() {
