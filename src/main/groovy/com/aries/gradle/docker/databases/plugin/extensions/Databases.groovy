@@ -23,14 +23,11 @@ import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
  */
 class Databases extends AbstractDatabase implements ExtensionHelpers {
 
-    String containerRepository() {
+    String mainRepository() {
         this.containerRepository ?: null
     }
 
-    String defaultPort() {
-        null
-    }
-
+    @Override
     String liveOnLog() {
         this.liveOnLog
     }

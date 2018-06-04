@@ -17,20 +17,18 @@
 package com.aries.gradle.docker.databases.plugin.extensions
 
 import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
+import com.aries.gradle.docker.databases.plugin.common.ImageInfo
 
 /**
  *  Db2 specific extension point.
  */
 class Db2 extends AbstractDatabase implements ExtensionHelpers {
 
-    String containerRepository() {
-        this.containerRepository ?: 'ibmcom/db2express-c'
+    public Db2() {
+        this.main = new ImageInfo(repository: 'ibmcom/db2express-c', tag: 'latest')
     }
 
-    String defaultPort() {
-        "50000"
-    }
-
+    @Override
     String liveOnLog() {
         this.liveOnLog ?: 'database system is ready to accept connections'
     }

@@ -17,20 +17,18 @@
 package com.aries.gradle.docker.databases.plugin.extensions
 
 import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
+import com.aries.gradle.docker.databases.plugin.common.ImageInfo
 
 /**
  *  Oracle specific extension point.
  */
 class Oracle extends AbstractDatabase implements ExtensionHelpers {
 
-    String containerRepository() {
-        this.containerRepository ?: 'sath89/oracle-12c'
+    public Oracle() {
+        this.main = new ImageInfo(repository: 'sath89/oracle-12c', tag: 'latest')
     }
 
-    String defaultPort() {
-        "1521"
-    }
-
+    @Override
     String liveOnLog() {
         this.liveOnLog ?: 'Database ready to use.'
     }

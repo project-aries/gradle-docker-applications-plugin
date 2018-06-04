@@ -17,11 +17,11 @@
 package com.aries.gradle.docker.databases.plugin.extensions
 
 import com.aries.gradle.docker.databases.plugin.common.ImageInfo
+
 import org.gradle.api.tasks.Optional
 import org.gradle.util.ConfigureUtil
 
 /**
- *
  *
  *  Base class for all databases to inherit common functionality from.
  *
@@ -30,62 +30,39 @@ public abstract class AbstractDatabase {
 
     @Optional
     String id
-
-    private ImageInfo main
-    private ImageInfo data
-
-    String containerRepository // docker repository portion of containerImage (e.g. postgres) for main container
-
-    String containerTag // docker tag id (e.g. latest or 10.0) for main container
-
-    @Optional
-    String containerDataRepository // docker repository portion of containerImage (e.g. postgres) for data container
-
-    @Optional
-    String containerDataTag // docker tag id (e.g. latest or 10.0) for data container
-
-    @Optional
-    String liveOnLog // the log line within the container we will use to confirm it is "live"
-
-    void main(Closure<ImageInfo> info) {
-        main = ConfigureUtil.configure(info, main ?: new ImageInfo())
-    }
-
-    void data(Closure<ImageInfo> info) {
-        data = ConfigureUtil.configure(info, data ?: new ImageInfo())
-    }
-
-    abstract String containerRepository()
-
-    abstract String defaultPort()
-
-    abstract String liveOnLog()
-
     String id() {
         this.id ?: System.getProperty("user.name")
     }
 
-    String containerId() {
-        "${id()}-application"
+    // upon start/restart we will query the main containers logs for this
+    // message, if null no attempt to will be made to query
+    @Optional
+    String liveOnLog
+    String liveOnLog() {
+        this.liveOnLog ?: null
     }
 
-    String containerDataId() {
-        "${containerId()}-data"
+    // methods and properties used to configure the main container
+    protected ImageInfo main
+    void main(Closure<ImageInfo> info) {
+        main = ConfigureUtil.configure(info, main ?: new ImageInfo())
+    }
+    String mainId() {
+        "${id()}-${this.mainImage().repository().split('/').last()}"
+    }
+    ImageInfo mainImage() {
+        this.main
     }
 
-    String containerTag() {
-        this.containerTag ?: 'latest'
+    // methods and properties used to configure the data container
+    protected ImageInfo data
+    void data(Closure<ImageInfo> info) {
+        data = ConfigureUtil.configure(info, data ?: new ImageInfo())
     }
-
-    String containerDataTag() {
-        this.containerDataTag ?: 'latest'
+    String dataId() {
+        "${mainId()}-data"
     }
-
-    String containerImage() {
-        "${containerRepository()}:${containerTag()}"
-    }
-
-    String containerDataImage() {
-        "${containerDataRepository()}:${containerDataTag()}"
+    ImageInfo dataImage() {
+        this.data ?: mainImage()
     }
 }

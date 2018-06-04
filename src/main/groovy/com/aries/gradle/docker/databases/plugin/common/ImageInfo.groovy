@@ -17,24 +17,19 @@
 package com.aries.gradle.docker.databases.plugin.common
 
 class ImageInfo {
-    String mainRepository
-    String mainTag
-    String dataRepository
-    String dataTag
 
-    String mainRepository() {
-        this.mainRepository
+    String repository
+    String tag
+
+    String repository() {
+        this.repository ?: 'alpine'
     }
 
-    String mainTag() {
-        this.mainTag ?: 'latest'
+    String tag() {
+        this.tag ?: 'latest'
     }
 
-    String dataRepository() {
-        this.dataTag ?: this.mainTag()
-    }
-
-    String dataTag() {
-        this.dataTag ?: this.mainTag()
+    String image() {
+        "${this.repository()}:${this.tag()}"
     }
 }

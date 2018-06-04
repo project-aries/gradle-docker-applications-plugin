@@ -39,6 +39,6 @@ class OracleFunctionalTest extends AbstractFunctionalTest {
             BuildResult result = buildAndFail('workflow')
 
         then:
-            result.output.contains('Pulling containerRepository') || result.output.contains(':OraclePullImage SKIPPED')
+            result.output.contains('Pulling mainRepository') || result.output.contains(':OraclePullImage SKIPPED')
     }
 }

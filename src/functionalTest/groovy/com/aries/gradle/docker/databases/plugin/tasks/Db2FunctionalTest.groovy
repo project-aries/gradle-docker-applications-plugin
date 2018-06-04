@@ -39,6 +39,6 @@ class Db2FunctionalTest extends AbstractFunctionalTest {
             BuildResult result = build('workflow')
 
         then:
-            result.output.contains('Pulling containerRepository') || result.output.contains(':Db2PullImage SKIPPED')
+            result.output.contains('Pulling mainRepository') || result.output.contains(':Db2PullImage SKIPPED')
     }
 }

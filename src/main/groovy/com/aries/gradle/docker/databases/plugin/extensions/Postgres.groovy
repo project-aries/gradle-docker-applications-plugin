@@ -17,25 +17,18 @@
 package com.aries.gradle.docker.databases.plugin.extensions
 
 import com.aries.gradle.docker.databases.plugin.common.ExtensionHelpers
+import com.aries.gradle.docker.databases.plugin.common.ImageInfo
 
 /**
  *  Postgres specific extension point.
  */
 class Postgres extends AbstractDatabase implements ExtensionHelpers {
 
-    String containerRepository() {
-        this.containerRepository ?: 'postgres'
+    public Postgres() {
+        this.main = new ImageInfo(repository: 'postgres', tag: 'alpine')
     }
 
     @Override
-    String containerTag() {
-        'alpine'
-    }
-
-    String defaultPort() {
-        "5432"
-    }
-
     String liveOnLog() {
         this.liveOnLog ?: 'database system is ready to accept connections'
     }
