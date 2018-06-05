@@ -39,9 +39,16 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
             applications {
                 postgres {
                     id = 'bears'
+                    liveOnLog = 'database system is ready to accept connections'
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
+                    }
+                    stop {
+                        cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
+                        successOnExitCodes = [0, 127, 137]
+                        timeout = 60000
+                        probe(60000, 10000)
                     }
                 }
             }

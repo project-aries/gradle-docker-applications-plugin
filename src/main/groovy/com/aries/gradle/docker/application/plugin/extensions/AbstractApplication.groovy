@@ -21,6 +21,8 @@ import com.aries.gradle.docker.application.plugin.common.AbstractContainer
 import org.gradle.api.tasks.Optional
 import org.gradle.util.ConfigureUtil
 
+import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
+
 /**
  *
  *  Base class for all applications to inherit common functionality from.
@@ -52,11 +54,11 @@ public class AbstractApplication {
     void main(final Closure<AbstractContainer> info) {
         main = ConfigureUtil.configure(info, main ?: new AbstractContainer())
     }
-    String mainId() {
-        "${id()}-${this.mainImage().repository().split('/').last()}"
-    }
-    AbstractContainer mainImage() {
+    AbstractContainer main() {
         this.main
+    }
+    String mainId() {
+        "${id()}-${this.main().repository().split('/').last()}"
     }
 
     // methods and properties used to configure the data container
@@ -64,10 +66,15 @@ public class AbstractApplication {
     void data(final Closure<AbstractContainer> info) {
         data = ConfigureUtil.configure(info, data ?: new AbstractContainer())
     }
+    AbstractContainer data() {
+        this.data ?: main()
+    }
     String dataId() {
         "${mainId()}-data"
     }
-    AbstractContainer dataImage() {
-        this.data ?: mainImage()
+
+    final List<Closure<DockerExecStopContainer>> stops = []
+    void stop(Closure<DockerExecStopContainer> stop) {
+        if (stop) { stops.add(stop) }
     }
 }
