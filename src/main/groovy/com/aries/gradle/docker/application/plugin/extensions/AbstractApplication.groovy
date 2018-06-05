@@ -38,7 +38,7 @@ public class AbstractApplication {
     @Optional
     String id
     String id() {
-        this.id ?: System.getProperty("user.name")
+        this.id ?: System.getProperty('user.name')
     }
 
     // upon start/restart we will query the main containers logs for this

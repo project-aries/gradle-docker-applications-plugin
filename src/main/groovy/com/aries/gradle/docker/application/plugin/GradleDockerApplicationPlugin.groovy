@@ -19,7 +19,6 @@ package com.aries.gradle.docker.application.plugin
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.Task
 import org.gradle.api.tasks.StopExecutionException
 
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
@@ -66,7 +65,8 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
     }
 
     /*
-     * Create our various application extension points.
+     * Create our various application extension points which are currently only
+     * available AFTER evaluation has occurred..
      */
     private createApplicationExtensionPoints(final Project project,
                                              final NamedDomainObjectContainer<AbstractApplication> appContainer) {
@@ -88,17 +88,17 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
             // create tasks after evaluation so that we can pick up any changes
             // made to our various extension points.
-            createTaskChain_Up(project, app.name, appGroup, appExtension)
-            createTaskChain_Stop(project, app.name, appGroup, appExtension)
-            createTaskChain_Down(project, app.name, appGroup, appExtension)
+            buildTaskChainFor_Up(project, app.name, appGroup, appExtension)
+            buildTaskChainFor_Stop(project, app.name, appGroup, appExtension)
+            buildTaskChainFor_Down(project, app.name, appGroup, appExtension)
         }
     }
 
     // create required tasks for invoking the "up" chain.
-    private createTaskChain_Up(final Project project,
-                               final String appName,
-                               final String appGroup,
-                               final AbstractApplication appExtension) {
+    private buildTaskChainFor_Up(final Project project,
+                                 final String appName,
+                                 final String appGroup,
+                                 final AbstractApplication appExtension) {
 
         final DockerInspectContainer availableDataContainerTask = project.task("${appName}AvailableDataContainer",
             type: DockerInspectContainer) {
@@ -300,7 +300,9 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             description: "Create '${appName}' data container."
 
             targetImageId { appExtension.data().image() }
-            containerName = appExtension.dataId()
+            doFirst {
+                containerName = appExtension.dataId()
+            }
             volumes = ["/var/lib/postgresql/data"]
         }
 
@@ -313,8 +315,10 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             description: "Create '${appName}' container."
 
             targetImageId { appExtension.main().image() }
-            containerName = appExtension.mainId()
-            volumesFrom = [appExtension.dataId()]
+            doFirst {
+                containerName = appExtension.mainId()
+                volumesFrom = [appExtension.dataId()]
+            }
         }
 
         final DockerStartContainer startContainerTask = project.task("${appName}StartContainer",
@@ -362,10 +366,10 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
     }
 
     // create required tasks for invoking the "stop" chain.
-    private createTaskChain_Stop(final Project project,
-                                 final String appName,
-                                 final String appGroup,
-                                 final AbstractApplication appExtension) {
+    private buildTaskChainFor_Stop(final Project project,
+                                   final String appName,
+                                   final String appGroup,
+                                   final AbstractApplication appExtension) {
 
         final DockerExecStopContainer stopContainerTask = project.task("${appName}StopContainer",
             type: DockerExecStopContainer) {
@@ -392,14 +396,13 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             group: appGroup
             description: "Stop '${appName}' container application if not already stopped."
         }
-        stopContainerTask.configure {}
     }
 
     // create required tasks for invoking the "down" chain.
-    private createTaskChain_Down(final Project project,
-                                 final String appName,
-                                 final String appGroup,
-                                 final AbstractApplication appExtension) {
+    private buildTaskChainFor_Down(final Project project,
+                                   final String appName,
+                                   final String appGroup,
+                                   final AbstractApplication appExtension) {
 
         final DockerRemoveContainer deleteContainerTask = project.task("${appName}DeleteContainer",
             type: DockerRemoveContainer) {
