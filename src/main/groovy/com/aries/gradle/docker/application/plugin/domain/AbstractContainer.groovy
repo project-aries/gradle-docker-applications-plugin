@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.application.plugin.extensions
+package com.aries.gradle.docker.application.plugin.domain
 
-import com.aries.gradle.docker.application.plugin.common.AbstractContainer
+class AbstractContainer {
 
-/**
- *  Db2 specific extension point.
- */
-class Db2  {
-
-    public Db2() {
-        this.main = new AbstractContainer(repository: 'ibmcom/db2express-c', tag: 'latest')
+    String repository
+    String repository() {
+        this.repository ?: 'alpine'
     }
 
-    String liveOnLog() {
-        this.liveOnLog ?: 'database system is ready to accept connections'
+    String tag
+    String tag() {
+        this.tag ?: 'latest'
+    }
+
+    String image() {
+        "${this.repository()}:${this.tag()}"
     }
 }
-

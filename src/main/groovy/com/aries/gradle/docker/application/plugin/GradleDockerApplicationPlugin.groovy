@@ -31,10 +31,10 @@ import com.bmuschko.gradle.docker.tasks.container.DockerStartContainer
 import com.bmuschko.gradle.docker.tasks.image.DockerListImages
 import com.bmuschko.gradle.docker.tasks.image.DockerPullImage
 
-import com.aries.gradle.docker.application.plugin.extensions.AbstractApplication
+import com.aries.gradle.docker.application.plugin.domain.AbstractApplication
 
 /**
- *  Plugin providing common tasks for starting, stopping, and deleting dockerized applications.
+ *  Plugin providing domain tasks for starting, stopping, and deleting dockerized applications.
  */
 class GradleDockerApplicationPlugin implements Plugin<Project> {
 
@@ -76,7 +76,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
     }
 
     /*
-     *  Create common tasks for all applications
+     *  Create domain tasks for all applications
      */
     private createApplicationTasks(final Project project,
                                    final NamedDomainObjectContainer<AbstractApplication> appContainer) {

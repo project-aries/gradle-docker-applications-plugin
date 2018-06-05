@@ -25,7 +25,7 @@ buildscript {
     }
 }
 
-apply from: "$rootDir/gradle/common.gradle"
+apply from: "$rootDir/gradle/domain.gradle"
 
 // properties MUST be applied PRIOR to applying publish plugin or they won't take effect.
 System.setProperty('org.ajoberstar.grgit.auth.username', resolveProperty('releaseUsername'))

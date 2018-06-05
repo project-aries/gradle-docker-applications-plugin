@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.application.plugin.extensions
-
-import com.aries.gradle.docker.application.plugin.common.AbstractContainer
+package com.aries.gradle.docker.application.plugin.domain
 
 import org.gradle.api.tasks.Optional
 import org.gradle.util.ConfigureUtil
@@ -25,7 +23,7 @@ import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
 
 /**
  *
- *  Base class for all applications to inherit common functionality from.
+ *  Base class for all applications to inherit domain functionality from.
  *
  */
 public class AbstractApplication {

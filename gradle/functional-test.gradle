@@ -1,5 +1,5 @@
 apply plugin: 'java-gradle-plugin'
-apply from: "$rootDir/gradle/common.gradle"
+apply from: "$rootDir/gradle/domain.gradle"
 
 sourceSets {
     functionalTest {
