@@ -14,22 +14,9 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.application.plugin.common
 
-class ImageInfo {
+package com.aries.gradle.docker.application.plugin
 
-    String repository
-    String tag
+class GradleDockerApplicationPluginExtension {
 
-    String repository() {
-        this.repository ?: 'alpine'
-    }
-
-    String tag() {
-        this.tag ?: 'latest'
-    }
-
-    String image() {
-        "${this.repository()}:${this.tag()}"
-    }
 }

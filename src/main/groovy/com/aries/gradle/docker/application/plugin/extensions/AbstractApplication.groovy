@@ -16,17 +16,22 @@
 
 package com.aries.gradle.docker.application.plugin.extensions
 
-import com.aries.gradle.docker.application.plugin.common.ImageInfo
+import com.aries.gradle.docker.application.plugin.common.AbstractContainer
 
 import org.gradle.api.tasks.Optional
 import org.gradle.util.ConfigureUtil
 
 /**
  *
- *  Base class for all databases to inherit common functionality from.
+ *  Base class for all applications to inherit common functionality from.
  *
  */
-public abstract class AbstractDatabase {
+public class AbstractApplication {
+
+    final String name
+    AbstractApplication(final String name) {
+        this.name = name
+    }
 
     @Optional
     String id
@@ -43,26 +48,26 @@ public abstract class AbstractDatabase {
     }
 
     // methods and properties used to configure the main container
-    protected ImageInfo main
-    void main(Closure<ImageInfo> info) {
-        main = ConfigureUtil.configure(info, main ?: new ImageInfo())
+    protected AbstractContainer main
+    void main(final Closure<AbstractContainer> info) {
+        main = ConfigureUtil.configure(info, main ?: new AbstractContainer())
     }
     String mainId() {
         "${id()}-${this.mainImage().repository().split('/').last()}"
     }
-    ImageInfo mainImage() {
+    AbstractContainer mainImage() {
         this.main
     }
 
     // methods and properties used to configure the data container
-    protected ImageInfo data
-    void data(Closure<ImageInfo> info) {
-        data = ConfigureUtil.configure(info, data ?: new ImageInfo())
+    protected AbstractContainer data
+    void data(final Closure<AbstractContainer> info) {
+        data = ConfigureUtil.configure(info, data ?: new AbstractContainer())
     }
     String dataId() {
         "${mainId()}-data"
     }
-    ImageInfo dataImage() {
+    AbstractContainer dataImage() {
         this.data ?: mainImage()
     }
 }

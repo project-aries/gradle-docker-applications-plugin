@@ -1,7 +1,7 @@
 /**
- * 
+ *
  * Script to hold common functions/methods/closures for the entire project to use.
- * 
+ *
  */
 
 // regular expression used primiarly when one wants to split a String
@@ -22,7 +22,7 @@ ext.propertyInSystemFormat = { gradlePropertyToFind ->
     def possibleValue = rootProject.findProperty(gradlePropertyToFind)?.trim()
     if (possibleValue) {
         def parts = gradlePropertyToFind.split(project.ext.camelCaseSplitRegex)*.toLowerCase()
-        logger.quiet "Setting docker-databases '${parts.last()}' for functional testing to '${possibleValue}'"
+        logger.quiet "Setting docker-application '${parts.last()}' for functional testing to '${possibleValue}'"
         propertyMap[parts.join('.')] = possibleValue
     }
     propertyMap
@@ -32,7 +32,7 @@ ext.propertyInSystemFormat = { gradlePropertyToFind ->
  * Check environment for property and if that fails
  * ask gradle to find the property somewhere within
  * the project hierarchy.
- * 
+ *
  * @param propKey the property to search for
  * @return value of property found or null
  */

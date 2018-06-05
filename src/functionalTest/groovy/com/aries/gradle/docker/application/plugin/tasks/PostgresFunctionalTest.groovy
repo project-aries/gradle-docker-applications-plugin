@@ -16,6 +16,8 @@
 
 package com.aries.gradle.docker.application.plugin.tasks
 
+import com.aries.gradle.docker.application.plugin.AbstractFunctionalTest
+
 import static java.util.concurrent.TimeUnit.MINUTES
 
 import org.gradle.testkit.runner.BuildResult
@@ -26,7 +28,7 @@ import spock.lang.Timeout
  *  Functional tests for the `postgres` tasks.
  *
  */
-class PostgresFunctionalTest extends com.aries.gradle.docker.application.plugin.AbstractFunctionalTest {
+class PostgresFunctionalTest extends AbstractFunctionalTest {
 
     @Timeout(value = 5, unit = MINUTES)
     def "Can standup, stop and then shutdown postgres stack"() {
@@ -34,26 +36,29 @@ class PostgresFunctionalTest extends com.aries.gradle.docker.application.plugin.
         String uuid = randomString()
         buildFile << """
 
-            postgres {
-                id = "bears"
-                data {
-                    repository = 'alpine'
+            applications {
+                postgres {
+                    id = 'bears'
+                    main {
+                        repository = 'postgres'
+                        tag = 'alpine'
+                    }
                 }
             }
             
-            task up(dependsOn: ['PostgresPullDataImage'])
+            task up(dependsOn: ['postgresUp'])
             
-            task stop(dependsOn: ['PostgresStop'])
+            task stop(dependsOn: ['postgresStop'])
 
-            task down(dependsOn: ['PostgresDown'])
+            task down(dependsOn: ['postgresDown'])
         """
 
         when:
             BuildResult result = build('up', 'stop', 'down')
 
         then:
-            result.output.contains('Pulling mainRepository') || result.output.contains(':PostgresPullImage SKIPPED')
+            result.output.contains('Pulling mainRepository') || result.output.contains(':postgresPullImage SKIPPED')
             result.output.contains('fish8')
-            !result.output.contains(':PostgresListImages SKIPPED')
+            !result.output.contains(':postgresListImages SKIPPED')
     }
 }

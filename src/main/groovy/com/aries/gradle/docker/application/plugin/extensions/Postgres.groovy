@@ -15,19 +15,15 @@
  */
 
 package com.aries.gradle.docker.application.plugin.extensions
-
-import com.aries.gradle.docker.application.plugin.common.ImageInfo
-
 /**
  *  Postgres specific extension point.
  */
-class Postgres extends AbstractDatabase {
+class Postgres  {
 
     public Postgres() {
         this.main = newImageInfo(repository: 'postgres', tag: 'alpine')
     }
 
-    @Override
     String liveOnLog() {
         this.liveOnLog ?: 'database system is ready to accept connections'
     }

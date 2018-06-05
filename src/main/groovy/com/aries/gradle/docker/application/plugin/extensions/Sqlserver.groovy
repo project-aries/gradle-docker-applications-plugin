@@ -16,18 +16,17 @@
 
 package com.aries.gradle.docker.application.plugin.extensions
 
-import com.aries.gradle.docker.application.plugin.common.ImageInfo
+import com.aries.gradle.docker.application.plugin.common.AbstractContainer
 
 /**
  *  Sqlserver specific extension point.
  */
-class Sqlserver extends AbstractDatabase {
+class Sqlserver  {
 
     public Sqlserver() {
-        this.main = new ImageInfo(repository: 'microsoft/mssql-server-linux', tag: 'latest')
+        this.main = new AbstractContainer(repository: 'microsoft/mssql-server-linux', tag: 'latest')
     }
 
-    @Override
     String liveOnLog() {
         this.liveOnLog ?: 'SQL Server is now ready for client connections.'
     }

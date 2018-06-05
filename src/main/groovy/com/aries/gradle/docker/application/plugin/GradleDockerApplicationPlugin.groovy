@@ -16,25 +16,20 @@
 
 package com.aries.gradle.docker.application.plugin
 
+import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-
-import com.aries.gradle.docker.application.plugin.extensions.AbstractDatabase
-import com.aries.gradle.docker.application.plugin.extensions.Databases
-import com.aries.gradle.docker.application.plugin.extensions.Db2
-import com.aries.gradle.docker.application.plugin.extensions.Oracle
-import com.aries.gradle.docker.application.plugin.extensions.Postgres
-import com.aries.gradle.docker.application.plugin.extensions.Sqlserver
-
 import org.gradle.api.Task
 import org.gradle.api.tasks.StopExecutionException
 
+import com.aries.gradle.docker.application.plugin.extensions.AbstractApplication
+
 /**
- *  Plugin providing common tasks for interacting with various dockerized databases.
+ *  Plugin providing common tasks for starting, stopping, and deleting dockerized applications.
  */
 class GradleDockerApplicationPlugin implements Plugin<Project> {
 
-    public static final List<Class> DATABASES = [Db2, Oracle, Postgres, Sqlserver].asImmutable()
+    public static final String EXTENSION_NAME = 'applications'
 
     public static final String NOT_PRESENT_REGEX = '^(NotModifiedException|NotFoundException)$'
 
@@ -44,57 +39,64 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
         // 1.) apply required plugins
         project.plugins.apply('com.bmuschko.docker-remote-api')
 
-        // 2.) create all database extension points
-        createApplicationExtensionPoints(project)
+        // 2.) build container for housing ad-hoc applications
+        final NamedDomainObjectContainer<AbstractApplication> appContainer = project.container(AbstractApplication)
 
-        // 3.) create all database tasks
-        createApplicationTasks(project)
+        // 3.) build plugin extension point from container
+        project.extensions.add(EXTENSION_NAME, appContainer)
+
+        project.afterEvaluate {
+
+            // 4.) create all application extension points
+            createApplicationExtensionPoints(project, appContainer)
+
+            // 5.) create all application tasks
+            createApplicationTasks(project, appContainer)
+        }
     }
 
     /*
      * Create our various application extension points.
      */
-    private createApplicationExtensionPoints(final Project project) {
-        project.extensions.create(Databases.simpleName.toLowerCase(), Databases)
-        DATABASES.each { dbClass ->
-            project.extensions.create(dbClass.simpleName.toLowerCase(), dbClass)
+    private createApplicationExtensionPoints(final Project project,
+                                             final NamedDomainObjectContainer<AbstractApplication> appContainer) {
+        appContainer.each { app ->
+            project.extensions.add(app.name, app)
         }
     }
 
     /*
-     *  Create common tasks for all databases
+     *  Create common tasks for all applications
      */
-    private createApplicationTasks(final Project project) {
-        DATABASES.each { dbClass ->
+    private createApplicationTasks(final Project project,
+                                   final NamedDomainObjectContainer<AbstractApplication> appContainer) {
+        appContainer.each { app ->
 
             // commmon variables used by all tasks below
-            final String dbType = dbClass.simpleName
-            final String dbGroup = "${dbType}-database"
-            final def dbExtension = project.extensions.getByName(dbType.toLowerCase())
+            final String appGroup = "${taskNamePrefix}-${app.id()}"
+            final def appExtension = project.extensions.getByName(app.name)
 
             // create tasks after evaluation so that we can pick up any changes
             // made to our various extension points.
-            project.afterEvaluate {
-                createTaskChain_Up(project, dbType, dbGroup, dbExtension)
-                createTaskChain_Stop(project, dbType, dbGroup, dbExtension)
-                createTaskChain_Down(project, dbType, dbGroup, dbExtension)
-            }
+            createTaskChain_Up(project, app.name, appGroup, appExtension)
+            createTaskChain_Stop(project, app.name, appGroup, appExtension)
+            createTaskChain_Down(project, app.name, appGroup, appExtension)
         }
     }
 
     // create required tasks for invoking the "up" chain.
     private createTaskChain_Up(final Project project,
-                               final String taskNamePrefix,
-                               final String taskGroup,
-                               final AbstractDatabase taskGroupExtension) {
+                               final String appName,
+                               final String appGroup,
+                               final AbstractApplication appExtension) {
 
-        final Task availableDataContainerTask = project.task("${taskNamePrefix}AvailableDataContainer",
+        final Task availableDataContainerTask = project.task("${appName}AvailableDataContainer",
             type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer) {
 
-            group: taskGroup
-            description: "Check if '${taskNamePrefix}' data container is available."
+            group: appGroup
+            description: "Check if '${appName}' data container is available."
 
-            targetContainerId { taskGroupExtension.dataId() }
+            targetContainerId { appExtension.dataId() }
 
             ext.exists = true
             onNext {} // defining so that the output will get piped to nowhere as we don't need it
@@ -103,19 +105,19 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                     throw err
                 } else {
                     ext.exists = false
-                    logger.quiet "Container with ID '${taskGroupExtension.dataId()}' is not running or available to inspect."
+                    logger.quiet "Container with ID '${appExtension.dataId()}' is not running or available to inspect."
                 }
             }
         }
 
-        final Task availableContainerTask = project.task("${taskNamePrefix}AvailableContainer",
+        final Task availableContainerTask = project.task("${appName}AvailableContainer",
             type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer,
             dependsOn: [availableDataContainerTask]) {
 
-            group: taskGroup
-            description: "Check if '${taskNamePrefix}' container is available."
+            group: appGroup
+            description: "Check if '${appName}' container is available."
 
-            targetContainerId { taskGroupExtension.mainId() }
+            targetContainerId { appExtension.mainId() }
 
             ext.exists = true
             ext.inspection = null
@@ -127,38 +129,38 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                     throw err
                 } else {
                     ext.exists = false
-                    logger.quiet "Container with ID '${taskGroupExtension.mainId()}' is not running or available to inspect."
+                    logger.quiet "Container with ID '${appExtension.mainId()}' is not running or available to inspect."
                 }
             }
         }
 
-        final Task restartContainerTask = project.task("${taskNamePrefix}RestartContainer",
+        final Task restartContainerTask = project.task("${appName}RestartContainer",
             type: com.bmuschko.gradle.docker.tasks.container.DockerRestartContainer,
             dependsOn: [availableContainerTask]) {
             onlyIf { availableContainerTask.ext.exists == true &&
                 availableContainerTask.ext.inspection.state.running == false }
 
-            group: taskGroup
-            description: "Restart '${taskNamePrefix}' container if it is present and not running."
+            group: appGroup
+            description: "Restart '${appName}' container if it is present and not running."
 
             doFirst {
                 ext.startTime = new Date()
             }
-            targetContainerId { taskGroupExtension.mainId() }
+            targetContainerId { appExtension.mainId() }
             timeout = 30000
         }
 
         // if a previous main/data container is present than the assumption is that
         // the containerImage in question must also be present and so we don't need to check
         // for the existence of its backing containerImage
-        final Task listImagesTask = project.task("${taskNamePrefix}ListImages",
+        final Task listImagesTask = project.task("${appName}ListImages",
             type: com.bmuschko.gradle.docker.tasks.image.DockerListImages,
             dependsOn: [restartContainerTask]) {
             onlyIf { availableDataContainerTask.ext.exists == false ||
                 availableContainerTask.ext.exists == false }
 
-            group: taskGroup
-            description: "Check if image for '${taskNamePrefix}' exists locally."
+            group: appGroup
+            description: "Check if image for '${appName}' exists locally."
 
             // if both images are the same we only need to search for one,
             // and thus we can filter down the images, otherwise, and due
@@ -166,9 +168,9 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             // through all images looking for the 2 we want.
             ext.duplicateImages = false
             doFirst {
-                ext.duplicateImages = taskGroupExtension.mainImage().image() == taskGroupExtension.dataImage().image()
+                ext.duplicateImages = appExtension.mainImage().image() == appExtension.dataImage().image()
                 if (ext.duplicateImages) {
-                    imageName = taskGroupExtension.mainImage().image()
+                    imageName = appExtension.mainImage().image()
                 }
             }
 
@@ -184,16 +186,16 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                     img.repoTags.each { rep ->
                         if (rep) {
                             if (!ext.mainImageFound || !ext.dataImageFound) {
-                                if (!ext.mainImageFound && rep.first() == taskGroupExtension.mainImage().image()) {
-                                    logger.quiet "Image '${taskGroupExtension.mainImage().image()}' for '${taskGroupExtension.mainId()}' was found locally."
+                                if (!ext.mainImageFound && rep.first() == appExtension.mainImage().image()) {
+                                    logger.quiet "Image '${appExtension.mainImage().image()}' for '${appExtension.mainId()}' was found locally."
                                     ext.mainImageFound = true
                                     if (ext.duplicateImages) {
                                         ext.dataImageFound = true
                                         throw new StopExecutionException();
                                     }
                                 }
-                                if (!ext.dataImageFound && rep.first() == taskGroupExtension.dataImage().image()) {
-                                    logger.quiet "Image '${taskGroupExtension.dataImage().image()}' for '${taskGroupExtension.dataId()}' was found locally."
+                                if (!ext.dataImageFound && rep.first() == appExtension.dataImage().image()) {
+                                    logger.quiet "Image '${appExtension.dataImage().image()}' for '${appExtension.dataId()}' was found locally."
                                     ext.dataImageFound = true
                                     if (ext.mainImageFound) {
                                         throw new StopExecutionException();
@@ -207,160 +209,162 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
         }
 
 
-        final Task pullImageTask = project.task("${taskNamePrefix}PullImage",
+        final Task pullImageTask = project.task("${appName}PullImage",
             type: com.bmuschko.gradle.docker.tasks.image.DockerPullImage,
             dependsOn: [listImagesTask]) {
             onlyIf { availableContainerTask.ext.exists == false &&
                 listImagesTask.ext.mainImageFound == false }
 
-            group: taskGroup
-            description: "Pull image for '${taskNamePrefix}'."
+            group: appGroup
+            description: "Pull image for '${appName}'."
 
-            repository = taskGroupExtension.mainImage().repository()
-            tag = taskGroupExtension.mainImage().tag()
+            repository = appExtension.mainImage().repository()
+            tag = appExtension.mainImage().tag()
         }
 
-        final Task pullDataImageTask = project.task("${taskNamePrefix}PullDataImage",
+        final Task pullDataImageTask = project.task("${appName}PullDataImage",
             type: com.bmuschko.gradle.docker.tasks.image.DockerPullImage,
             dependsOn: [pullImageTask]) {
             onlyIf { availableDataContainerTask.ext.exists == false &&
                 listImagesTask.ext.dataImageFound == false }
 
-            group: taskGroup
-            description: "Pull data image for '${taskNamePrefix}'."
+            group: appGroup
+            description: "Pull data image for '${appName}'."
 
-            repository = taskGroupExtension.dataImage().repository()
-            tag = taskGroupExtension.dataImage().tag()
+            repository = appExtension.dataImage().repository()
+            tag = appExtension.dataImage().tag()
         }
 
-        final Task removeContainerTask = project.task("${taskNamePrefix}RemoveContainer",
+        final Task removeContainerTask = project.task("${appName}RemoveContainer",
             type: com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer,
             dependsOn: [pullDataImageTask]) {
             onlyIf { availableContainerTask.ext.exists == true &&
                 availableContainerTask.ext.inspection.state.running == false &&
                 restartContainerTask.state.didWork == false }
 
-            group: taskGroup
-            description: "Remove '${taskNamePrefix}' container."
+            group: appGroup
+            description: "Remove '${appName}' container."
 
             removeVolumes = true
             force = true
-            targetContainerId { taskGroupExtension.mainId() }
+            targetContainerId { appExtension.mainId() }
 
             onError { err ->
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${taskGroupExtension.mainId()}' is not available to remove."
+                    logger.quiet "Container with ID '${appExtension.mainId()}' is not available to remove."
                 }
             }
         }
 
-        final Task removeDataContainerTask = project.task("${taskNamePrefix}RemoveDataContainer",
+        final Task removeDataContainerTask = project.task("${appName}RemoveDataContainer",
             type: com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer,
             dependsOn: [removeContainerTask]) {
             onlyIf { availableDataContainerTask.ext.exists == true &&
                 restartContainerTask.state.didWork == false &&
                 removeContainerTask.state.didWork == true }
 
-            group: taskGroup
-            description: "Remove '${taskNamePrefix}' data container."
+            group: appGroup
+            description: "Remove '${appName}' data container."
 
             removeVolumes = true
             force = true
-            targetContainerId { taskGroupExtension.dataId() }
+            targetContainerId { appExtension.dataId() }
 
             onError { err ->
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${taskGroupExtension.dataId()}' is not available to remove."
+                    logger.quiet "Container with ID '${appExtension.dataId()}' is not available to remove."
                 }
             }
         }
 
-        final Task createDataContainerTask = project.task("${taskNamePrefix}CreateDataContainer",
+        final Task createDataContainerTask = project.task("${appName}CreateDataContainer",
             type: com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer,
             dependsOn: [removeDataContainerTask]) {
             onlyIf { availableDataContainerTask.ext.exists == false }
 
-            group: taskGroup
-            description: "Create '${taskNamePrefix}' data container."
+            group: appGroup
+            description: "Create '${appName}' data container."
 
-            targetImageId { taskGroupExtension.dataImage().image() }
-            containerName = taskGroupExtension.dataId()
+            targetImageId { appExtension.dataImage().image() }
+            containerName = appExtension.dataId()
             volumes = ["/var/lib/postgresql/data"]
         }
 
-        final Task createContainerTask = project.task("${taskNamePrefix}CreateContainer",
+        final Task createContainerTask = project.task("${appName}CreateContainer",
             type: com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer,
             dependsOn: [createDataContainerTask]) {
             onlyIf { availableContainerTask.ext.exists == false }
 
-            group: taskGroup
-            description: "Create '${taskNamePrefix}' container."
+            group: appGroup
+            description: "Create '${appName}' container."
 
-            targetImageId { taskGroupExtension.mainImage().image() }
-            containerName = taskGroupExtension.mainId()
-            volumesFrom = [taskGroupExtension.dataId()]
+            targetImageId { appExtension.mainImage().image() }
+            containerName = appExtension.mainId()
+            volumesFrom = [appExtension.dataId()]
         }
 
-        final Task startContainerTask = project.task("${taskNamePrefix}StartContainer",
+        final Task startContainerTask = project.task("${appName}StartContainer",
             type: com.bmuschko.gradle.docker.tasks.container.DockerStartContainer,
             dependsOn: [createContainerTask]) {
             onlyIf { createContainerTask.state.didWork }
 
-            group: taskGroup
-            description: "Start '${taskNamePrefix}' container."
+            group: appGroup
+            description: "Start '${appName}' container."
 
             doFirst {
                 ext.startTime = new Date()
             }
-            targetContainerId { taskGroupExtension.mainId() }
+            targetContainerId { appExtension.mainId() }
         }
 
-        final Task livenessProbeContainerTask = project.task("${taskNamePrefix}LivenessProbeContainer",
+        final Task livenessProbeContainerTask = project.task("${appName}LivenessProbeContainer",
             type: com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessProbeContainer,
             dependsOn: [startContainerTask]) {
-            onlyIf { startContainerTask.state.didWork ||
-                restartContainerTask.state.didWork }
+            onlyIf { (startContainerTask.state.didWork ||
+                restartContainerTask.state.didWork) && appExtension.liveOnLog() }
 
-            group: taskGroup
-            description: "Check if '${taskNamePrefix}' container is live."
+            group: appGroup
+            description: "Check if '${appName}' container is live."
 
-            targetContainerId { taskGroupExtension.mainId() }
+            targetContainerId { appExtension.mainId() }
 
-            // only 2 ways this task can kick so we will proceed to configure
-            // it based upon which one did actual work
             doFirst {
+
+                // only 2 ways this task can kick so we will proceed to configure
+                // it based upon which one did actual work
                 since = startContainerTask.state.didWork ?
                     startContainerTask.ext.startTime :
                     restartContainerTask.ext.startTime
+
+                tailCount = 10
+                probe(300000, 30000, appExtension.liveOnLog())
             }
-            tailCount = 10
-            probe(300000, 30000, taskGroupExtension.liveOnLog())
         }
 
-        project.task("${taskNamePrefix}Up",
+        project.task("${appName}Up",
             dependsOn: [livenessProbeContainerTask]) {
-            group: taskGroup
-            description: "Start '${taskNamePrefix}' container application if not already started."
+            group: appGroup
+            description: "Start '${appName}' container application if not already started."
         }
     }
 
     // create required tasks for invoking the "stop" chain.
     private createTaskChain_Stop(final Project project,
-                                 final String taskNamePrefix,
-                                 final String taskGroup,
-                                 final AbstractDatabase taskGroupExtension) {
+                                 final String appName,
+                                 final String appGroup,
+                                 final AbstractApplication appExtension) {
 
-        final Task stopContainerTask = project.task("${taskNamePrefix}StopContainer",
+        final Task stopContainerTask = project.task("${appName}StopContainer",
             type: com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer) {
 
-            group: taskGroup
-            description: "Stop '${taskNamePrefix}' container."
+            group: appGroup
+            description: "Stop '${appName}' container."
 
-            targetContainerId { taskGroupExtension.mainId() }
+            targetContainerId { appExtension.mainId() }
             cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
             successOnExitCodes = [0, 127, 137]
             timeout = 60000
@@ -372,68 +376,68 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${taskGroupExtension.mainId()}' is not running/available to stop."
+                    logger.quiet "Container with ID '${appExtension.mainId()}' is not running/available to stop."
                 }
             }
         }
 
-        project.task("${taskNamePrefix}Stop",
+        project.task("${appName}Stop",
             dependsOn: [stopContainerTask]) {
-            group: taskGroup
-            description: "Stop '${taskNamePrefix}' container application if not already stopped."
+            group: appGroup
+            description: "Stop '${appName}' container application if not already stopped."
         }
     }
 
     // create required tasks for invoking the "down" chain.
     private createTaskChain_Down(final Project project,
-                                 final String taskNamePrefix,
-                                 final String taskGroup,
-                                 final AbstractDatabase taskGroupExtension) {
+                                 final String appName,
+                                 final String appGroup,
+                                 final AbstractApplication appExtension) {
 
-        final Task deleteContainerTask = project.task("${taskNamePrefix}DeleteContainer",
+        final Task deleteContainerTask = project.task("${appName}DeleteContainer",
             type: com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer) {
 
-            group: taskGroup
-            description: "Delete '${taskNamePrefix}' container."
+            group: appGroup
+            description: "Delete '${appName}' container."
 
             removeVolumes = true
             force = true
-            targetContainerId { taskGroupExtension.mainId() }
+            targetContainerId { appExtension.mainId() }
 
             onError { err ->
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${taskGroupExtension.mainId()}' is not available to delete."
+                    logger.quiet "Container with ID '${appExtension.mainId()}' is not available to delete."
                 }
             }
         }
 
-        final Task deleteDataContainerTask = project.task("${taskNamePrefix}DeleteDataContainer",
+        final Task deleteDataContainerTask = project.task("${appName}DeleteDataContainer",
             type: com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer,
             dependsOn: [deleteContainerTask]) {
 
-            group: taskGroup
-            description: "Delete '${taskNamePrefix}' data container."
+            group: appGroup
+            description: "Delete '${appName}' data container."
 
             removeVolumes = true
             force = true
-            targetContainerId { taskGroupExtension.dataId() }
+            targetContainerId { appExtension.dataId() }
 
             onError { err ->
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${taskGroupExtension.dataId()}' is not available to delete."
+                    logger.quiet "Container with ID '${appExtension.dataId()}' is not available to delete."
                 }
             }
         }
 
-        project.task("${taskNamePrefix}Down",
+        project.task("${appName}Down",
             dependsOn: [deleteDataContainerTask]) {
 
-            group: taskGroup
-            description: "Delete '${taskNamePrefix}' container application if not already deleted."
+            group: appGroup
+            description: "Delete '${appName}' container application if not already deleted."
         }
     }
 }

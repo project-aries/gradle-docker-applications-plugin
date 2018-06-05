@@ -14,29 +14,21 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.application.plugin.tasks
+package com.aries.gradle.docker.application.plugin.common
 
-import org.gradle.testkit.runner.BuildResult
+class AbstractContainer {
 
-/**
- *
- *  Functional tests for the `db2` tasks.
- *
- */
-class Db2FunctionalTest extends com.aries.gradle.docker.application.plugin.AbstractFunctionalTest {
+    String repository
+    String repository() {
+        this.repository ?: 'alpine'
+    }
 
-    def "Can pull a Db2 image"() {
-        buildFile << """
+    String tag
+    String tag() {
+        this.tag ?: 'latest'
+    }
 
-            task pullImage(dependsOn: ['Db2PullImage'])
-
-            task workflow(dependsOn: pullImage)
-        """
-
-        when:
-            BuildResult result = build('workflow')
-
-        then:
-            result.output.contains('Pulling mainRepository') || result.output.contains(':Db2PullImage SKIPPED')
+    String image() {
+        "${this.repository()}:${this.tag()}"
     }
 }
