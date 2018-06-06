@@ -19,16 +19,15 @@ package com.aries.gradle.docker.application.plugin.domain
 import org.gradle.api.tasks.Optional
 import org.gradle.util.ConfigureUtil
 
-import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
-
 /**
  *
- *  Base class for all applications to inherit domain functionality from.
+ *  Base class for all applications to inherit functionality from.
  *
  */
 public class AbstractApplication {
 
     final String name
+
     AbstractApplication(final String name) {
         this.name = name
     }
@@ -39,40 +38,27 @@ public class AbstractApplication {
         this.id ?: System.getProperty('user.name')
     }
 
-    // upon start/restart we will query the main containers logs for this
-    // message, if null no attempt to will be made to query
-    @Optional
-    String liveOnLog
-    String liveOnLog() {
-        this.liveOnLog ?: null
-    }
-
     // methods and properties used to configure the main container
-    protected AbstractContainer main
-    void main(final Closure<AbstractContainer> info) {
-        main = ConfigureUtil.configure(info, main ?: new AbstractContainer())
+    protected MainContainer main
+    void main(final Closure<MainContainer> info) {
+        main = ConfigureUtil.configure(info, main ?: new MainContainer())
     }
-    AbstractContainer main() {
-        this.main
+    MainContainer main() {
+        this.main ?: new MainContainer()
     }
     String mainId() {
         "${id()}-${this.main().repository().split('/').last()}"
     }
 
     // methods and properties used to configure the data container
-    protected AbstractContainer data
-    void data(final Closure<AbstractContainer> info) {
-        data = ConfigureUtil.configure(info, data ?: new AbstractContainer())
+    protected DataContainer data
+    void data(final Closure<DataContainer> info) {
+        data = ConfigureUtil.configure(info, data ?: new DataContainer())
     }
-    AbstractContainer data() {
-        this.data ?: main()
+    DataContainer data() {
+        this.data ?: new DataContainer()
     }
     String dataId() {
         "${mainId()}-data"
-    }
-
-    final List<Closure<DockerExecStopContainer>> stops = []
-    void stop(Closure<DockerExecStopContainer> stop) {
-        if (stop) { stops.add(stop) }
     }
 }

@@ -14,8 +14,15 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.application.plugin.domain
+package com.aries.gradle.docker.application.plugin.domain.common
 
+import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
+
+/**
+ *
+ *  Base class for all containers to inherit functionality from.
+ *
+ */
 class AbstractContainer {
 
     String repository
@@ -30,5 +37,10 @@ class AbstractContainer {
 
     String image() {
         "${this.repository()}:${this.tag()}"
+    }
+
+    final List<Closure<DockerCreateContainer>> createConfigs = []
+    void create(Closure<DockerCreateContainer> createConfig) {
+        if (createConfig) { createConfigs.add(createConfig) }
     }
 }

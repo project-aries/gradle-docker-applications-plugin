@@ -34,7 +34,7 @@ import com.bmuschko.gradle.docker.tasks.image.DockerPullImage
 import com.aries.gradle.docker.application.plugin.domain.AbstractApplication
 
 /**
- *  Plugin providing domain tasks for starting, stopping, and deleting dockerized applications.
+ *  Plugin providing domain tasks for starting (Up), stopping (Stop), and deleting (Down) dockerized applications.
  */
 class GradleDockerApplicationPlugin implements Plugin<Project> {
 
@@ -303,8 +303,8 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             doFirst {
                 containerName = appExtension.dataId()
             }
-            volumes = ["/var/lib/postgresql/data"]
         }
+        appExtension.data().createConfigs.each { createContainerTask.configure(it) }
 
         final DockerCreateContainer createContainerTask = project.task("${appName}CreateContainer",
             type: DockerCreateContainer,
@@ -320,6 +320,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                 volumesFrom = [appExtension.dataId()]
             }
         }
+        appExtension.main().createConfigs.each { createContainerTask.configure(it) }
 
         final DockerStartContainer startContainerTask = project.task("${appName}StartContainer",
             type: DockerStartContainer,
@@ -334,12 +335,13 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             }
             targetContainerId { appExtension.mainId() }
         }
+        appExtension.main().startConfigs.each { startContainerTask.configure(it) }
 
         final DockerLivenessProbeContainer livenessProbeContainerTask = project.task("${appName}LivenessProbeContainer",
             type: DockerLivenessProbeContainer,
             dependsOn: [startContainerTask]) {
             onlyIf { (startContainerTask.state.didWork ||
-                restartContainerTask.state.didWork) && appExtension.liveOnLog() }
+                restartContainerTask.state.didWork) && appExtension.main().livenessConfigs }
 
             group: appGroup
             description: "Check if '${appName}' container is live."
@@ -347,16 +349,14 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             targetContainerId { appExtension.mainId() }
 
             // only 2 ways this task can kick so we will proceed to configure
-            // it based upon which one did actual work
+            // the `since` option based upon which one did actual work
             doFirst {
                 since = startContainerTask.state.didWork ?
                     startContainerTask.ext.startTime :
                     restartContainerTask.ext.startTime
             }
-
-            tailCount = 10
-            probe(300000, 10000, appExtension.liveOnLog())
         }
+        appExtension.main().livenessConfigs.each { livenessProbeContainerTask.configure(it) }
 
         project.task("${appName}Up",
             dependsOn: [livenessProbeContainerTask]) {
@@ -389,12 +389,12 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                 }
             }
         }
-        appExtension.stops.each { stopContainerTask.configure(it) }
+        appExtension.main().stopConfigs.each { stopContainerTask.configure(it) }
 
         project.task("${appName}Stop",
             dependsOn: [stopContainerTask]) {
             group: appGroup
-            description: "Stop '${appName}' container application if not already stopped."
+            description: "Stop '${appName}' container application if not already paused."
         }
     }
 

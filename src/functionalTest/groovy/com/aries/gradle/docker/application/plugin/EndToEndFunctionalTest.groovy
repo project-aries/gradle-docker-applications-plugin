@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.application.plugin.tasks
+package com.aries.gradle.docker.application.plugin
 
 import com.aries.gradle.docker.application.plugin.AbstractFunctionalTest
 
@@ -25,13 +25,13 @@ import spock.lang.Timeout
 
 /**
  *
- *  Functional tests for the `postgres` tasks.
+ *  Functional tests to perform up, pause, and down tasks.
  *
  */
-class PostgresFunctionalTest extends AbstractFunctionalTest {
+class EndToEndFunctionalTest extends AbstractFunctionalTest {
 
     @Timeout(value = 5, unit = MINUTES)
-    def "Can standup, stop and then shutdown postgres stack"() {
+    def "Can up, pause, and down a postgres application stack"() {
 
         String uuid = randomString()
         buildFile << """
@@ -39,29 +39,31 @@ class PostgresFunctionalTest extends AbstractFunctionalTest {
             applications {
                 postgres {
                     id = 'bears'
-                    liveOnLog = 'database system is ready to accept connections'
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
-                    }
-                    stop {
-                        cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
-                        successOnExitCodes = [0, 127, 137]
-                        timeout = 60000
-                        probe(60000, 10000)
+                        stop {
+                            cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
+                            successOnExitCodes = [0, 127, 137]
+                            timeout = 60000
+                            probe(60000, 10000)
+                        }
+                        liveness {
+                            probe(300000, 10000, 'database system is ready to accept connections')
+                        }
                     }
                 }
             }
             
             task up(dependsOn: ['postgresUp'])
             
-            task stop(dependsOn: ['postgresStop'])
+            task pause(dependsOn: ['postgresPause'])
 
             task down(dependsOn: ['postgresDown'])
         """
 
         when:
-            BuildResult result = build('up', 'stop', 'down')
+            BuildResult result = build('up', 'pause', 'down')
 
         then:
             result.output.contains('Pulling mainRepository') || result.output.contains(':postgresPullImage SKIPPED')
