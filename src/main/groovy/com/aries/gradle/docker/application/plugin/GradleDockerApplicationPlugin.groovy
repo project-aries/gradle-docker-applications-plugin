@@ -393,7 +393,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${appExtension.mainId()}' is not running/available to stop."
+                    logger.quiet "Container with ID '${appExtension.mainId()}' is not running or available to stop."
                 }
             }
         }
