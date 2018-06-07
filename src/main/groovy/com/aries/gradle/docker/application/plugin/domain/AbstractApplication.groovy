@@ -41,10 +41,10 @@ public class AbstractApplication {
     // methods and properties used to configure the main container
     protected MainContainer main
     void main(final Closure<MainContainer> info) {
-        main = ConfigureUtil.configure(info, main ?: new MainContainer())
+        this.main = ConfigureUtil.configure(info, this.main ?: new MainContainer())
     }
     MainContainer main() {
-        this.main ?: new MainContainer()
+        Objects.requireNonNull(this.main, "The 'main' container has not been defined.")
     }
     String mainId() {
         "${id()}-${this.main().repository().split('/').last()}"
@@ -56,9 +56,23 @@ public class AbstractApplication {
         data = ConfigureUtil.configure(info, data ?: new DataContainer())
     }
     DataContainer data() {
-        this.data ?: new DataContainer()
+        this.data = this.data ?: new DataContainer()
     }
     String dataId() {
         "${mainId()}-data"
+    }
+
+    // internal method to check that our main and data containers are setup properly
+    protected void sanityCheck() {
+
+        // 1.) main, and all its properties, are required to be set and defined.
+        final MainContainer mainCheck = main()
+        Objects.requireNonNull(mainCheck.repository(), "'main' must have a valid repository defined")
+        Objects.requireNonNull(mainCheck.tag(), "'main' must have a valid tag defined")
+
+        // 2.) data is not required to be defined as it will/can inherit properties from main.
+        final DataContainer dataCheck = data()
+        if (!dataCheck.repository()) { dataCheck.repository = mainCheck.repository() }
+        if (!dataCheck.tag()) { dataCheck.tag = mainCheck.tag() }
     }
 }

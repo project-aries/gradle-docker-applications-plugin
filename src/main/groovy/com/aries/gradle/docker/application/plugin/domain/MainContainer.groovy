@@ -52,7 +52,7 @@ class MainContainer extends AbstractContainer {
     // from within the container, and if that fails then stop
     // the container in the old fashioned way.
     final List<Closure<DockerExecStopContainer>> stopConfigs = []
-    void stop(Closure<DockerExecStopContainer> pauseConfig) {
+    void stop(Closure<DockerExecStopContainer> stopConfig) {
         if (stopConfig) { stopConfigs.add(stopConfig) }
     }
 }

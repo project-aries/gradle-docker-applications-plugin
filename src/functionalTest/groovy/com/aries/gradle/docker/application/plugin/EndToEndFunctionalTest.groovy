@@ -57,7 +57,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             
             task up(dependsOn: ['postgresUp'])
             
-            task pause(dependsOn: ['postgresPause'])
+            task pause(dependsOn: ['postgresStop'])
 
             task down(dependsOn: ['postgresDown'])
         """

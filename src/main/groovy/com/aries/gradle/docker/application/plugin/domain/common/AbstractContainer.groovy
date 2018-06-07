@@ -25,14 +25,14 @@ import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
  */
 class AbstractContainer {
 
-    String repository
+    public String repository
     String repository() {
-        this.repository ?: 'alpine'
+        this.repository
     }
 
-    String tag
+    public String tag
     String tag() {
-        this.tag ?: 'latest'
+        this.tag
     }
 
     String image() {
