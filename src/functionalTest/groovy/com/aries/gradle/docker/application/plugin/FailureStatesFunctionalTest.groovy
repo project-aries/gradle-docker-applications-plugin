@@ -88,15 +88,6 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
                     main {
                         repository = 'postgres'
                         tag = 'idontexist'
-                        stop {
-                            cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
-                            successOnExitCodes = [0, 127, 137]
-                            timeout = 60000
-                            probe(60000, 10000)
-                        }
-                        liveness {
-                            probe(300000, 10000, 'database system is ready to accept connections')
-                        }
                     }
                 }
             }
@@ -105,7 +96,7 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
         """
 
         when:
-        BuildResult result = build('up')
+        BuildResult result = buildAndFail('up')
 
         then:
         result.output.contains('were not found locally: pull required')
