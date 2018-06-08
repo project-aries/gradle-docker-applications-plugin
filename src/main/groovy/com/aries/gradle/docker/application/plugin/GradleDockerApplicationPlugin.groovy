@@ -368,6 +368,8 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
         project.task("${appName}Up",
             dependsOn: [livenessProbeContainerTask]) {
+            outputs.upToDateWhen { false }
+
             group: appGroup
             description: "Start '${appName}' container application if not already started."
         }
@@ -401,6 +403,8 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
         project.task("${appName}Stop",
             dependsOn: [stopContainerTask]) {
+            outputs.upToDateWhen { false }
+
             group: appGroup
             description: "Stop '${appName}' container application if not already paused."
         }
@@ -453,6 +457,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
         project.task("${appName}Down",
             dependsOn: [deleteDataContainerTask]) {
+            outputs.upToDateWhen { false }
 
             group: appGroup
             description: "Delete '${appName}' container application if not already deleted."

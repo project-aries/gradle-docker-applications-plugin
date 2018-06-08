@@ -31,7 +31,7 @@ import spock.lang.Timeout
 class EndToEndFunctionalTest extends AbstractFunctionalTest {
 
     @Timeout(value = 5, unit = MINUTES)
-    def "Can up, pause, and down a postgres application stack"() {
+    def "Can start, stop, and remove a postgres application stack"() {
 
         String uuid = randomString()
         buildFile << """
@@ -57,13 +57,13 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             
             task up(dependsOn: ['postgresUp'])
             
-            task pause(dependsOn: ['postgresStop'])
+            task stop(dependsOn: ['postgresStop'])
 
             task down(dependsOn: ['postgresDown'])
         """
 
         when:
-            BuildResult result = build('up', 'pause', 'down')
+            BuildResult result = build('up', 'stop', 'down')
 
         then:
             result.output.contains('Pulling mainRepository') || result.output.contains(':postgresPullImage SKIPPED')
