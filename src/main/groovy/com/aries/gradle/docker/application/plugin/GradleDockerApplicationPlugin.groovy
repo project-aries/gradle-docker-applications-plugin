@@ -259,7 +259,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             tag = appContainer.main().tag()
             onError { err ->
                 if (err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
-                    throw new GradleException("Image '${appContainer.main().image()}' for '${appContainer.mainId()}' was not found remotely.")
+                    throw new GradleException("Image '${appContainer.main().image()}' for '${appContainer.mainId()}' was not found remotely.", err)
                 } else {
                     throw err
                 }
@@ -279,7 +279,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             tag = appContainer.data().tag()
             onError { err ->
                 if (err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
-                    throw new GradleException("Image '${appContainer.data().image()}' for '${appContainer.dataId()}' was not found remotely.")
+                    throw new GradleException("Image '${appContainer.data().image()}' for '${appContainer.dataId()}' was not found remotely.", err)
                 } else {
                     throw err
                 }
@@ -381,8 +381,8 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
         final DockerLivenessProbeContainer livenessProbeContainerTask = project.task("${appName}LivenessProbeContainer",
             type: DockerLivenessProbeContainer,
             dependsOn: [startContainerTask]) {
-            onlyIf { (startContainerTask.state.didWork ||
-                restartContainerTask.state.didWork) && appContainer.main().livenessConfigs }
+            onlyIf { startContainerTask.state.didWork ||
+                restartContainerTask.state.didWork }
 
             group: appGroup
             description: "Check if '${appName}' container is live."
