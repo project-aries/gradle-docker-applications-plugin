@@ -65,14 +65,15 @@ public class AbstractApplication {
     // internal method to check that our main and data containers are setup properly
     protected void sanityCheck() {
 
-        // 1.) main, and all its properties, are required to be set and defined.
+        // 1.) `main`, and all its properties, are required to be set and defined.
         final MainContainer mainCheck = main()
         Objects.requireNonNull(mainCheck.repository(), "'main' must have a valid repository defined")
-        Objects.requireNonNull(mainCheck.tag(), "'main' must have a valid tag defined")
 
-        // 2.) data is not required to be defined as it will/can inherit properties from main.
+        // 2.) `data` is not required to be defined as it will/can inherit properties from main.
         final DataContainer dataCheck = data()
-        if (!dataCheck.repository()) { dataCheck.repository = mainCheck.repository() }
-        if (!dataCheck.tag()) { dataCheck.tag = mainCheck.tag() }
+        if (!dataCheck.repository()) {
+            dataCheck.repository = mainCheck.repository()
+            dataCheck.tag = mainCheck.tag()
+        }
     }
 }
