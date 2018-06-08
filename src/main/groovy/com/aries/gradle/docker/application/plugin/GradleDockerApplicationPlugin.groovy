@@ -18,6 +18,7 @@ package com.aries.gradle.docker.application.plugin
 
 import com.aries.gradle.docker.application.plugin.domain.DataContainer
 import com.aries.gradle.docker.application.plugin.domain.MainContainer
+import org.gradle.api.GradleException
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -36,7 +37,7 @@ import com.bmuschko.gradle.docker.tasks.image.DockerPullImage
 import com.aries.gradle.docker.application.plugin.domain.AbstractApplication
 
 /**
- *  Plugin providing domain tasks for starting (Up), stopping (Stop), and deleting (Down) dockerized applications.
+ *  Plugin providing common tasks for starting (*Up), stopping (*Stop), and deleting (*Down) dockerized applications.
  */
 class GradleDockerApplicationPlugin implements Plugin<Project> {
 
@@ -50,10 +51,10 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
         // 1.) apply required plugins
         project.plugins.apply('com.bmuschko.docker-remote-api')
 
-        // 2.) build container for housing ad-hoc applications
+        // 2.) build domain-container for housing ad-hoc applications
         final NamedDomainObjectContainer<AbstractApplication> appContainers = project.container(AbstractApplication)
 
-        // 3.) build plugin extension point from container
+        // 3.) build plugin extension point from domain-container
         project.extensions.add(EXTENSION_NAME, appContainers)
 
         project.afterEvaluate {
@@ -205,11 +206,13 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                         if (rep) {
                             if (!ext.mainImageFound || !ext.dataImageFound) {
                                 if (!ext.mainImageFound && rep.first() == appContainer.main().image()) {
-                                    logger.quiet "Image '${appContainer.main().image()}' for '${appContainer.mainId()}' was found locally."
                                     ext.mainImageFound = true
                                     if (ext.duplicateImages) {
+                                        logger.quiet "Images for '${appContainer.mainId()}' and '${appContainer.dataId()}' were found locally."
                                         ext.dataImageFound = true
                                         throw new StopExecutionException();
+                                    } else {
+                                        logger.quiet "Image '${appContainer.main().image()}' for '${appContainer.mainId()}' was found locally."
                                     }
                                 }
                                 if (!ext.dataImageFound && rep.first() == appContainer.data().image()) {
@@ -221,6 +224,22 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                                 }
                             }
                         }
+                    }
+                }
+            }
+            onComplete {
+
+                // print to stdout any images that were not found locally that need a pull
+                if (ext.duplicateImages) {
+                    if (!ext.mainImageFound) {
+                        logger.quiet "Images for '${appContainer.mainId()}' and '${appContainer.dataId()}' were not found locally: pull required."
+                    }
+                } else {
+                    if (!ext.mainImageFound) {
+                        logger.quiet "Image for '${appContainer.mainId()}' was not found locally: pull required."
+                    }
+                    if (!ext.dataImageFound) {
+                        logger.quiet "Image for '${appContainer.dataId()}' was not found locally: pull required."
                     }
                 }
             }
@@ -238,6 +257,13 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
             repository = appContainer.main().repository()
             tag = appContainer.main().tag()
+            onError { err ->
+                if (err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
+                    throw new GradleException("Image '${appContainer.main().image()}' for '${appContainer.mainId()}' was not found remotely.")
+                } else {
+                    throw err
+                }
+            }
         }
 
         final DockerPullImage pullDataImageTask = project.task("${appName}PullDataImage",
@@ -251,6 +277,13 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
             repository = appContainer.data().repository()
             tag = appContainer.data().tag()
+            onError { err ->
+                if (err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
+                    throw new GradleException("Image '${appContainer.data().image()}' for '${appContainer.dataId()}' was not found remotely.")
+                } else {
+                    throw err
+                }
+            }
         }
 
         final DockerRemoveContainer removeContainerTask = project.task("${appName}RemoveContainer",
