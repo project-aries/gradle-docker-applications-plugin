@@ -25,6 +25,7 @@ import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
  */
 class AbstractContainer {
 
+    // not required to be set and will be lazily checked at runtime for null
     public String repository
     String repository() {
         this.repository
@@ -32,7 +33,7 @@ class AbstractContainer {
 
     public String tag
     String tag() {
-        this.tag
+        this.tag = this.tag ?: 'latest'
     }
 
     String image() {
