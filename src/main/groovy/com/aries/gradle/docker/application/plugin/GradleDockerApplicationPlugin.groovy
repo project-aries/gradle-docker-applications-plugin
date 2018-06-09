@@ -405,6 +405,59 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
             group: appGroup
             description: "Start '${appName}' container application if not already started."
+
+            doLast {
+
+                // 1.) Set the last used "inspection" for potential downstream use
+                if (livenessProbeContainerTask.state.didWork) {
+                    ext.inspection = livenessProbeContainerTask.lastInspection()
+                } else if (availableContainerTask.ext.inspection) {
+                    ext.inspection = availableContainerTask.ext.inspection
+                } else {
+                    throw new GradleException('No task found to inspect container: was this expected?')
+                }
+
+                // 2.) set handful of variables for easy access and downstream use
+                ext.id = ext.inspection.id
+                ext.name = ext.inspection.name.replaceFirst('/', '')
+                ext.image = ext.inspection.getConfig().image
+                ext.command = (ext.inspection.getConfig().getEntrypoint()) ? ext.inspection.getConfig().getEntrypoint().join(' ') : null
+                if (ext.inspection.getArgs()) {
+                    if (!ext.command) {ext.command = ""}
+                    ext.command = ("${ext.command} " + ext.inspection.getArgs().join(' ')).trim()
+                }
+                ext.created = ext.inspection.created
+                ext.address = ext.inspection.getNetworkSettings().getGateway()
+                ext.ports = [:]
+                if (ext.inspection.getNetworkSettings().getPorts()) {
+                    ext.inspection.getNetworkSettings().getPorts().getBindings().each { k, v ->
+                        def key = '' + k.getPort()
+                        def value = '' + ( v ? v[0].hostPortSpec : 0)
+                        ext.ports.put(key, value)
+                    }
+                }
+                ext.links = [:]
+                if (ext.inspection.hostConfig.links) {
+                    ext.inspection.hostConfig.links.each {
+                        ext.links.put(it.name, it.alias)
+                    }
+                }
+
+                // 3.) print all variables to stdout as an indication that we are now live
+                String banner = '====='
+                ext.id.length().times { banner += '=' }
+
+                logger.quiet banner
+                logger.quiet "ID = ${ext.id}"
+                logger.quiet "NAME = ${ext.name}"
+                logger.quiet "IMAGE = ${ext.image}"
+                logger.quiet "COMMAND = ${ext.command}"
+                logger.quiet "CREATED = ${ext.created}"
+                logger.quiet "ADDRESS = ${ext.address}"
+                logger.quiet "PORTS = " + ((ext.ports) ? ext.ports.collect { k, v -> "${v}->${k}"}.join(',') : ext.ports.toString())
+                logger.quiet "LINKS = " + ((ext.links) ? ext.links.collect { k, v -> "${k}:${v}"}.join(',') : ext.links.toString())
+                logger.quiet banner
+            }
         }
     }
 
