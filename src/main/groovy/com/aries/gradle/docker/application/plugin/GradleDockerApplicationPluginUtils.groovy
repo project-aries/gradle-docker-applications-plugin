@@ -35,7 +35,7 @@ class GradleDockerApplicationPluginUtils {
      * @return
      */
     static String randomString(def prependWith = 'gdap-') {
-        prependWith + UUID.randomUUID().toString().replaceAll("-", "")
+        (prependWith ?: '') + UUID.randomUUID().toString().replaceAll("-", "")
     }
 
     private GradleDockerApplicationPluginUtils() {

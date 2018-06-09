@@ -16,13 +16,12 @@
 
 package com.aries.gradle.docker.application.plugin
 
-import com.aries.gradle.docker.application.plugin.domain.DataContainer
-import com.aries.gradle.docker.application.plugin.domain.MainContainer
-import org.gradle.api.GradleException
-import org.gradle.api.NamedDomainObjectContainer
-import org.gradle.api.Plugin
-import org.gradle.api.Project
-import org.gradle.api.tasks.StopExecutionException
+import org.gradle.internal.impldep.org.apache.commons.lang.math.RandomUtils
+
+import java.util.concurrent.TimeUnit
+
+import static com.aries.gradle.docker.application.plugin.GradleDockerApplicationPluginUtils.randomString
+import static com.bmuschko.gradle.docker.utils.IOUtils.getProgressLogger
 
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessProbeContainer
@@ -35,6 +34,15 @@ import com.bmuschko.gradle.docker.tasks.image.DockerListImages
 import com.bmuschko.gradle.docker.tasks.image.DockerPullImage
 
 import com.aries.gradle.docker.application.plugin.domain.AbstractApplication
+
+import org.gradle.api.GradleException
+import org.gradle.api.NamedDomainObjectContainer
+import org.gradle.api.Plugin
+import org.gradle.api.Project
+import org.gradle.api.Task
+import org.gradle.api.tasks.StopExecutionException
+
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  *  Plugin providing common tasks for starting (*Up), stopping (*Stop), and deleting (*Down) dockerized applications.
@@ -91,6 +99,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
             // create tasks after evaluation so that we can pick up any changes
             // made to our various extension points.
+            //buildLockTasks(project, app.name, appGroup, appContainer)
             buildTaskChainFor_Up(project, app.name, appGroup, appContainer)
             buildTaskChainFor_Stop(project, app.name, appGroup, appContainer)
             buildTaskChainFor_Down(project, app.name, appGroup, appContainer)
@@ -109,8 +118,14 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
         // its properties from the former it wasn't defined.
         appContainer.sanityCheck()
 
+        // build our locking tasks for multi-project wide execution which in turn are
+        // specific to THIS chain of tasks.
+        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup)
+        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup)
+
         final DockerInspectContainer availableDataContainerTask = project.task("${appName}AvailableDataContainer",
-            type: DockerInspectContainer) {
+            type: DockerInspectContainer,
+            dependsOn: [acquireExecutionLockTask]) {
 
             group: appGroup
             description: "Check if '${appName}' data container is available."
@@ -399,7 +414,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
         }
         appContainer.main().livenessConfigs.each { livenessProbeContainerTask.configure(it) }
 
-        project.task("${appName}Up",
+        final Task upTask = project.task("${appName}Up",
             dependsOn: [livenessProbeContainerTask]) {
             outputs.upToDateWhen { false }
 
@@ -459,6 +474,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                 logger.quiet banner
             }
         }
+        upTask.finalizedBy(releaseExecutionLockTask)
     }
 
     // create required tasks for invoking the "stop" chain.
@@ -467,8 +483,14 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                                    final String appGroup,
                                    final AbstractApplication appExtension) {
 
-        final DockerExecStopContainer stopContainerTask = project.task("${appName}StopContainer",
-            type: DockerExecStopContainer) {
+        // build our locking tasks for multi-project wide execution which in turn are
+        // specific to THIS chain of tasks.
+        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup)
+        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup)
+
+        final DockerExecStopContainer execStopContainerTask = project.task("${appName}ExecStopContainer",
+            type: DockerExecStopContainer,
+            dependsOn: [acquireExecutionLockTask]) {
 
             group: appGroup
             description: "Stop '${appName}' container."
@@ -485,15 +507,16 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                 }
             }
         }
-        appExtension.main().stopConfigs.each { stopContainerTask.configure(it) }
+        appExtension.main().stopConfigs.each { execStopContainerTask.configure(it) }
 
-        project.task("${appName}Stop",
-            dependsOn: [stopContainerTask]) {
+        final Task stopTask = project.task("${appName}Stop",
+            dependsOn: [execStopContainerTask]) {
             outputs.upToDateWhen { false }
 
             group: appGroup
             description: "Stop '${appName}' container application if not already paused."
         }
+        stopTask.finalizedBy(releaseExecutionLockTask)
     }
 
     // create required tasks for invoking the "down" chain.
@@ -502,8 +525,14 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                                    final String appGroup,
                                    final AbstractApplication appExtension) {
 
+        // build our locking tasks for multi-project wide execution which in turn are
+        // specific to THIS chain of tasks.
+        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup)
+        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup)
+
         final DockerRemoveContainer deleteContainerTask = project.task("${appName}DeleteContainer",
-            type: DockerRemoveContainer) {
+            type: DockerRemoveContainer,
+            dependsOn: [acquireExecutionLockTask]) {
 
             group: appGroup
             description: "Delete '${appName}' container."
@@ -541,12 +570,89 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             }
         }
 
-        project.task("${appName}Down",
+        final Task downTask = project.task("${appName}Down",
             dependsOn: [deleteDataContainerTask]) {
             outputs.upToDateWhen { false }
 
             group: appGroup
             description: "Delete '${appName}' container application if not already deleted."
+        }
+        downTask.finalizedBy(releaseExecutionLockTask)
+    }
+
+    // create task which will acquire an execution lock for a given task chain
+    private Task buildAcquireExecutionLockTask(final Project project,
+                                               final String appName,
+                                               final String appGroup) {
+
+        // using random string as this method is called ad-hoc in multiple places
+        // and so the name must be unique but still named appropriately.
+        return project.task("${appName}AcquireExecutionLock_${randomString(null)}") {
+            outputs.upToDateWhen { false }
+
+            group: appGroup
+            description: "Acquire execution lock for '${appName}'."
+
+            doLast {
+                logger.quiet "Acquiring execution lock for '${appName}'."
+
+                final String lockName = "${appName}.lock"
+                if(!project.gradle.ext.has(lockName)) {
+                    synchronized (GradleDockerApplicationPlugin) {
+                        if(!project.gradle.ext.has(lockName)) {
+                            final AtomicBoolean executionLock = new AtomicBoolean(false);
+                            project.gradle.ext.set(lockName, executionLock)
+                        }
+                    }
+                }
+
+                final def progressLogger = getProgressLogger(project, GradleDockerApplicationPlugin)
+                progressLogger.started()
+
+                int pollTimes = 0
+                long pollInterval = 5000
+                long totalPollTime = 0
+                final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
+                while(!executionLock.compareAndSet(false, true)) {
+                    pollTimes += 1
+                    progressLogger.progress(sprintf('Waiting on lock for %010dms', pollTimes * pollInterval))
+                    totalPollTime += pollInterval
+                    sleep(pollInterval)
+                }
+
+                long totalSeconds = TimeUnit.MILLISECONDS.toSeconds(totalPollTime)
+                long totalMinutes = TimeUnit.MILLISECONDS.toMinutes(totalPollTime)
+
+                logger.quiet "Lock took ${totalMinutes}m(${totalSeconds}s) to acquire."
+                progressLogger.completed()
+            }
+        }
+    }
+
+    // create task which will release an execution lock for a given task chain
+    private Task buildReleaseExecutionLockTask(final Project project,
+                                               final String appName,
+                                               final String appGroup) {
+
+        // using random string as this method is called ad-hoc in multiple places
+        // and so the name must be unique but still named appropriately.
+        return project.task("${appName}ReleaseExecutionLock_${randomString(null)}") {
+            outputs.upToDateWhen { false }
+
+            group: appGroup
+            description: "Release execution lock for '${appName}'."
+
+            doLast {
+                logger.quiet "Releasing execution lock for '${appName}'."
+
+                final String lockName = "${appName}.lock"
+                if(project.gradle.ext.has(lockName)) {
+                    final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
+                    executionLock.set(false)
+                } else {
+                    throw new GradleException("Failed to find execution lock for '${appName}'.")
+                }
+            }
         }
     }
 }
