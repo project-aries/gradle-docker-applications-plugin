@@ -14,6 +14,13 @@ jobs:
     - stage: all tests
       script:
         - ./gradlew -s -Dorg.gradle.daemon=false clean build functionalTest publishToMavenLocal
+    - stage: release
+      script: skip
+      deploy:
+        provider: script
+        script: ./gradlew -s clean build release -PbintrayUsername=$BINTRAY_USER -PbintrayKey=$BINTRAY_KEY -PreleaseUsername=$RELEASE_USERNAME -PreleasePassword=$RELEASE_PASSWORD -PreleaseRepository=libs-release-local -PciRelease=true
+        on:
+          tags: true
 
 cache:
   directories:
