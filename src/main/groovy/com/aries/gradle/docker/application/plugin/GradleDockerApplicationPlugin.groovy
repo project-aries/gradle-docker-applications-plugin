@@ -16,9 +16,8 @@
 
 package com.aries.gradle.docker.application.plugin
 
-import org.gradle.internal.impldep.org.apache.commons.lang.math.RandomUtils
-
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 import static com.aries.gradle.docker.application.plugin.GradleDockerApplicationPluginUtils.randomString
 import static com.bmuschko.gradle.docker.utils.IOUtils.getProgressLogger
@@ -41,8 +40,6 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.StopExecutionException
-
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  *  Plugin providing common tasks for starting (*Up), stopping (*Stop), and deleting (*Down) dockerized applications.
@@ -120,8 +117,8 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
         // build our locking tasks for multi-project wide execution which in turn are
         // specific to THIS chain of tasks.
-        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup)
-        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup)
+        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup, appContainer)
+        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup, appContainer)
 
         final DockerInspectContainer availableDataContainerTask = project.task("${appName}AvailableDataContainer",
             type: DockerInspectContainer,
@@ -481,12 +478,12 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
     private buildTaskChainFor_Stop(final Project project,
                                    final String appName,
                                    final String appGroup,
-                                   final AbstractApplication appExtension) {
+                                   final AbstractApplication appContainer) {
 
         // build our locking tasks for multi-project wide execution which in turn are
         // specific to THIS chain of tasks.
-        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup)
-        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup)
+        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup, appContainer)
+        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup, appContainer)
 
         final DockerExecStopContainer execStopContainerTask = project.task("${appName}ExecStopContainer",
             type: DockerExecStopContainer,
@@ -495,7 +492,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             group: appGroup
             description: "Stop '${appName}' container."
 
-            targetContainerId { appExtension.mainId() }
+            targetContainerId { appContainer.mainId() }
             onNext { output ->
                 // pipe output to nowhere for the time being
             }
@@ -503,11 +500,11 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${appExtension.mainId()}' is not running or available to stop."
+                    logger.quiet "Container with ID '${appContainer.mainId()}' is not running or available to stop."
                 }
             }
         }
-        appExtension.main().stopConfigs.each { execStopContainerTask.configure(it) }
+        appContainer.main().stopConfigs.each { execStopContainerTask.configure(it) }
 
         final Task stopTask = project.task("${appName}Stop",
             dependsOn: [execStopContainerTask]) {
@@ -523,12 +520,12 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
     private buildTaskChainFor_Down(final Project project,
                                    final String appName,
                                    final String appGroup,
-                                   final AbstractApplication appExtension) {
+                                   final AbstractApplication appContainer) {
 
         // build our locking tasks for multi-project wide execution which in turn are
         // specific to THIS chain of tasks.
-        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup)
-        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup)
+        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup, appContainer)
+        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup, appContainer)
 
         final DockerRemoveContainer deleteContainerTask = project.task("${appName}DeleteContainer",
             type: DockerRemoveContainer,
@@ -539,13 +536,13 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
             removeVolumes = true
             force = true
-            targetContainerId { appExtension.mainId() }
+            targetContainerId { appContainer.mainId() }
 
             onError { err ->
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${appExtension.mainId()}' is not available to delete."
+                    logger.quiet "Container with ID '${appContainer.mainId()}' is not available to delete."
                 }
             }
         }
@@ -559,13 +556,13 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
             removeVolumes = true
             force = true
-            targetContainerId { appExtension.dataId() }
+            targetContainerId { appContainer.dataId() }
 
             onError { err ->
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${appExtension.dataId()}' is not available to delete."
+                    logger.quiet "Container with ID '${appContainer.dataId()}' is not available to delete."
                 }
             }
         }
@@ -583,7 +580,8 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
     // create task which will acquire an execution lock for a given task chain
     private Task buildAcquireExecutionLockTask(final Project project,
                                                final String appName,
-                                               final String appGroup) {
+                                               final String appGroup,
+                                               final AbstractApplication appContainer) {
 
         // using random string as this method is called ad-hoc in multiple places
         // and so the name must be unique but still named appropriately.
@@ -596,7 +594,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             doLast {
                 logger.quiet "Acquiring execution lock for '${appName}'."
 
-                final String lockName = "${appName}.lock"
+                final String lockName = appContainer.mainId()
                 if(!project.gradle.ext.has(lockName)) {
                     synchronized (GradleDockerApplicationPlugin) {
                         if(!project.gradle.ext.has(lockName)) {
@@ -611,20 +609,20 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
                 int pollTimes = 0
                 long pollInterval = 5000
-                long totalPollTime = 0
+                long totalMillis = 0
                 final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
                 while(!executionLock.compareAndSet(false, true)) {
                     pollTimes += 1
-                    progressLogger.progress(sprintf('Waiting on lock for %010dms', pollTimes * pollInterval))
-                    totalPollTime += pollInterval
+
+                    totalMillis = pollTimes * pollInterval
+                    long totalMinutes = TimeUnit.MILLISECONDS.toMinutes(totalMillis)
+
+                    progressLogger.progress("Waiting on lock for ${totalMinutes}m...")
                     sleep(pollInterval)
                 }
-
-                long totalSeconds = TimeUnit.MILLISECONDS.toSeconds(totalPollTime)
-                long totalMinutes = TimeUnit.MILLISECONDS.toMinutes(totalPollTime)
-
-                logger.quiet "Lock took ${totalMinutes}m(${totalSeconds}s) to acquire."
                 progressLogger.completed()
+
+                logger.quiet "Lock took ${totalMillis}m to acquire."
             }
         }
     }
@@ -632,7 +630,8 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
     // create task which will release an execution lock for a given task chain
     private Task buildReleaseExecutionLockTask(final Project project,
                                                final String appName,
-                                               final String appGroup) {
+                                               final String appGroup,
+                                               final AbstractApplication appContainer) {
 
         // using random string as this method is called ad-hoc in multiple places
         // and so the name must be unique but still named appropriately.
@@ -645,7 +644,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             doLast {
                 logger.quiet "Releasing execution lock for '${appName}'."
 
-                final String lockName = "${appName}.lock"
+                final String lockName = appContainer.mainId()
                 if(project.gradle.ext.has(lockName)) {
                     final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
                     executionLock.set(false)
