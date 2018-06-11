@@ -18,7 +18,8 @@ jobs:
       script: skip
       deploy:
         provider: script
-        script: ./gradlew -s -Dorg.gradle.daemon=false clean build release -PbintrayUsername=$BINTRAY_USER -PbintrayKey=$BINTRAY_KEY -PreleaseUsername=$RELEASE_USERNAME -PreleasePassword=$RELEASE_PASSWORD -PreleaseRepository=libs-release-local -PciRelease=true
+        script:
+          - ./gradlew -s -Dorg.gradle.daemon=false clean build release -PbintrayUsername=$BINTRAY_USER -PbintrayKey=$BINTRAY_KEY -PreleaseUsername=$RELEASE_USERNAME -PreleasePassword=$RELEASE_PASSWORD -PreleaseRepository=libs-release-local -PciRelease=true
         on:
           tags: true
 
