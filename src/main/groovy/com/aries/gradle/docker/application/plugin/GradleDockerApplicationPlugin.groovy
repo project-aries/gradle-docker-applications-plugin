@@ -388,7 +388,6 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
             }
             targetContainerId { appContainer.mainId() }
         }
-        appContainer.main().startConfigs.each { startContainerTask.configure(it) }
 
         final DockerLivenessProbeContainer livenessProbeContainerTask = project.task("${appName}LivenessProbeContainer",
             type: DockerLivenessProbeContainer,

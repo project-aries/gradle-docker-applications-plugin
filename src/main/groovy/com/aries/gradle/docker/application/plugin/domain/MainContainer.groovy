@@ -39,14 +39,6 @@ class MainContainer extends AbstractContainer {
     }
 
     // Supply X number of closures to further configure the
-    // `DockerStartContainer` task which is responsible for
-    // starting the container.
-    final List<Closure<DockerStartContainer>> startConfigs = []
-    void start(Closure<DockerStartContainer> startConfig) {
-        if (startConfig) { startConfigs.add(startConfig) }
-    }
-
-    // Supply X number of closures to further configure the
     // `DockerExecStopContainer` task which is responsible for
     // stopping the container gracefully, via an exec command
     // from within the container, and if that fails then stop
