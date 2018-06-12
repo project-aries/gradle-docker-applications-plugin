@@ -102,6 +102,28 @@ from a concatenation of the `id` noted above and the last part of the repository
 * **devops-postgres** // started and expected to be in a running state
 * **devops-postgres-data** // never started and expected to be in a created state
 
+Once your dockerized-application is live you can do things like:
+```
+// kick tasks from gradle command line
+cdancy@gandalf:~$ ./gradle myPostgresStackUp myPostgresStackStop myPostgresStackDown
+```
+Or define more appropriately named tasks for your users to use:
+```
+task up(dependsOn: ['myPostgresStackUp'])
+
+task stop(dependsOn: ['myPostgresStackStop'])
+
+task down(dependsOn: ['myPostgresStackDown'])
+
+check.dependsOn up
+build.dependsOn stop
+test.finalizedBy down
+```
+
+## On _main_ and _data_
+
+Each dockerized-application gets exactly 2 containers created: **main** and **data**. The **main** container is your runtime or the thing that's actually running the application. The **data** container is the place the **main** container will write its data too thereby having a clear separation between the running instance and the data it creates. Each are just containers at the end of the day with the former expected to enter into a long running state while the latter is meant to be created only and never started.
+
 #### On _main_
 
 The _main_ section allows you to customize the dockerized applications **main**
