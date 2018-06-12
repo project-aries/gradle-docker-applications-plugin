@@ -16,7 +16,6 @@
 
 package com.aries.gradle.docker.application.plugin.domain
 
-import com.bmuschko.gradle.docker.tasks.container.DockerStartContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessProbeContainer
 
