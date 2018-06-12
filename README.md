@@ -11,15 +11,15 @@ Highly opinionated gradle plugin to start (Up), pause (Stop), and delete (Down) 
 
 ## Motivation and Design Goals
 
-As the maintainer of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) I often get questions about how best to use said plugin for standing up a given companies dockerized application in a gradle context. As the aforementioned plugin is compromised of many tasks, each acting as a low-level build block, it can be daunting for new users to understand how all of these tasks are wired together. That's where the `gradle-docker-application-plugin` comes in. It's built on top of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) and provides an easy and intuitive way to define your application and then creates a handful of tasks for you to manage it.
+As the maintainer of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) I often get questions about how best to use said plugin for standing up a given companies dockerized application in a gradle context. As the aforementioned plugin is compromised of many tasks, each acting as a low-level building block, it can be daunting for new users to understand how all of these tasks are wired together. That's where the `gradle-docker-application-plugin` comes in. It's built on top of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) and provides an easy and intuitive way to define your applications and then creates exactly **3** high-level tasks for you to manage them (more on that below).
 
-When designing this plugin we had some things we wanted to get right without any compromises:
+When designing this plugin we wanted to get the following right without any compromises:
 
-* Provide exactly **3** high-level tasks with which to manage the dockerized application: **Up**, **Stop**, and **Down**.
-* Allow for defining up to N number of dockerized-applications for extremely complex workloads.
+* Provide exactly **3** high-level tasks with which to manage a dockerized-application: **Up**, **Stop**, and **Down**.
+* Allow for defining up to N number of dockerized-application(s) for extremely complex workloads.
 * Be able to work in a complex multi-project setup with synchronization around all high-level tasks.
 * Fail **ONLY** when necessary (i.e. invoking `Down` on an application that does not exist does not fail).
-* Highly opinionated design for dockerized applications based off of best practices and years of experience.
+* Highly opinionated design for dockerized-application(s) based off of best practices.
 
 
 ## Getting Started
@@ -39,13 +39,26 @@ apply plugin: 'gradle-docker-application-plugin'
 
 ## On the _applications_ extension point
 
-This plugin is built around the idea that users will define N number of dockerized
-application(s) and we will hand back 3 appropriately named high-level tasks for you
-to manage said application with. We provide the `applications` extension point for you
-to define your app. The extension point itself is gradle container meaning you can define
-any number of inner applications and we will create dockerized applications out of them.
+This plugin is built around the idea that users will define N number of dockerized-application(s)
+and we will hand back **3** appropriately named high-level tasks for you to manage said application
+with. With this in mind we provide the `applications` extension point, which in turn is a gradle container,
+for you to define as many apps as you need:
 
-An example on how stand-up a postgres alpine database might look like:
+```
+applications {
+    myAppOne {
+    
+    }
+    myAppTwo {
+    
+    }
+    myAppThree {
+    
+    }
+}
+```
+
+A real world example on how stand-up a postgres alpine database might look like:
 
 ```
 applications {
@@ -54,6 +67,9 @@ applications {
         main {
             repository = 'postgres'
             tag = 'alpine'
+            create {
+                env = ['CI=TRUE', 'DEVOPS=ROCKS']
+            }
             stop {
                 cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
                 successOnExitCodes = [0, 127, 137]
@@ -68,19 +84,20 @@ applications {
 }
 ```
 
-The `myPostgresStack` is the name of the application but we could have named it anything.
-This example does a few things:
+The `myPostgresStack` is the name of the application but we could have named it anything. It's relevant **ONLY** to this gradle project and serves as an easy way to namespace the generated task names we create behind the scenes (e.g. myPostgresStackUp, myPostgresStackStop, myPostgresStackDown).
+
+A bit more on this example and what it does:
 
 * Defines the **main** container which is documented below.
 * Sets the repository and tag to use the _postgres alpine_ image.
-* Configures the _stop_ task-chain to execute a command to gracefully bring down the container from within (defaults to stopping container)
-* Configures the _liveness probe_ on the container to wait at most _300000_ milliseconds, polling every _10000_ milliseconds, for the existence of the given String at which point the container will be considered live (defaults to checking if container is in a **running** state).
+* Configures the internal _create_ task to further customize how we want the **main** container to be built.
+* Configures the internal _stop_ task to execute a command to gracefully bring the container down from within (defaults to stopping container).
+* Configures the internal _liveness probe_ of the **main** container to wait at most _300000_ milliseconds, polling every _10000_ milliseconds, for the existence of the given String at which point the container will be considered live (defaults to checking if container is in a **running** state).
 
-The name of the application is used **ONLY** for task naming purposes and is meant to
-provide an easy way for developers to code for these tasks. The container names
-themselves are built from a concatenation of the `id` noted above and the last part
-of the repository (anything past last `/` or the whole repository name if none). In
-turn you can expect 2 containers to be be made and named:
+As noted above: the name of the application is used **ONLY** for task naming purposes and is meant to
+provide an easy way for developers to code for these tasks. The container names themselves are built
+from a concatenation of the `id` noted above and the last part of the repository (anything past last
+`/` or the whole repository name if none found). In turn you can expect 2 containers to be be made and named:
 
 * **devops-postgres** // started and expected to be in a running state
 * **devops-postgres-data** // never started and expected to be in a created state
@@ -98,10 +115,14 @@ can be found [HERE](https://github.com/project-aries/gradle-docker-application-p
 
 The _data_ section allows you to customize the dockerized applications **data** container
 and **IS NOT** required. If not defined we will create a data container for you based off
-of the image values (e.g. repository and tag) you provided for the **main** container. This
-currently is the standard most dockerized applications have adopted, as it's very simple
-and easy to understand, but you're free to define a different **data** container like so
-should the need arise:
+of the image values (e.g. repository and tag) you provided for the **main** container. The **data**
+container itself can be customzied to a limited degree. More details on what can be configured
+can be found [HERE](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/DataContainer.groovy).
+
+Currently, having a separate **main** and **data** container, is the going standard most dockerized
+applications have adopted. Furthermore using the same image for each seems to be the trend as
+it's simple and easy to understand. If however you want to use a different image for your **data** container
+you're free to do so:
 
 ```
 applications {
@@ -121,8 +142,8 @@ applications {
 
 ## On _Up_, _Stop_, and _Down_ tasks
 
-Once an application is defined we create these 3 high-level tasks for the
-end-user to work with in whatever way they see fit which are further detailed below.
+Once an application is defined we create these **3** high-level tasks for the
+end-user to work with in whatever way they see fit.
 
 #### Up
 
