@@ -406,6 +406,10 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                 since = startContainerTask.state.didWork ?
                     startContainerTask.ext.startTime :
                     restartContainerTask.ext.startTime
+
+                // this pause, to allow the container to come up and potentially exit, needs to be
+                // done within the `DockerLivenessProbeContainer` task itself and not here.
+                sleep(5000)
             }
         }
         appContainer.main().livenessConfigs.each { livenessProbeContainerTask.configure(it) }

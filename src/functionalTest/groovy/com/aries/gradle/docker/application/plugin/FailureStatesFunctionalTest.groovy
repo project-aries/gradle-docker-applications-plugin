@@ -102,4 +102,30 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
         result.output.contains('were not found locally: pull required')
         result.output.contains('was not found remotely')
     }
+
+    @Timeout(value = 5, unit = MINUTES)
+    def "Will fail if container does not have an entrypoint or start command"() {
+
+        String uuid = randomString()
+        buildFile << """
+
+            applications {
+                someStack {
+                    id = "${uuid}"
+                    main {
+                        repository = 'alpine'
+                        tag = 'latest'
+                    }
+                }
+            }
+            
+            task up(dependsOn: ['someStackUp'])
+        """
+
+        when:
+        BuildResult result = buildAndFail('up')
+
+        then:
+        result.output.contains('is not running')
+    }
 }

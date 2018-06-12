@@ -42,6 +42,9 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
+                        create {
+                            env = ['CI=TRUE', 'DEVOPS=ROCKS']
+                        }
                         stop {
                             cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
                             successOnExitCodes = [0, 127, 137]
@@ -55,7 +58,11 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                 }
             }
             
-            task up(dependsOn: ['myPostgresStackUp'])
+            task up(dependsOn: ['myPostgresStackUp']) {
+                doLast {
+                    logger.quiet 'FOUND INSPECTION: ' + myPostgresStackUp.ext.inspection
+                }
+            }
             
             task stop(dependsOn: ['myPostgresStackStop'])
 
@@ -70,6 +77,8 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('Inspecting container with ID')
             result.output.contains('Created container with ID')
             result.output.contains('Starting liveness probe on container')
+            result.output.contains('CI=TRUE')
+            result.output.contains('DEVOPS=ROCKS')
             result.output.contains('Running exec-stop on container with ID')
             result.output.contains('Removing container with ID')
             result.output.contains('RestartContainer SKIPPED')
