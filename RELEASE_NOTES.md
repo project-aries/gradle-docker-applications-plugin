@@ -1,3 +1,8 @@
+### Version 0.9.2 (June 17, 2018)
+
+* Fix for `data` container not getting properly configured.
+* Bump gradle-docker-plugin to 3.3.5
+
 ### Version 0.9.1 (June 16, 2018)
 
 * Bump gradle-docker-plugin to 3.3.4
