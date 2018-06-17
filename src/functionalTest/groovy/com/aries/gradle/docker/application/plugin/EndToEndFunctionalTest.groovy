@@ -55,6 +55,11 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                             probe(300000, 10000, 'database system is ready to accept connections')
                         }
                     }
+                    data {
+                        create {
+                            volumes = ["/var/lib/postgresql/data"]
+                        }
+                    }
                 }
             }
             

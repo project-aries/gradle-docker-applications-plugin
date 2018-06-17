@@ -357,7 +357,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                 containerName = appContainer.dataId()
             }
         }
-        appContainer.data().createConfigs.each { createContainerTask.configure(it) }
+        appContainer.data().createConfigs.each { createDataContainerTask.configure(it) }
 
         final DockerCreateContainer createContainerTask = project.task("${appName}CreateContainer",
             type: DockerCreateContainer,
