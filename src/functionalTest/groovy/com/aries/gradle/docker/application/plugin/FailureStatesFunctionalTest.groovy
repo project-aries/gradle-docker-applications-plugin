@@ -128,4 +128,40 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
         then:
         result.output.contains('is not running')
     }
+
+    @Timeout(value = 5, unit = MINUTES)
+    def "Will fail if container issues exec which brings the 'main' container down"() {
+
+        String uuid = randomString()
+        buildFile << """
+
+            applications {
+                someStack {
+                    id = "${uuid}"
+                    main {
+                        repository = 'postgres'
+                        tag = 'alpine'
+                        liveness {
+                            probe(300000, 10000, 'database system is ready to accept connections')
+                        }
+                        exec {
+                            withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"])
+                            successOnExitCodes = [137]
+                        }
+                    }
+                }
+            }
+            
+            task up(dependsOn: ['someStackUp']) {
+                finalizedBy 'someStackDown'
+            }
+            
+        """
+
+        when:
+        BuildResult result = buildAndFail('up')
+
+        then:
+        result.output.contains("The 'main' container was NOT in a running state after exec(s) finished. Was this expected?")
+    }
 }

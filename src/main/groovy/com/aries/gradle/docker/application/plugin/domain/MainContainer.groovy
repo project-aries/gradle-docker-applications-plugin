@@ -16,10 +16,9 @@
 
 package com.aries.gradle.docker.application.plugin.domain
 
+import com.bmuschko.gradle.docker.tasks.container.DockerExecContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessProbeContainer
-
-import com.aries.gradle.docker.application.plugin.domain.common.AbstractContainer
 
 /**
  *
@@ -45,5 +44,15 @@ class MainContainer extends AbstractContainer {
     final List<Closure<DockerExecStopContainer>> stopConfigs = []
     void stop(Closure<DockerExecStopContainer> stopConfig) {
         if (stopConfig) { stopConfigs.add(stopConfig) }
+    }
+
+    // Supply X number of closures to further configure the
+    // `DockerExecContainer` task which is responsible for
+    // executing an arbitrary number of commands inside the
+    // `main` container but ONLY AFTER it has successfully
+    // become live.
+    final List<Closure<DockerExecContainer>> execConfigs = []
+    void exec(Closure<DockerExecStopContainer> execConfig) {
+        if (execConfig) { execConfigs.add(execConfig) }
     }
 }

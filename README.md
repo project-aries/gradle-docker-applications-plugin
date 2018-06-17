@@ -71,13 +71,19 @@ applications {
                 env = ['CI=TRUE', 'DEVOPS=ROCKS']
             }
             stop {
-                cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
+                withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"])
                 successOnExitCodes = [0, 127, 137]
                 timeout = 60000
                 probe(60000, 10000)
             }
             liveness {
                 probe(300000, 10000, 'database system is ready to accept connections')
+            }
+            exec {
+                withCommand(['echo', 'Hello World'])
+                withCommand(['date'])
+                withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl status"])
+                successOnExitCodes = [0]
             }
         }
     }
@@ -90,9 +96,26 @@ A bit more on this example and what it does:
 
 * Defines the **main** container which is documented below.
 * Sets the repository and tag to use the _postgres alpine_ image.
-* Configures the internal _create_ task to further customize how we want the **main** container to be built.
-* Configures the internal _stop_ task to execute a command to gracefully bring the container down from within (defaults to stopping container).
-* Configures the internal _liveness probe_ of the **main** container to wait at most _300000_ milliseconds, polling every _10000_ milliseconds, for the existence of the given String at which point the container will be considered live (defaults to checking if container is in a **running** state).
+* Configures the optional **_create_** task to further customize how we want the **main** container to be built.
+* Configures the optional **_stop_** task to execute a command to gracefully bring the container down from within (defaults to stopping container).
+* Configures the optional **_liveness_** task to probe the **main** container to wait at most _300000_ milliseconds, polling every _10000_ milliseconds, for the existence of the given String at which point the container will be considered live (defaults to checking if container is in a **running** state).
+* Configures the optional **_exec_** task to execute an arbitrary number of command(s) within the container after liveness has been attained.
+
+Each configuration can optionally be set **N** times for more complicated scenarios:
+```
+applications {
+    multiConfigExample {
+        main {
+            create {
+                env << ['ONE=FISH', 'TWO=FISH']
+            }
+            create {
+                env << ['RED=FISH', 'BLUE=FISH']
+            }
+        }
+    }
+}
+```
 
 As noted above: the name of the application is used **ONLY** for task naming purposes and is meant to
 provide an easy way for developers to code for these tasks. The container names themselves are built

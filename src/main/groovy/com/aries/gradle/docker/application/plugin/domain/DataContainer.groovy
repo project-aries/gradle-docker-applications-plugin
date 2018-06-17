@@ -15,9 +15,6 @@
  */
 
 package com.aries.gradle.docker.application.plugin.domain
-
-import com.aries.gradle.docker.application.plugin.domain.common.AbstractContainer
-
 /**
  *
  *  Represents the `data` container of this application.

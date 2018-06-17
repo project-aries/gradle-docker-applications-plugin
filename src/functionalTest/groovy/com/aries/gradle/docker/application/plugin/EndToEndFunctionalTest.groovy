@@ -54,6 +54,10 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                         liveness {
                             probe(300000, 10000, 'database system is ready to accept connections')
                         }
+                        exec {
+                            withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl status"])
+                            successOnExitCodes = [0]
+                        }
                     }
                     data {
                         create {
@@ -89,76 +93,4 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('RestartContainer SKIPPED')
             !result.output.contains('ListImages SKIPPED')
     }
-
-    @Timeout(value = 5, unit = MINUTES)
-    def "Can stop a postgres application stack without failing"() {
-
-        String uuid = randomString()
-        buildFile << """
-
-            applications {
-                myPostgresStack {
-                    id = "${uuid}"
-                    main {
-                        repository = 'postgres'
-                        tag = 'alpine'
-                        stop {
-                            cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
-                            successOnExitCodes = [0, 127, 137]
-                            timeout = 60000
-                            probe(60000, 10000)
-                        }
-                        liveness {
-                            probe(300000, 10000, 'database system is ready to accept connections')
-                        }
-                    }
-                }
-            }
-                        
-            task stop(dependsOn: ['myPostgresStackStop'])
-        """
-
-        when:
-        BuildResult result = build('stop')
-
-        then:
-        result.output.contains('is not running or available to stop')
-        !result.output.contains('Created container with ID')
-    }
-
-    @Timeout(value = 5, unit = MINUTES)
-    def "Can remove a postgres application stack without failing"() {
-
-        String uuid = randomString()
-        buildFile << """
-
-            applications {
-                myPostgresStack {
-                    id = "${uuid}"
-                    main {
-                        repository = 'postgres'
-                        tag = 'alpine'
-                        stop {
-                            cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
-                            successOnExitCodes = [0, 127, 137]
-                            timeout = 60000
-                            probe(60000, 10000)
-                        }
-                        liveness {
-                            probe(300000, 10000, 'database system is ready to accept connections')
-                        }
-                    }
-                }
-            }
-
-            task down(dependsOn: ['myPostgresStackDown'])
-        """
-
-        when:
-        BuildResult result = build('down')
-
-        then:
-        count(result.output, 'is not available to delete') == 2
-    }
-
 }

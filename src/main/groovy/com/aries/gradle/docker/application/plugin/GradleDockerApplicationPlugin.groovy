@@ -16,12 +16,12 @@
 
 package com.aries.gradle.docker.application.plugin
 
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
-
 import static com.aries.gradle.docker.application.plugin.GradleDockerApplicationPluginUtils.randomString
 import static com.bmuschko.gradle.docker.utils.IOUtils.getProgressLogger
 
+import com.aries.gradle.docker.application.plugin.domain.AbstractApplication
+
+import com.bmuschko.gradle.docker.tasks.container.DockerExecContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessProbeContainer
 import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
@@ -31,8 +31,7 @@ import com.bmuschko.gradle.docker.tasks.container.DockerRestartContainer
 import com.bmuschko.gradle.docker.tasks.container.DockerStartContainer
 import com.bmuschko.gradle.docker.tasks.image.DockerListImages
 import com.bmuschko.gradle.docker.tasks.image.DockerPullImage
-
-import com.aries.gradle.docker.application.plugin.domain.AbstractApplication
+import com.bmuschko.gradle.docker.tasks.DockerClient
 
 import org.gradle.api.GradleException
 import org.gradle.api.NamedDomainObjectContainer
@@ -40,6 +39,9 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.StopExecutionException
+
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  *  Plugin providing common tasks for starting (*Up), stopping (*Stop), and deleting (*Down) dockerized applications.
@@ -409,27 +411,57 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
                 // this pause, to allow the container to come up and potentially exit, needs to be
                 // done within the `DockerLivenessProbeContainer` task itself and not here.
-                sleep(5000)
+                sleep(3000)
             }
         }
         appContainer.main().livenessConfigs.each { livenessProbeContainerTask.configure(it) }
 
-        final Task upTask = project.task("${appName}Up",
+        final DockerExecContainer execContainerTask = project.task("${appName}ExecContainer",
+            type: DockerExecContainer,
             dependsOn: [livenessProbeContainerTask]) {
+            onlyIf { livenessProbeContainerTask.state.didWork &&
+                appContainer.main().execConfigs.size() > 0 }
+
+            group: appGroup
+            description: "Execute commands within '${appName}' container."
+
+            targetContainerId { appContainer.mainId() }
+
+            onComplete {
+
+                // sleeping for 5 seconds just in-case any command caused this container to
+                // come down, potentially gracefully, before we presume things are live.
+                sleep(3000)
+            }
+        }
+        appContainer.main().execConfigs.each { execContainerTask.configure(it) }
+
+        final Task upTask = project.task("${appName}Up",
+            type: DockerClient,
+            dependsOn: [execContainerTask]) {
             outputs.upToDateWhen { false }
 
             group: appGroup
             description: "Start '${appName}' container application if not already started."
 
-            doLast {
+            onNext { dockerClient ->
 
                 // 1.) Set the last used "inspection" for potential downstream use
-                if (livenessProbeContainerTask.state.didWork) {
+                if (execContainerTask.state.didWork) {
+
+                    // if the `execContainerTask` task kicked we need to
+                    // make an additional inspection call to ensure things
+                    // are still live and running just to be on the safe side.
+                    ext.inspection = dockerClient.inspectContainerCmd(appContainer.mainId()).exec()
+                    if (!ext.inspection.state.running) {
+                        throw new GradleException("The 'main' container was NOT in a running state after exec(s) finished. Was this expected?")
+                    }
+                } else if (livenessProbeContainerTask.state.didWork) {
                     ext.inspection = livenessProbeContainerTask.lastInspection()
                 } else if (availableContainerTask.ext.inspection) {
                     ext.inspection = availableContainerTask.ext.inspection
                 } else {
-                    throw new GradleException('No task found to inspect container: was this expected?')
+                    throw new GradleException('No task found that inspected container: was this expected?')
                 }
 
                 // 2.) set handful of variables for easy access and downstream use
