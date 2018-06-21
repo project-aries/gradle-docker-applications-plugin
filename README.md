@@ -11,7 +11,7 @@ Highly opinionated gradle plugin to start (Up), pause (Stop), and delete (Down) 
 
 ## Motivation and Design Goals
 
-As the maintainer of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) I often get questions about how best to use said plugin for standing up a given companies dockerized application in a gradle context. As the aforementioned plugin is compromised of many tasks, each acting as a low-level building block, it can be daunting for new users to understand how all of these tasks are wired together. That's where the `gradle-docker-application-plugin` comes in. Being built on top of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) it provides an easy and intuitive way to define and configure your applications and then creates exactly **3** high-level tasks for you to manage them (more on that below).
+As maintainer of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) I often get questions about how best to use said plugin for standing up a given companies dockerized application in a gradle context. As the aforementioned plugin is compromised of many tasks, each acting as a low-level building block, it can be daunting for new users to understand how all of these tasks are wired together. That's where the `gradle-docker-application-plugin` comes in. Being built on top of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) it provides an easy and intuitive way to define and configure your applications and then creates exactly **3** high-level tasks for you to manage them (more on that below).
 
 When designing this plugin I wanted to get the following right without any compromises:
 
@@ -38,13 +38,13 @@ apply plugin: 'gradle-docker-application-plugin'
 ```
 ## Built on top of `gradle-docker-plugin`
 
-Because we use the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) to drive this one: you are free to use the `docker` extension point to configure your docker connection as is described in more detail [HERE](https://github.com/bmuschko/gradle-docker-plugin#remote-api-plugin).
+Because we use the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) to drive this one: you are free to use the `docker` extension point to configure your docker connection as is described in more detail [HERE](https://github.com/bmuschko/gradle-docker-plugin#extension-examples).
 
 ## On the _applications_ extension point and DSL
 
 This plugin is built around the idea that users will define N number of dockerized-application(s)
-and we will hand back **3** appropriately named high-level tasks for you to manage said application
-with. With this in mind we provide the `applications` extension point, which in turn is a gradle container,
+and we will hand back **3** appropriately named high-level tasks for you to manage said application. 
+With this in mind we provide the `applications` extension point, which in turn is a [gradle container](http://mrhaki.blogspot.com/2016/02/gradle-goodness-using-nested-domain.html),
 for you to define as many apps as you need:
 
 ```
@@ -60,7 +60,7 @@ applications {
     }
 }
 ```
-Each app in turn is what we would call a dockerized-application and is just an instance of [AbstractApplication](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/AbstractApplication.groovy). These applications contain various properties you can set and override as you see fit. 
+Each app in turn is what we would call a dockerized-application and is just an instance of [AbstractApplication](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/AbstractApplication.groovy). These applications contain various properties and methods you can set and override as you see fit.
 
 Furthermore each application allows you to define a `main` and optionally a `data` container like so:
 
@@ -70,13 +70,17 @@ applications {
       main { // required
       
       }
-      data { // optional
+      data { // optional and will inherit image properties from `main` if not defined
       
       }
    }
 }
 ```
-Each of these is an instance of [AbstractContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/AbstractContainer.groovy) and has various properties and methods for you to set and further configure the underlying container. A real world example on how stand-up a postgres alpine database would look like:
+Each dockerized-application gets exactly 2 containers created: **main** and **data**. The **main** container is your runtime or the thing that's actually running the application. The **data** container is the place the **main** container will write its data (or state) too thereby having a clear separation between the running instance and the data it creates.
+
+The **main** container is an instance of [MainContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/MainContainer.groovy) with the **data** container being an instance of [DataContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/DataContainer.groovy) and both inherit from [AbstractContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/AbstractContainer.groovy). Each are just docker containers at the end of the day with the caveat that the **data** container only ever gets created while the **main** container is not only created but is started and expected to stay running.
+
+A real world example on how to stand-up a postgres alpine database would look like:
 
 ```
 applications {
@@ -159,48 +163,6 @@ task down(dependsOn: ['myPostgresStackDown'])
 check.dependsOn up
 build.dependsOn stop
 test.finalizedBy down
-```
-
-## On _main_ and _data_
-
-Each dockerized-application gets exactly 2 containers created: **main** and **data**. The **main** container is your runtime or the thing that's actually running the application. The **data** container is the place the **main** container will write its data too thereby having a clear separation between the running instance and the data it creates. Each are just containers at the end of the day with the former expected to enter into a long running state while the latter is meant to be created only and never started.
-
-#### On _main_
-
-The _main_ section allows you to customize the dockerized applications **main**
-container and **IS** required. Things wont pop during the config phase but the moment
-you attempt to run one of the 3 high-level tasks things will fail rather quickly.
-Each method allows you to configure one of the internal `gradle-docker-plugin` tasks
-used to create your dockerized application. More details on what can be configured
-can be found [HERE](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/MainContainer.groovy).
-
-#### On _data_
-
-The _data_ section allows you to customize the dockerized applications **data** container
-and **IS NOT** required. If not defined we will create a data container for you based off
-of the image values (e.g. repository and tag) you provided for the **main** container. The **data**
-container itself can be customzied to a limited degree. More details on what can be configured
-can be found [HERE](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/DataContainer.groovy).
-
-Currently, having a separate **main** and **data** container, is the going standard most dockerized
-applications have adopted. Furthermore using the same image for each seems to be the trend as
-it's simple and easy to understand. If however you want to use a different image for your **data** container
-you're free to do so:
-
-```
-applications {
-    myPostgresAndBusyBoxStack {
-        main {
-            repository = 'postgres'
-            tag = 'alpine'
-            ...
-        }
-        data {
-            repository = 'busybox'
-            tag = '1.28.4-musl'
-        }
-    }
-}
 ```
 
 ## On _Up_, _Stop_, and _Down_ tasks
