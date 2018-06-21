@@ -90,37 +90,32 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
      */
     private createApplicationTasks(final Project project,
                                    final NamedDomainObjectContainer<AbstractApplication> appContainers) {
-        appContainers.each { app ->
+        appContainers.each { appContainer ->
 
-            // commmon variables used by all tasks below
-            final String appGroup = "${app.name}-${app.id()}"
-            final AbstractApplication appContainer = project.extensions.getByName(app.name)
+            // Must be run after evalution has happened but prior to tasks
+            // being built. This ensures our main and data container were
+            // properly setup and in the case of the latter we will inherit
+            // its properties from the former it wasn't defined.
+            appContainer.sanityCheck()
 
             // create tasks after evaluation so that we can pick up any changes
             // made to our various extension points.
             //buildLockTasks(project, app.name, appGroup, appContainer)
-            buildTaskChainFor_Up(project, app.name, appGroup, appContainer)
-            buildTaskChainFor_Stop(project, app.name, appGroup, appContainer)
-            buildTaskChainFor_Down(project, app.name, appGroup, appContainer)
+            buildTaskChainFor_Up(project, appContainer)
+            buildTaskChainFor_Stop(project, appContainer)
+            buildTaskChainFor_Down(project, appContainer)
         }
     }
 
     // create required tasks for invoking the "up" chain.
     private buildTaskChainFor_Up(final Project project,
-                                 final String appName,
-                                 final String appGroup,
                                  final AbstractApplication appContainer) {
 
-        // Must be run after evalution has happened but prior to tasks
-        // being built. This ensures our main and data container were
-        // properly setup and in the case of the latter we will inherit
-        // its properties from the former it wasn't defined.
-        appContainer.sanityCheck()
+        final String appName = appContainer.getName()
+        final String appGroup = appContainer.mainId()
 
-        // build our locking tasks for multi-project wide execution which in turn are
-        // specific to THIS chain of tasks.
-        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup, appContainer)
-        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup, appContainer)
+        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appContainer)
+        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appContainer)
 
         final DockerInspectContainer availableDataContainerTask = project.task("${appName}AvailableDataContainer",
             type: DockerInspectContainer,
@@ -511,14 +506,13 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
     // create required tasks for invoking the "stop" chain.
     private buildTaskChainFor_Stop(final Project project,
-                                   final String appName,
-                                   final String appGroup,
                                    final AbstractApplication appContainer) {
 
-        // build our locking tasks for multi-project wide execution which in turn are
-        // specific to THIS chain of tasks.
-        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup, appContainer)
-        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup, appContainer)
+        final String appName = appContainer.getName()
+        final String appGroup = appContainer.mainId()
+
+        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appContainer)
+        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appContainer)
 
         final DockerExecStopContainer execStopContainerTask = project.task("${appName}ExecStopContainer",
             type: DockerExecStopContainer,
@@ -553,14 +547,13 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
     // create required tasks for invoking the "down" chain.
     private buildTaskChainFor_Down(final Project project,
-                                   final String appName,
-                                   final String appGroup,
                                    final AbstractApplication appContainer) {
 
-        // build our locking tasks for multi-project wide execution which in turn are
-        // specific to THIS chain of tasks.
-        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup, appContainer)
-        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup, appContainer)
+        final String appName = appContainer.getName()
+        final String appGroup = appContainer.mainId()
+
+        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appContainer)
+        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appContainer)
 
         final DockerRemoveContainer deleteContainerTask = project.task("${appName}DeleteContainer",
             type: DockerRemoveContainer,
@@ -614,9 +607,10 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
     // create task which will acquire an execution lock for a given task chain
     private Task buildAcquireExecutionLockTask(final Project project,
-                                               final String appName,
-                                               final String appGroup,
                                                final AbstractApplication appContainer) {
+
+        final String appName = appContainer.getName()
+        final String appGroup = appContainer.mainId()
 
         // using random string as this method is called ad-hoc in multiple places
         // and so the name must be unique but still named appropriately.
@@ -664,9 +658,10 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
     // create task which will release an execution lock for a given task chain
     private Task buildReleaseExecutionLockTask(final Project project,
-                                               final String appName,
-                                               final String appGroup,
                                                final AbstractApplication appContainer) {
+
+        final String appName = appContainer.getName()
+        final String appGroup = appContainer.mainId()
 
         // using random string as this method is called ad-hoc in multiple places
         // and so the name must be unique but still named appropriately.

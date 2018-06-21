@@ -16,6 +16,7 @@
 
 package com.aries.gradle.docker.application.plugin.domain
 
+import org.gradle.api.GradleException
 import org.gradle.api.tasks.Optional
 import org.gradle.util.ConfigureUtil
 
@@ -32,10 +33,11 @@ public class AbstractApplication {
         this.name = name
     }
 
+    // if set will override the application-name part of the docker container
     @Optional
     String id
     String id() {
-        this.id ?: System.getProperty('user.name')
+        this.id ?: getName()
     }
 
     // methods and properties used to configure the main container
