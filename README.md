@@ -11,9 +11,9 @@ Highly opinionated gradle plugin to start (Up), pause (Stop), and delete (Down) 
 
 ## Motivation and Design Goals
 
-As the maintainer of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) I often get questions about how best to use said plugin for standing up a given companies dockerized application in a gradle context. As the aforementioned plugin is compromised of many tasks, each acting as a low-level building block, it can be daunting for new users to understand how all of these tasks are wired together. That's where the `gradle-docker-application-plugin` comes in. It's built on top of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) and provides an easy and intuitive way to define your applications and then creates exactly **3** high-level tasks for you to manage them (more on that below).
+As the maintainer of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) I often get questions about how best to use said plugin for standing up a given companies dockerized application in a gradle context. As the aforementioned plugin is compromised of many tasks, each acting as a low-level building block, it can be daunting for new users to understand how all of these tasks are wired together. That's where the `gradle-docker-application-plugin` comes in. Being built on top of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) it provides an easy and intuitive way to define and configure your applications and then creates exactly **3** high-level tasks for you to manage them (more on that below).
 
-When designing this plugin we wanted to get the following right without any compromises:
+When designing this plugin I wanted to get the following right without any compromises:
 
 * Provide exactly **3** high-level tasks with which to manage a dockerized-application: **Up**, **Stop**, and **Down**.
 * Allow for defining up to N number of dockerized-application(s) for extremely complex workloads.
@@ -36,8 +36,11 @@ buildscript() {
 
 apply plugin: 'gradle-docker-application-plugin'
 ```
+## Built on top of `gradle-docker-plugin`
 
-## On the _applications_ extension point
+Because we use the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) to drive this one: you are free to use the `docker` extension point to configure your docker connection as is described in more detail [HERE](https://github.com/bmuschko/gradle-docker-plugin#remote-api-plugin).
+
+## On the _applications_ extension point and DSL
 
 This plugin is built around the idea that users will define N number of dockerized-application(s)
 and we will hand back **3** appropriately named high-level tasks for you to manage said application
@@ -57,8 +60,23 @@ applications {
     }
 }
 ```
+Each app in turn is what we would call a dockerized-application and is just an instance of [AbstractApplication](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/AbstractApplication.groovy). These applications contain various properties you can set and override as you see fit. 
 
-A real world example on how stand-up a postgres alpine database might look like:
+Furthermore each application allows you to define a `main` and optionally a `data` container like so:
+
+```
+applications {
+   myAppOne {
+      main { // required
+      
+      }
+      data { // optional
+      
+      }
+   }
+}
+```
+Each of these is an instance of [AbstractContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/AbstractContainer.groovy) and has various properties and methods for you to set and further configure the underlying container. A real world example on how stand-up a postgres alpine database would look like:
 
 ```
 applications {
