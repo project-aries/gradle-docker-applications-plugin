@@ -78,14 +78,15 @@ applications {
 ```
 Each dockerized-application gets exactly 2 containers created: **main** and **data**. The **main** container is your runtime or the thing that's actually running the application. The **data** container is the place the **main** container will write its data (or state) too thereby having a clear separation between the running instance and the data it creates.
 
-The **main** container is an instance of [MainContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/MainContainer.groovy) with the **data** container being an instance of [DataContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/DataContainer.groovy) and both inherit from [AbstractContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/AbstractContainer.groovy). Each are just docker containers at the end of the day with the caveat that the **data** container only ever gets created while the **main** container is not only created but is started and expected to stay running.
+The **main** container is an instance of [MainContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/MainContainer.groovy) with the **data** container being an instance of [DataContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/DataContainer.groovy) and both inherit from [AbstractContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/AbstractContainer.groovy). In the end each are just mapped to docker containers with the caveat that the **data** container only ever gets created while the **main** container is not only created but is started and expected to stay running.
+
+Each container type can then be configured
 
 A real world example on how to stand-up a postgres alpine database would look like:
 
 ```
 applications {
     myPostgresStack {
-        id = "devops" // defaults to user.name if not defined
         main {
             repository = 'postgres'
             tag = 'alpine'
@@ -111,9 +112,6 @@ applications {
     }
 }
 ```
-
-The `myPostgresStack` is the name of the application but we could have named it anything. It's relevant **ONLY** to this gradle project and serves as an easy way to namespace the generated task names we create behind the scenes (e.g. myPostgresStackUp, myPostgresStackStop, myPostgresStackDown).
-
 A bit more on this example and what it does:
 
 * Defines the **main** container which is documented below.
@@ -126,7 +124,7 @@ A bit more on this example and what it does:
 Each configuration can optionally be set **N** times for more complicated scenarios:
 ```
 applications {
-    multiConfigExample {
+    myPostgresStack {
         main {
             create {
                 env << ['ONE=FISH', 'TWO=FISH']
@@ -139,13 +137,10 @@ applications {
 }
 ```
 
-As noted above: the name of the application is used **ONLY** for task naming purposes and is meant to
-provide an easy way for developers to code for these tasks. The container names themselves are built
-from a concatenation of the `id` noted above and the last part of the repository (anything past last
-`/` or the whole repository name if none found). In turn you can expect 2 containers to be be made and named:
+The created container names themselves are built from a concatenation of the name of the application and the last part of the repository (anything past last `/` or the whole repository name if none found). In turn you can expect 2 containers to be be made and named:
 
-* **devops-postgres** // started and expected to be in a running state
-* **devops-postgres-data** // never started and expected to be in a created state
+* **myPostgresStack-postgres** // started and expected to be in a running state
+* **myPostgresStack-postgres-data** // never started and expected to be in a created state
 
 Once your dockerized-application is live you can do things like:
 ```
