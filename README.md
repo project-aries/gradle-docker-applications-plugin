@@ -80,9 +80,131 @@ Each dockerized-application gets exactly 2 containers created: **main** and **da
 
 The **main** container is an instance of [MainContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/MainContainer.groovy) with the **data** container being an instance of [DataContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/DataContainer.groovy) and both inherit from [AbstractContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/AbstractContainer.groovy). In the end each are just mapped to docker containers with the caveat that the **data** container only ever gets created while the **main** container is not only created but is started and expected to stay running.
 
-Each container type can then be configured
+Both the **main** and **data** containers have a handful of closures/options for you to configure your dockerized application with.
 
-A real world example on how to stand-up a postgres alpine database would look like:
+#### Options available for both _main_ and _data_ container(s)
+
+
+##### _create_ (Optional)
+
+The **create** closure maps to [DockerCreateContainer](https://github.com/bmuschko/gradle-docker-plugin/blob/master/src/main/groovy/com/bmuschko/gradle/docker/tasks/container/DockerCreateContainer.groovy) and can optionally be defined **N** number of times. This allows you to configure the
+creation of either container should the need arise:
+```
+applications {
+    myPostgresStack {
+        main {
+            create {
+                env = ['MAIN_CONTAINER=true']
+                privileged = false
+            }
+            create {
+                shmSize = 123456789
+            }
+        }
+        data {
+            create {
+                env = ['DATA_CONTAINER=true']
+            }
+        }
+    }
+}
+```
+
+##### _files_ (Optional)
+
+The **files** closure maps to [DockerCopyFileToContainer](https://github.com/bmuschko/gradle-docker-plugin/blob/master/src/main/groovy/com/bmuschko/gradle/docker/tasks/container/DockerCopyFileToContainer.groovy) and can optionally be defined **N** number of times. This allows you to add an
+arbitrary number of files to either container just after they've been created but just before they've been started:
+```
+applications {
+    myPostgresStack {
+        main {
+            files {
+                withFile("$projectDir/HelloWorldMain.txt", '/') // add file using strings
+                withFile( { "$projectDir/HelloWorldMain.txt" }, { '/tmp' }) // add file using closures
+            }
+            files {
+                withFile(project.file($projectDir/HelloWorldMain.txt"), project.file('/')) // add file using file objects
+            }
+        }
+        data {
+            files {
+                withFile("$projectDir/HelloWorldData.txt", '/') // add file using strings
+            }
+        }
+    }
+}
+```
+
+
+#### Options available for the _main_ container
+
+##### _liveness_ (Optional)
+
+The **liveness** closure maps to [DockerLivenessProbeContainer](https://github.com/bmuschko/gradle-docker-plugin/blob/master/src/main/groovy/com/bmuschko/gradle/docker/tasks/container/extras/DockerLivenessProbeContainer.groovy) and can optionally be defined **N** number of times. This allows you to configure
+the liveness probe, which runs just after the container is started, and probes (or polls) the running container for an arbitrary amount
+of time waiting for the passed in String to become present in the container logs:
+```
+applications {
+    myPostgresStack {
+        main {
+            liveness {
+
+                // wait at most for 300000 milliseconds, probing every 10000 milliseconds, for
+                // the log String noted below to be present.
+                probe(300000, 10000, 'database system is ready to accept connections')
+            }
+        }
+    }
+}
+```
+
+##### _exec_ (Optional)
+
+The **exec** closure maps to [DockerExecContainer](https://github.com/bmuschko/gradle-docker-plugin/blob/master/src/main/groovy/com/bmuschko/gradle/docker/tasks/container/DockerExecContainer.groovy) and can optionally be defined **N** number of times. This allows you to execute an arbitrary
+number of commands on the **main** container AFTER we have deemed it to be live or in a running state:
+```
+applications {
+    myPostgresStack {
+        main {
+            exec {
+                withCommand(['echo', 'Hello World'])
+                withCommand(['date'])
+                successOnExitCodes = [0] // if not defined will ignore all exit codes
+            }
+            exec {
+                withCommand(['ls', '-alh', '/'])
+                successOnExitCodes = [0]
+            }
+        }
+    }
+}
+```
+
+
+##### _stop_ (Optional)
+
+The **stop** closure maps to [DockerExecStopContainer](https://github.com/bmuschko/gradle-docker-plugin/blob/master/src/main/groovy/com/bmuschko/gradle/docker/tasks/container/extras/DockerExecStopContainer.groovy) and can optionally be defined **N** number of times.
+This allows you to configure an optional **exec command** to be run within the **main** container to bring it down gracefully. If not defined
+we revert back to just issueing a "stop" on the **main** container:
+```
+applications {
+    myPostgresStack {
+        main {
+            stop {
+                withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"])
+                successOnExitCodes = [0, 127, 137]
+                probe(60000, 10000) // time we wait for command(s) to finish
+
+                // if above not defined this is the amount of time we will wait for container
+                // to stop after issuing a "stop" request.
+                timeout = 60000
+            }
+        }
+    }
+}
+```
+
+#### Complete example
 
 ```
 applications {
@@ -91,16 +213,11 @@ applications {
             repository = 'postgres'
             tag = 'alpine'
             create {
-                env = ['CI=TRUE', 'DEVOPS=ROCKS']
+                env = ['MAIN_CONTAINER=true']
             }
-            stop {
-                withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"])
-                successOnExitCodes = [0, 127, 137]
-                timeout = 60000
-                probe(60000, 10000)
-            }
-            liveness {
-                probe(300000, 10000, 'database system is ready to accept connections')
+            files {
+                withFile("$projectDir/HelloWorld.txt", '/')
+                withFile( { "$projectDir/HelloWorld.txt" }, { '/tmp' })
             }
             exec {
                 withCommand(['echo', 'Hello World'])
@@ -108,56 +225,26 @@ applications {
                 withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl status"])
                 successOnExitCodes = [0]
             }
-        }
-    }
-}
-```
-A bit more on this example and what it does:
-
-* Defines the **main** container which is documented below.
-* Sets the repository and tag to use the _postgres alpine_ image.
-* Configures the optional **_create_** task to further customize how we want the **main** container to be built.
-* Configures the optional **_stop_** task to execute a command to gracefully bring the container down from within (defaults to stopping container).
-* Configures the optional **_liveness_** task to probe the **main** container to wait at most _300000_ milliseconds, polling every _10000_ milliseconds, for the existence of the given String at which point the container will be considered live (defaults to checking if container is in a **running** state).
-* Configures the optional **_exec_** task to execute an arbitrary number of command(s) within the container after liveness has been attained.
-
-Each configuration can optionally be set **N** times for more complicated scenarios:
-```
-applications {
-    myPostgresStack {
-        main {
-            create {
-                env << ['ONE=FISH', 'TWO=FISH']
+            liveness {
+                probe(300000, 10000, 'database system is ready to accept connections')
             }
+            stop {
+                withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"])
+                successOnExitCodes = [0, 127, 137]
+                timeout = 60000
+                probe(60000, 10000)
+            }
+        }
+        data {
             create {
-                env << ['RED=FISH', 'BLUE=FISH']
+                env = ['DATA_CONTAINER=true']
+            }
+            files {
+                withFile(project.file($projectDir/HelloWorld.txt"), project.file('/'))
             }
         }
     }
 }
-```
-
-The created container names themselves are built from a concatenation of the name of the application and the last part of the repository (anything past last `/` or the whole repository name if none found). In turn you can expect 2 containers to be be made and named:
-
-* **myPostgresStack-postgres** // started and expected to be in a running state
-* **myPostgresStack-postgres-data** // never started and expected to be in a created state
-
-Once your dockerized-application is live you can do things like:
-```
-// kick tasks from gradle command line
-cdancy@gandalf:~$ ./gradle myPostgresStackUp myPostgresStackStop myPostgresStackDown
-```
-Or define more appropriately named tasks for your users to use:
-```
-task up(dependsOn: ['myPostgresStackUp'])
-
-task stop(dependsOn: ['myPostgresStackStop'])
-
-task down(dependsOn: ['myPostgresStackDown'])
-
-check.dependsOn up
-build.dependsOn stop
-test.finalizedBy down
 ```
 
 ## On _Up_, _Stop_, and _Down_ tasks
@@ -192,6 +279,39 @@ can be run repeatedly but more/less amounts to a no-op. We recognize that the in
 is already deleted, print out a message saying as much, and allow you to continue
 with the rest of your automation.
 
+## Tying it all together and basic usage
+
+Now that you've defined your application you can can execute the generated tasks from the
+command line like so:
+
+```
+// kick tasks from gradle command line
+cdancy@gandalf:~$ ./gradle myPostgresStackUp myPostgresStackStop myPostgresStackDown
+```
+
+Or define more appropriately named tasks for your users to use:
+```
+task up(dependsOn: ['myPostgresStackUp'])
+
+task stop(dependsOn: ['myPostgresStackStop'])
+
+task down(dependsOn: ['myPostgresStackDown'])
+
+check.dependsOn up
+build.dependsOn stop
+test.finalizedBy down
+```
+
+
+#### On container naming
+
+The created container names themselves are built from a concatenation of the name of the application and the last part
+of the repository (anything past last `/` or the whole repository name if none found). In turn you can expect 2
+containers to be be made and named:
+
+* **myPostgresStack-postgres** // started and expected to be in a running state
+* **myPostgresStack-postgres-data** // never started and expected to be in a created state
+
 ## On Task Chain Synchronization
 
 Each of our high-level tasks are considered a task-chain. The execution of these
@@ -203,7 +323,7 @@ high-level task-chains will be executed so as to ensure we don't clobber the doc
 workload (i.e. task trying to delete a container while another is creating it).
 For example: if you have 10 sub-projects and all attempt to start your dockerized
 application **ONLY ONE** will be allowed to do so putting the other 9 in a
-waiting state. Once the system has become live another will attempt to do so,
-recognize the system is already up, and proceed with the next task to execute
-and so on and so forth.
+waiting state. Once the task-chain has finished the next task-chain waiting
+for the lock will kick. While any task-chain is in a waiting state it will output
+a gradle _progress logger_ to let the user know how long its been waiting.
 
