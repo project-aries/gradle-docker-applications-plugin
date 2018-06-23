@@ -36,7 +36,7 @@ buildscript() {
 
 apply plugin: 'gradle-docker-application-plugin'
 ```
-## Built on top of `gradle-docker-plugin`
+## Backend powered by _gradle-docker-plugin_
 
 Because we use the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) to drive this one: you are free to use the `docker` extension point to configure your docker connection as is described in more detail [HERE](https://github.com/bmuschko/gradle-docker-plugin#extension-examples).
 
@@ -80,10 +80,25 @@ Each dockerized-application gets exactly 2 containers created: **main** and **da
 
 The **main** container is an instance of [MainContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/MainContainer.groovy) with the **data** container being an instance of [DataContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/DataContainer.groovy) and both inherit from [AbstractContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/AbstractContainer.groovy). In the end each are just mapped to docker containers with the caveat that the **data** container only ever gets created while the **main** container is not only created but is started and expected to stay running.
 
-Both the **main** and **data** containers have a handful of closures/options for you to configure your dockerized application with.
+#### Options and Requirements
+
+Both the **main** and **data** containers have a handful of closures/options for you to configure your dockerized application with. The only _real_ requirement is a defined **main** container with at least the image _repository_ set
+like so:
+```
+applications {
+    myPostgresStack {
+        main {
+            repository = 'postgres'
+            tag = 'alpine' // optional and defaults to 'latest' if not set
+        }
+    }
+}
+```
+So long as the image you're using starts an application, either through an `entrypoint` or `command`, and things stay in a running state, you're good to go.
+
+The **data** container is also entirely optional and if not defined we will inherit the image _options_ (e.g. repository and tag) from the **main** container but NOTHING else.
 
 #### Options available for both _main_ and _data_ container(s)
-
 
 ##### _create_ (Optional)
 
