@@ -33,6 +33,10 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
     @Timeout(value = 5, unit = MINUTES)
     def "Can start, stop, and remove a postgres application stack"() {
 
+        new File("$projectDir/HelloWorld.txt").withWriter('UTF-8') {
+            it.write('Hello, World!')
+        }
+
         String uuid = randomString()
         buildFile << """
 
@@ -44,6 +48,10 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                         tag = 'alpine'
                         create {
                             env = ['CI=TRUE', 'DEVOPS=ROCKS']
+                        }
+                        files {
+                            withFile("$projectDir/HelloWorld.txt", '/') // demo with strings
+                            withFile( { "$projectDir/HelloWorld.txt" }, { '/tmp' }) // demo with closures
                         }
                         stop {
                             cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
@@ -62,6 +70,9 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                     data {
                         create {
                             volumes = ["/var/lib/postgresql/data"]
+                        }
+                        files {
+                            withFile(project.file("$projectDir/HelloWorld.txt"), project.file('/root')) // demo with files
                         }
                     }
                 }
@@ -85,6 +96,8 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('is not running or available to inspect')
             result.output.contains('Inspecting container with ID')
             result.output.contains('Created container with ID')
+            count(result.output, 'Copying file to container') == 3
+            result.output.contains('Copying file to container')
             result.output.contains('Starting liveness probe on container')
             result.output.contains('CI=TRUE')
             result.output.contains('DEVOPS=ROCKS')
