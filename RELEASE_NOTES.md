@@ -1,4 +1,6 @@
-### Version 0.9.4 (TBA)
+### Version 0.9.5 (TBA)
+
+### Version 0.9.4 (June 23, 2018)
 * Both the `main` and `data` container can now configure an optional `files` task to allow for an arbitrary number of files
 to be added to either container BEFORE we attempt to start the `main` container.
 
