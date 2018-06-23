@@ -16,6 +16,7 @@
 
 package com.aries.gradle.docker.application.plugin.domain
 
+import com.bmuschko.gradle.docker.tasks.container.DockerCopyFileToContainer
 import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
 
 /**
@@ -43,5 +44,10 @@ class AbstractContainer {
     final List<Closure<DockerCreateContainer>> createConfigs = []
     void create(Closure<DockerCreateContainer> createConfig) {
         if (createConfig) { createConfigs.add(createConfig) }
+    }
+
+    final List<Closure<DockerCopyFileToContainer>> filesConfigs = []
+    void files(Closure<DockerCopyFileToContainer> filesConfig) {
+        if (filesConfig) { filesConfigs.add(filesConfig) }
     }
 }

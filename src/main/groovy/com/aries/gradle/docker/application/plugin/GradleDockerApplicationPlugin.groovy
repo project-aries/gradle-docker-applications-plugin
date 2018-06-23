@@ -16,6 +16,8 @@
 
 package com.aries.gradle.docker.application.plugin
 
+import com.bmuschko.gradle.docker.tasks.container.DockerCopyFileToContainer
+
 import static com.aries.gradle.docker.application.plugin.GradleDockerApplicationPluginUtils.randomString
 import static com.bmuschko.gradle.docker.utils.IOUtils.getProgressLogger
 
@@ -372,9 +374,33 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
         }
         appContainer.main().createConfigs.each { createContainerTask.configure(it) }
 
+        final DockerCopyFileToContainer copyFilesToDataContainerTask = project.task("${appName}CopyFilesToDataContainer",
+            type: DockerCopyFileToContainer,
+            dependsOn: [createContainerTask]) {
+            onlyIf { createDataContainerTask.state.didWork }
+
+            group: appGroup
+            description: "Copy file(s) into '${appName}' data container."
+
+            targetContainerId { appContainer.dataId() }
+        }
+        appContainer.data().filesConfigs.each { copyFilesToDataContainerTask.configure(it) }
+
+        final DockerCopyFileToContainer copyFilesToContainerTask = project.task("${appName}CopyFilesToContainer",
+            type: DockerCopyFileToContainer,
+            dependsOn: [copyFilesToDataContainerTask]) {
+            onlyIf { createContainerTask.state.didWork }
+
+            group: appGroup
+            description: "Copy file(s) into '${appName}' container."
+
+            targetContainerId { appContainer.mainId() }
+        }
+        appContainer.main().filesConfigs.each { copyFilesToContainerTask.configure(it) }
+
         final DockerStartContainer startContainerTask = project.task("${appName}StartContainer",
             type: DockerStartContainer,
-            dependsOn: [createContainerTask]) {
+            dependsOn: [copyFilesToContainerTask]) {
             onlyIf { createContainerTask.state.didWork }
 
             group: appGroup
