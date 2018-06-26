@@ -377,7 +377,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         final DockerCopyFileToContainer copyFilesToDataContainerTask = project.task("${appName}CopyFilesToDataContainer",
             type: DockerCopyFileToContainer,
             dependsOn: [createContainerTask]) {
-            onlyIf { createDataContainerTask.state.didWork }
+            onlyIf { createDataContainerTask.state.didWork &&
+                appContainer.data().filesConfigs.size() > 0 }
 
             group: appGroup
             description: "Copy file(s) into '${appName}' data container."
@@ -389,7 +390,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         final DockerCopyFileToContainer copyFilesToContainerTask = project.task("${appName}CopyFilesToContainer",
             type: DockerCopyFileToContainer,
             dependsOn: [copyFilesToDataContainerTask]) {
-            onlyIf { createContainerTask.state.didWork }
+            onlyIf { createContainerTask.state.didWork &&
+                appContainer.main().filesConfigs.size() > 0 }
 
             group: appGroup
             description: "Copy file(s) into '${appName}' container."
@@ -677,7 +679,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 }
                 progressLogger.completed()
 
-                logger.quiet "Lock took ${totalMillis}m to acquire."
+                logger.info "Lock took ${totalMillis}m to acquire."
             }
         }
     }
