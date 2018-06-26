@@ -15,8 +15,8 @@
  */
 
 
-package com.aries.gradle.docker.application.plugin
+package com.aries.gradle.docker.applications.plugin
 
-class GradleDockerApplicationPluginExtension {
+class GradleDockerApplicationsPluginExtension {
 
 }

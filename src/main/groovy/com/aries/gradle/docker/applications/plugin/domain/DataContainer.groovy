@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.application.plugin.domain
+package com.aries.gradle.docker.applications.plugin.domain
 /**
  *
  *  Represents the `data` container of this application.

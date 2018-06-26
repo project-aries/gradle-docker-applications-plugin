@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.application.plugin
+package com.aries.gradle.docker.applications.plugin
 
-import com.aries.gradle.docker.application.plugin.AbstractFunctionalTest
 import org.gradle.testkit.runner.BuildResult
 import spock.lang.Timeout
 

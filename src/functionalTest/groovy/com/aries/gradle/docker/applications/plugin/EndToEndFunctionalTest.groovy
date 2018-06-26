@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.application.plugin
-
-import com.aries.gradle.docker.application.plugin.AbstractFunctionalTest
+package com.aries.gradle.docker.applications.plugin
 
 import static java.util.concurrent.TimeUnit.MINUTES
 

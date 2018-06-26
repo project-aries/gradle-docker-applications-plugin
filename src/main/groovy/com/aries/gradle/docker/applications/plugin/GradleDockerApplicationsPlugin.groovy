@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.application.plugin
+package com.aries.gradle.docker.applications.plugin
 
 import com.bmuschko.gradle.docker.tasks.container.DockerCopyFileToContainer
 
-import static com.aries.gradle.docker.application.plugin.GradleDockerApplicationPluginUtils.randomString
+import static GradleDockerApplicationsPluginUtils.randomString
 import static com.bmuschko.gradle.docker.utils.IOUtils.getProgressLogger
 
-import com.aries.gradle.docker.application.plugin.domain.AbstractApplication
+import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
 
 import com.bmuschko.gradle.docker.tasks.container.DockerExecContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  *  Plugin providing common tasks for starting (*Up), stopping (*Stop), and deleting (*Down) dockerized applications.
  */
-class GradleDockerApplicationPlugin implements Plugin<Project> {
+class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
     public static final String EXTENSION_NAME = 'applications'
 
@@ -651,7 +651,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
 
                 final String lockName = appContainer.mainId()
                 if(!project.gradle.ext.has(lockName)) {
-                    synchronized (GradleDockerApplicationPlugin) {
+                    synchronized (GradleDockerApplicationsPlugin) {
                         if(!project.gradle.ext.has(lockName)) {
                             final AtomicBoolean executionLock = new AtomicBoolean(false);
                             project.gradle.ext.set(lockName, executionLock)
@@ -659,7 +659,7 @@ class GradleDockerApplicationPlugin implements Plugin<Project> {
                     }
                 }
 
-                final def progressLogger = getProgressLogger(project, GradleDockerApplicationPlugin)
+                final def progressLogger = getProgressLogger(project, GradleDockerApplicationsPlugin)
                 progressLogger.started()
 
                 int pollTimes = 0

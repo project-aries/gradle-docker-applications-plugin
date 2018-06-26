@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.application.plugin
+package com.aries.gradle.docker.applications.plugin
 
 import org.gradle.api.Project
 import org.gradle.internal.logging.progress.ProgressLoggerFactory
@@ -26,7 +26,7 @@ import org.gradle.internal.service.ServiceRegistry
  * Place to house project wide static methods.
  *
  */
-class GradleDockerApplicationPluginUtils {
+class GradleDockerApplicationsPluginUtils {
 
     /**
      * Get a random string prepended with some identifer.
@@ -38,7 +38,7 @@ class GradleDockerApplicationPluginUtils {
         (prependWith ?: '') + UUID.randomUUID().toString().replaceAll("-", "")
     }
 
-    private GradleDockerApplicationPluginUtils() {
+    private GradleDockerApplicationsPluginUtils() {
         throw new RuntimeException('Purposefully not implemented')
     }
 }

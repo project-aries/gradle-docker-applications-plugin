@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.application.plugin.domain
+package com.aries.gradle.docker.applications.plugin.domain
 
 import com.bmuschko.gradle.docker.tasks.container.DockerExecContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer

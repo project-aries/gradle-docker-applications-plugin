@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.application.plugin.domain
+package com.aries.gradle.docker.applications.plugin.domain
 
-import org.gradle.api.GradleException
 import org.gradle.api.tasks.Optional
 import org.gradle.util.ConfigureUtil
 
