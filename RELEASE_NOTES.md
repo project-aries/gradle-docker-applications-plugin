@@ -1,4 +1,6 @@
-### Version 0.9.5 (TBA)
+### Version 0.9.5 (June 25, 2018)
+* Rename project and package structure to be `gradle-docker-applications-plugin`
+* Only execute *CopyFiles tasks if have more than 0 `files` configs.
 
 ### Version 0.9.4 (June 23, 2018)
 * Both the `main` and `data` container can now configure an optional `files` task to allow for an arbitrary number of files
