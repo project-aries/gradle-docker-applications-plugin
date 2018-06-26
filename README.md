@@ -1,4 +1,4 @@
-# gradle-docker-application-plugin
+# gradle-docker-applications-plugin
 
 Highly opinionated gradle plugin to start (Up), pause (Stop), and delete (Down) an arbitrary docker application.
 
@@ -6,12 +6,12 @@ Highly opinionated gradle plugin to start (Up), pause (Stop), and delete (Down) 
 
 | CI | Codecov | Docs | Questions | Release |
 | :---: | :---: | :---: | :---: | :---: |
-| [![Build Status](https://travis-ci.org/project-aries/gradle-docker-application-plugin.svg?branch=master)](https://travis-ci.org/project-aries/gradle-docker-application-plugin) | [![codecov](https://codecov.io/gh/project-aries/gradle-docker-application-plugin/branch/master/graph/badge.svg)](https://codecov.io/gh/project-aries/gradle-docker-application-plugin) | [![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](http://htmlpreview.github.io/?https://github.com/project-aries/gradle-docker-application-plugin/blob/gh-pages/docs/index.html) | [![Stack Overflow](https://img.shields.io/badge/stack-overflow-4183C4.svg)](https://stackoverflow.com/questions/tagged/gradle-docker-application-plugin) | [![gradle-docker-application-plugin](https://api.bintray.com/packages/project-aries/libs-release-local/gradle-docker-application-plugin/images/download.svg) ](https://bintray.com/project-aries/libs-release-local/gradle-docker-application-plugin/_latestVersion) |
+| [![Build Status](https://travis-ci.org/project-aries/gradle-docker-applications-plugin.svg?branch=master)](https://travis-ci.org/project-aries/gradle-docker-applications-plugin) | [![codecov](https://codecov.io/gh/project-aries/gradle-docker-applications-plugin/branch/master/graph/badge.svg)](https://codecov.io/gh/project-aries/gradle-docker-applications-plugin) | [![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](http://htmlpreview.github.io/?https://github.com/project-aries/gradle-docker-applications-plugin/blob/gh-pages/docs/index.html) | [![Stack Overflow](https://img.shields.io/badge/stack-overflow-4183C4.svg)](https://stackoverflow.com/questions/tagged/gradle-docker-applications-plugin) | [![gradle-docker-applications-plugin](https://api.bintray.com/packages/project-aries/libs-release-local/gradle-docker-applications-plugin/images/download.svg) ](https://bintray.com/project-aries/libs-release-local/gradle-docker-applications-plugin/_latestVersion) |
 
 
 ## Motivation and Design Goals
 
-As maintainer of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) I often get questions about how best to use said plugin for standing up a given companies dockerized application in a gradle context. As the aforementioned plugin is compromised of many tasks, each acting as a low-level building block, it can be daunting for new users to understand how all of these tasks are wired together. That's where the `gradle-docker-application-plugin` comes in. Being built on top of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) it provides an easy and intuitive way to define and configure your applications and then creates exactly **3** high-level tasks for you to manage them (more on that below).
+As maintainer of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) I often get questions about how best to use said plugin for standing up a given companies dockerized application in a gradle context. As the aforementioned plugin is compromised of many tasks, each acting as a low-level building block, it can be daunting for new users to understand how all of these tasks are wired together. That's where the `gradle-docker-applications-plugin` comes in. Being built on top of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) it provides an easy and intuitive way to define and configure your applications and then creates exactly **3** high-level tasks for you to manage them (more on that below).
 
 When designing this plugin I wanted to get the following right without any compromises:
 
@@ -30,11 +30,11 @@ buildscript() {
         jcenter()
     }
     dependencies {
-        classpath group: 'com.aries', name: 'gradle-docker-application-plugin', version: 'X.Y.Z'
+        classpath group: 'com.aries', name: 'gradle-docker-applications-plugin', version: 'X.Y.Z'
     }
 }
 
-apply plugin: 'gradle-docker-application-plugin'
+apply plugin: 'gradle-docker-applications-plugin'
 ```
 ## Backend powered by _gradle-docker-plugin_
 
@@ -60,7 +60,7 @@ applications {
     }
 }
 ```
-Each app in turn is what we would call a dockerized-application and is just an instance of [AbstractApplication](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/AbstractApplication.groovy). These applications contain various properties and methods you can set and override as you see fit.
+Each app in turn is what we would call a dockerized-application and is just an instance of [AbstractApplication](https://github.com/project-aries/gradle-docker-applications-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/applications/plugin/domain/AbstractApplication.groovy). These applications contain various properties and methods you can set and override as you see fit.
 
 Furthermore each application allows you to define a `main` and optionally a `data` container like so:
 
@@ -78,7 +78,7 @@ applications {
 ```
 Each dockerized-application gets exactly 2 containers created: **main** and **data**. The **main** container is your runtime or the thing that's actually running the application. The **data** container is the place the **main** container will write its data (or state) too thereby having a clear separation between the running instance and the data it creates.
 
-The **main** container is an instance of [MainContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/MainContainer.groovy) with the **data** container being an instance of [DataContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/DataContainer.groovy) and both inherit from [AbstractContainer](https://github.com/project-aries/gradle-docker-application-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/AbstractContainer.groovy). In the end each are just mapped to docker containers with the caveat that the **data** container only ever gets created while the **main** container is not only created but is started and expected to stay running.
+The **main** container is an instance of [MainContainer](https://github.com/project-aries/gradle-docker-applications-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/MainContainer.groovy) with the **data** container being an instance of [DataContainer](https://github.com/project-aries/gradle-docker-applications-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/applications/plugin/domain/DataContainer.groovy) and both inherit from [AbstractContainer](https://github.com/project-aries/gradle-docker-applications-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/applications/plugin/domain/AbstractContainer.groovy). In the end each are just mapped to docker containers with the caveat that the **data** container only ever gets created while the **main** container is not only created but is started and expected to stay running.
 
 #### Options and Requirements
 
