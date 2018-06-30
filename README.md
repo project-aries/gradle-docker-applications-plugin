@@ -302,19 +302,19 @@ access these could look like:
 ```
 task myDownstreamTask(dependsOn: tomcatUp) {
     doLast {
-        println tomcatUp.id // String
-        println tomcatUp.name // String
-        println tomcatUp.image // String
-        println tomcatUp.command // List<String>
-        println tomcatUp.created // String
-        println tomcatUp.ports // Map<String, String>
-        println tomcatUp.links // List<String>
+        println tomcatUp.ext.id // String
+        println tomcatUp.ext.name // String
+        println tomcatUp.ext.image // String
+        println tomcatUp.ext.command // List<String>
+        println tomcatUp.ext.created // String
+        println tomcatUp.ext.ports // Map<String, String>
+        println tomcatUp.ext.links // List<String>
         
         // the actual inspection object itself which contains all of the
         // above as well as every other property/object attached to an
         // inspection you can think of.
-        println tomcatUp.inspection
-	}
+        println tomcatUp.ext.inspection
+    }
 }
 ```
 
