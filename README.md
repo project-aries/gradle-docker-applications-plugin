@@ -78,9 +78,9 @@ applications {
 ```
 Each dockerized-application gets exactly 2 containers created: **main** and **data**. The **main** container is your runtime or the thing that's actually running the application. The **data** container is the place the **main** container will write its data (or state) too thereby having a clear separation between the running instance and the data it creates.
 
-The **main** container is an instance of [MainContainer](https://github.com/project-aries/gradle-docker-applications-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/application/plugin/domain/MainContainer.groovy) with the **data** container being an instance of [DataContainer](https://github.com/project-aries/gradle-docker-applications-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/applications/plugin/domain/DataContainer.groovy) and both inherit from [AbstractContainer](https://github.com/project-aries/gradle-docker-applications-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/applications/plugin/domain/AbstractContainer.groovy). In the end each are just mapped to docker containers with the caveat that the **data** container only ever gets created while the **main** container is not only created but is started and expected to stay running.
+The **main** container is an instance of [MainContainer](https://github.com/project-aries/gradle-docker-applications-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/applications/plugin/domain/MainContainer.groovy) with the **data** container being an instance of [DataContainer](https://github.com/project-aries/gradle-docker-applications-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/applications/plugin/domain/DataContainer.groovy) and both inherit from [AbstractContainer](https://github.com/project-aries/gradle-docker-applications-plugin/blob/master/src/main/groovy/com/aries/gradle/docker/applications/plugin/domain/AbstractContainer.groovy). In the end each are just mapped to docker containers with the caveat that the **data** container only ever gets created while the **main** container is not only created but is started and expected to stay running.
 
-#### Options and Requirements
+#### Requirements and Options
 
 Both the **main** and **data** containers have a handful of closures/options for you to configure your dockerized application with. The only _real_ requirement is a defined **main** container with at least the image _repository_ set
 like so:
@@ -275,6 +275,48 @@ application. This task, after run the first time and the dockerized application 
 can be run repeatedly but more/less amounts to a no-op. We recognize that the instance
 is already started and simply print out a banner saying things are live and allow you
 to continue with the rest of your automation.
+
+The **Up** task is the main workhorse of this project and as such has a bit more 
+responsibility in providing the user with the final state of the _task-chain_. If 
+for example you started a dockerized tomcat application that you created you would 
+see output similar to the following:
+```
+> Task :tomcatUp
+=====================================================================
+ID = d0a676a06b666ed28132ad1e8120f850ad4011fd472f189c3525c0fd87ee117f
+NAME = myTomcatServer-tomcat
+IMAGE = tomcat:8.5-alpine
+COMMAND = run
+CREATED = 2018-06-30T12:05:48.222160433Z
+ADDRESS = 172.17.0.1
+PORTS = 32807->8080
+LINKS = [:]
+=====================================================================
+```
+Once the **Up** task has completed this banner is displayed giving you some basic 
+information about the running dockerized application. Each of these properties, as 
+well as an [InspectContainerResponse object](https://github.com/docker-java/docker-java/blob/master/src/main/java/com/github/dockerjava/api/command/InspectContainerResponse.java)
+of the running container, are available to you as _gradle extension properties_ on the **Up** 
+task itself but are ONLY set once the task has completed. An example of how you might 
+access these could look like:
+```
+task myDownstreamTask(dependsOn: tomcatUp) {
+    doLast {
+        println tomcatUp.id // String
+        println tomcatUp.name // String
+        println tomcatUp.image // String
+        println tomcatUp.command // List<String>
+        println tomcatUp.created // String
+        println tomcatUp.ports // Map<String, String>
+        println tomcatUp.links // List<String>
+        
+        // the actual inspection object itself which contains all of the
+        // above as well as every other property/object attached to an
+        // inspection you can think of.
+        println tomcatUp.inspection
+	}
+}
+```
 
 #### Stop
 
