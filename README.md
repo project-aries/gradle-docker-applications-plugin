@@ -155,7 +155,7 @@ applications {
 
 ##### _liveness_ (Optional)
 
-The **liveness** closure maps to [DockerLivenessProbeContainer](https://github.com/bmuschko/gradle-docker-plugin/blob/master/src/main/groovy/com/bmuschko/gradle/docker/tasks/container/extras/DockerLivenessProbeContainer.groovy) and can optionally be defined **N** number of times. This allows you to configure
+The **liveness** closure maps to [DockerLivenessContainer](https://github.com/bmuschko/gradle-docker-plugin/blob/master/src/main/groovy/com/bmuschko/gradle/docker/tasks/container/extras/DockerLivenessContainer.groovy) and can optionally be defined **N** number of times. This allows you to configure
 the liveness probe, which runs just after the container is started, and probes (or polls) the running container for an arbitrary amount
 of time waiting for the passed in String to become present in the container logs:
 ```
@@ -166,7 +166,7 @@ applications {
 
                 // wait at most for 300000 milliseconds, probing every 10000 milliseconds, for
                 // the log String noted below to be present.
-                probe(300000, 10000, 'database system is ready to accept connections')
+                livenessProbe(300000, 10000, 'database system is ready to accept connections')
             }
         }
     }
@@ -208,7 +208,7 @@ applications {
             stop {
                 withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"])
                 successOnExitCodes = [0, 127, 137]
-                probe(60000, 10000) // time we wait for command(s) to finish
+                execStopProbe(60000, 10000) // time we wait for command(s) to finish
 
                 // if above not defined this is the amount of time we will wait for container
                 // to stop after issuing a "stop" request.
@@ -241,13 +241,13 @@ applications {
                 successOnExitCodes = [0]
             }
             liveness {
-                probe(300000, 10000, 'database system is ready to accept connections')
+                livenessProbe(300000, 10000, 'database system is ready to accept connections')
             }
             stop {
                 withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"])
                 successOnExitCodes = [0, 127, 137]
                 timeout = 60000
-                probe(60000, 10000)
+                execStopProbe(60000, 10000)
             }
         }
         data {
