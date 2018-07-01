@@ -141,7 +141,7 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
                         repository = 'postgres'
                         tag = 'alpine'
                         liveness {
-                            probe(300000, 10000, 'database system is ready to accept connections')
+                            livenessProbe(300000, 10000, 'database system is ready to accept connections')
                         }
                         exec {
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"])

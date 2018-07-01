@@ -24,7 +24,7 @@ allprojects {
 
     dependencies {
         compile localGroovy(), gradleApi()
-        compile group: 'com.bmuschko', name: 'gradle-docker-plugin', version: '3.3.6'
+        compile group: 'com.bmuschko', name: 'gradle-docker-plugin', version: '3.4.0'
 
         testCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
             exclude group: 'org.codehaus.groovy'

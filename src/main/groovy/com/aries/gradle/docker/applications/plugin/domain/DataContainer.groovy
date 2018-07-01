@@ -15,6 +15,7 @@
  */
 
 package com.aries.gradle.docker.applications.plugin.domain
+
 /**
  *
  *  Represents the `data` container of this application.

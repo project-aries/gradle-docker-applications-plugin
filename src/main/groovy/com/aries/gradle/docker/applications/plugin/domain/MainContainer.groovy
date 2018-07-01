@@ -18,7 +18,7 @@ package com.aries.gradle.docker.applications.plugin.domain
 
 import com.bmuschko.gradle.docker.tasks.container.DockerExecContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
-import com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessProbeContainer
+import com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessContainer
 
 /**
  *
@@ -28,11 +28,11 @@ import com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessProbeCont
 class MainContainer extends AbstractContainer {
 
     // Supply X number of closures to further configure the
-    // `DockerLivenessProbeContainer` task which is responsible
+    // `DockerLivenessContainer` task which is responsible
     // for potentially polling the previously started container
     // for a given log message to ensure its liveness.
-    final List<Closure<DockerLivenessProbeContainer>> livenessConfigs = []
-    void liveness(Closure<DockerLivenessProbeContainer> livenessConfig) {
+    final List<Closure<DockerLivenessContainer>> livenessConfigs = []
+    void liveness(Closure<DockerLivenessContainer> livenessConfig) {
         if (livenessConfig) { livenessConfigs.add(livenessConfig) }
     }
 

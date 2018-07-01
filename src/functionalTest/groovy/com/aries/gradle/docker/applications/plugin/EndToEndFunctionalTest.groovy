@@ -55,10 +55,10 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                             cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
                             successOnExitCodes = [0, 127, 137]
                             timeout = 60000
-                            probe(60000, 10000)
+                            execStopProbe(60000, 10000)
                         }
                         liveness {
-                            probe(300000, 10000, 'database system is ready to accept connections')
+                            livenessProbe(300000, 10000, 'database system is ready to accept connections')
                         }
                         exec {
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl status"])
@@ -96,7 +96,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('Created container with ID')
             count(result.output, 'Copying file to container') == 3
             result.output.contains('Copying file to container')
-            result.output.contains('Starting liveness probe on container')
+            result.output.contains('Starting liveness')
             result.output.contains('CI=TRUE')
             result.output.contains('DEVOPS=ROCKS')
             result.output.contains('Running exec-stop on container with ID')

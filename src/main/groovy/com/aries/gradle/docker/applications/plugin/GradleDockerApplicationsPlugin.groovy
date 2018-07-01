@@ -25,7 +25,7 @@ import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
 
 import com.bmuschko.gradle.docker.tasks.container.DockerExecContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
-import com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessProbeContainer
+import com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessContainer
 import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
 import com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer
 import com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer
@@ -414,8 +414,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             targetContainerId { appContainer.mainId() }
         }
 
-        final DockerLivenessProbeContainer livenessProbeContainerTask = project.task("${appName}LivenessProbeContainer",
-            type: DockerLivenessProbeContainer,
+        final DockerLivenessContainer livenessContainerTask = project.task("${appName}LivenessContainer",
+            type: DockerLivenessContainer,
             dependsOn: [startContainerTask]) {
             onlyIf { startContainerTask.state.didWork ||
                 restartContainerTask.state.didWork }
@@ -433,16 +433,16 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                     restartContainerTask.ext.startTime
 
                 // this pause, to allow the container to come up and potentially exit, needs to be
-                // done within the `DockerLivenessProbeContainer` task itself and not here.
+                // done within the `DockerLivenessContainer` task itself and not here.
                 sleep(3000)
             }
         }
-        appContainer.main().livenessConfigs.each { livenessProbeContainerTask.configure(it) }
+        appContainer.main().livenessConfigs.each { livenessContainerTask.configure(it) }
 
         final DockerExecContainer execContainerTask = project.task("${appName}ExecContainer",
             type: DockerExecContainer,
-            dependsOn: [livenessProbeContainerTask]) {
-            onlyIf { livenessProbeContainerTask.state.didWork &&
+            dependsOn: [livenessContainerTask]) {
+            onlyIf { livenessContainerTask.state.didWork &&
                 appContainer.main().execConfigs.size() > 0 }
 
             group: appGroup
@@ -479,8 +479,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                     if (!ext.inspection.state.running) {
                         throw new GradleException("The 'main' container was NOT in a running state after exec(s) finished. Was this expected?")
                     }
-                } else if (livenessProbeContainerTask.state.didWork) {
-                    ext.inspection = livenessProbeContainerTask.lastInspection()
+                } else if (livenessContainerTask.state.didWork) {
+                    ext.inspection = livenessContainerTask.lastInspection()
                 } else if (availableContainerTask.ext.inspection) {
                     ext.inspection = availableContainerTask.ext.inspection
                 } else {
