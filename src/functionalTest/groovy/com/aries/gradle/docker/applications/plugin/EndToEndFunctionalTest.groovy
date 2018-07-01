@@ -45,7 +45,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                         repository = 'postgres'
                         tag = 'alpine'
                         create {
-                            env = ['CI=TRUE', 'DEVOPS=ROCKS']
+                            envVars << ['CI' : 'TRUE', 'DEVOPS' : 'ROCKS']
                         }
                         files {
                             withFile("$projectDir/HelloWorld.txt", '/') // demo with strings

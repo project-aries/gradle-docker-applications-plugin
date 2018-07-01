@@ -109,7 +109,7 @@ applications {
     myPostgresStack {
         main {
             create {
-                env = ['MAIN_CONTAINER=true']
+                envVars << ['MAIN_CONTAINER' : 'true']
                 privileged = false
             }
             create {
@@ -118,7 +118,9 @@ applications {
         }
         data {
             create {
-                env = ['DATA_CONTAINER=true']
+                envVars << ['HELLO' : 'WORLD']
+                withEnvVar('DATA_CONTAINER', 'true')
+                withEnvVar('DEVOPS', 'ROCKS')
             }
         }
     }
@@ -228,7 +230,7 @@ applications {
             repository = 'postgres'
             tag = 'alpine'
             create {
-                env = ['MAIN_CONTAINER=true']
+                envVars << ['MAIN_CONTAINER' : 'true']
             }
             files {
                 withFile("$projectDir/HelloWorld.txt", '/')
@@ -252,7 +254,7 @@ applications {
         }
         data {
             create {
-                env = ['DATA_CONTAINER=true']
+                envVars << ['DATA_CONTAINER' : 'true']
             }
             files {
                 withFile(project.file($projectDir/HelloWorld.txt"), project.file('/'))
