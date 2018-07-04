@@ -281,7 +281,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             type: DockerPullImage,
             dependsOn: [pullImageTask]) {
             onlyIf { availableDataContainerTask.ext.exists == false &&
-                listImagesTask.ext.dataImageFound == false }
+                listImagesTask.ext.dataImageFound == false &&
+                listImagesTask.ext.duplicateImages == false }
 
             group: appGroup
             description: "Pull data image for '${appName}'."
@@ -434,7 +435,15 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
                 // this pause, to allow the container to come up and potentially exit, needs to be
                 // done within the `DockerLivenessContainer` task itself and not here.
-                sleep(3000)
+                sleep(2000)
+            }
+            onComplete {
+
+                // though we should be live at this point we sleep for
+                // another 2 seconds to give the potential application
+                // some breathing room before we start hammering away
+                // on it with potential requests.
+                sleep(2000)
             }
         }
         appContainer.main().livenessConfigs.each { livenessContainerTask.configure(it) }
@@ -452,9 +461,9 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
             onComplete {
 
-                // sleeping for 5 seconds just in-case any command caused this container to
+                // sleeping for 2 seconds just in-case any command caused this container to
                 // come down, potentially gracefully, before we presume things are live.
-                sleep(3000)
+                sleep(2000)
             }
         }
         appContainer.main().execConfigs.each { execContainerTask.configure(it) }

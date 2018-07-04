@@ -73,7 +73,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                         files {
                             withFile("${createDatabase.path}", '/docker-entrypoint-initdb.d') // demo with strings
                             withFile( { "${createUser.path}" }, { '/docker-entrypoint-initdb.d' }) // demo with closures
-                            withFile(project.file("${grantPrivileges.path}"), project.file('/docker-entrypoint-initdb.d')) // demo with files
+                            withFile(project.file("${grantPrivileges.path}"), '/docker-entrypoint-initdb.d') // mixed demo with files
                         }
                         stop {
                             cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
@@ -124,13 +124,18 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
         then:
             result.output.contains('is not running or available to inspect')
             result.output.contains('Inspecting container with ID')
+            result.output.contains('PullDataImage SKIPPED')
             result.output.contains('Created container with ID')
-            count(result.output, 'Copying file to container') == 3
+            count(result.output, 'Copying file to container') == 4
             result.output.contains('Copying file to container')
             result.output.contains('Starting liveness')
             result.output.contains('CI=TRUE')
             result.output.contains('DEVOPS=ROCKS')
             result.output.contains('Running exec-stop on container with ID')
+            result.output.contains('CREATE DATABASE')
+            result.output.contains('CREATE ROLE')
+            result.output.contains('GRANT')
+            result.output.contains('pg_ctl: server is running')
             result.output.contains('Removing container with ID')
             result.output.contains('RestartContainer SKIPPED')
             !result.output.contains('ListImages SKIPPED')
