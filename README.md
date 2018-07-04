@@ -173,12 +173,12 @@ applications {
             files {
 
                 // demo adding files with file objects
-                withFile(project.file("${grantPrivileges.path}"), project.file('/docker-entrypoint-initdb.d'))
+                withFile(project.file("${grantPrivileges.path}"), '/docker-entrypoint-initdb.d')
             }
         }
         data {
             files {
-                withFile(project.file("$buildDir/cookie.txt"), project.file('/')) // demo with files
+                withFile(project.file("$buildDir/cookie.txt"), '/') // demo with files
             }
         }
     }
