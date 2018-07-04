@@ -36,7 +36,7 @@ public class AbstractApplication {
     @Optional
     String id
     String id() {
-        this.id ?: getName()
+        this.id ? "${getName()}-${this.id}" : getName()
     }
 
     // methods and properties used to configure the main container
