@@ -8,8 +8,7 @@ Highly opinionated gradle plugin to start (Up), pause (Stop), and delete (Down) 
 | :---: | :---: | :---: | :---: | :---: |
 | [![Build Status](https://travis-ci.org/project-aries/gradle-docker-applications-plugin.svg?branch=master)](https://travis-ci.org/project-aries/gradle-docker-applications-plugin) | [![codecov](https://codecov.io/gh/project-aries/gradle-docker-applications-plugin/branch/master/graph/badge.svg)](https://codecov.io/gh/project-aries/gradle-docker-applications-plugin) | [![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](http://htmlpreview.github.io/?https://github.com/project-aries/gradle-docker-applications-plugin/blob/gh-pages/docs/index.html) | [![Stack Overflow](https://img.shields.io/badge/stack-overflow-4183C4.svg)](https://stackoverflow.com/questions/tagged/gradle-docker-applications-plugin) | [![gradle-docker-applications-plugin](https://api.bintray.com/packages/project-aries/libs-release-local/gradle-docker-applications-plugin/images/download.svg) ](https://bintray.com/project-aries/libs-release-local/gradle-docker-applications-plugin/_latestVersion) |
 
-
-## Motivation and Design Goals
+## Motivation, Design Goals, and who is this plugin for?
 
 As maintainer of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) I often get questions about how best to use said plugin for standing up a given companies dockerized application in a gradle context. As the aforementioned plugin is compromised of many tasks, each acting as a low-level building block, it can be daunting for new users to understand how all of these tasks are wired together. That's where the `gradle-docker-applications-plugin` comes in. Being built on top of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) it provides an easy and intuitive way to define and configure your applications and then creates exactly **3** high-level tasks for you to manage them (more on that below).
 
@@ -21,6 +20,12 @@ When designing this plugin I wanted to get the following right without any compr
 * Fail **ONLY** when necessary (i.e. invoking `Down` on an application that does not exist does not fail).
 * Highly opinionated design for dockerized-application(s) based off of best practices.
 
+Furthermore, this plugin solves the following problems for developers, devops, and site-reliability engineers:
+
+* No longer need to maintain site specific images for minor changes (i.e. new tomcat image with added war file).
+* Ability to stand-up a single dockerized-application(s) for integration testing which in turn can be shared and managed across multiple project(s).
+* Well defined DSL to easily script the defintion of your dockerized-application.
+* Removal of having to understand the inner workings of docker, or the `gradle-docker-plugin`, providing a fast way to get your dockerized-application defined and up and running with minimal effort.
 
 ## Getting Started
 
