@@ -110,7 +110,6 @@ applications {
         main {
             create {
                 envVars << ['MAIN_CONTAINER' : 'true']
-                privileged = false
             }
             create {
                 shmSize = 123456789
@@ -132,20 +131,54 @@ applications {
 The **files** closure maps to [DockerCopyFileToContainer](https://github.com/bmuschko/gradle-docker-plugin/blob/master/src/main/groovy/com/bmuschko/gradle/docker/tasks/container/DockerCopyFileToContainer.groovy) and can optionally be defined **N** number of times. This allows you to add an
 arbitrary number of files to either container just after they've been created but just before they've been started:
 ```
+// splitting things up into multiple files only to show that the user
+// can add as many files as they want and can do so either outside
+// of the _files_ closure as we're doing here or inside as is shown
+// further below.
+final File createDatabase = new File("$buildDir/CREATE_DATABASE.sql")
+createDatabase.withWriter('UTF-8') {
+    it.println('CREATE DATABASE docker;')
+    createDatabase
+}
+
+final File grantPrivileges = new File("$buildDir/CREATE_DATABASE_USER_PRIVS.sql")
+grantPrivileges.withWriter('UTF-8') {
+    it.println('GRANT ALL PRIVILEGES ON DATABASE docker TO docker;')
+    grantPrivileges
+}
+
+final File createCookie = new File("$buildDir/cookie.txt")
+createCookie.withWriter('UTF-8') {
+    it.println('Somebody Was Here')
+    createCookie
+}
+
 applications {
     myPostgresStack {
         main {
             files {
-                withFile("$projectDir/HelloWorldMain.txt", '/') // add file using strings
-                withFile( { "$projectDir/HelloWorldMain.txt" }, { '/tmp' }) // add file using closures
+
+                // demo adding files with string paths
+                withFile("${createDatabase.path}", '/docker-entrypoint-initdb.d')
+
+                // demo adding files with closures
+                withFile({
+                    final File createUser = new File("$buildDir/CREATE_DATABASE_USER.sql")
+                    createUser.withWriter('UTF-8') {
+                        it.println('CREATE USER docker;')
+                        createUser
+                    }
+                }, { '/docker-entrypoint-initdb.d' })
             }
             files {
-                withFile(project.file($projectDir/HelloWorldMain.txt"), project.file('/')) // add file using file objects
+
+                // demo adding files with file objects
+                withFile(project.file("${grantPrivileges.path}"), project.file('/docker-entrypoint-initdb.d'))
             }
         }
         data {
             files {
-                withFile("$projectDir/HelloWorldData.txt", '/') // add file using strings
+                withFile(project.file("$buildDir/cookie.txt"), project.file('/')) // demo with files
             }
         }
     }
@@ -184,12 +217,12 @@ applications {
     myPostgresStack {
         main {
             exec {
-                withCommand(['echo', 'Hello World'])
-                withCommand(['date'])
+                withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE DATABASE devops'"])
+                withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE USER devops'"])
                 successOnExitCodes = [0] // if not defined will ignore all exit codes
             }
             exec {
-                withCommand(['ls', '-alh', '/'])
+                withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'GRANT ALL PRIVILEGES ON DATABASE devops TO devops'"])
                 successOnExitCodes = [0]
             }
         }
@@ -233,13 +266,28 @@ applications {
                 envVars << ['MAIN_CONTAINER' : 'true']
             }
             files {
-                withFile("$projectDir/HelloWorld.txt", '/')
-                withFile( { "$projectDir/HelloWorld.txt" }, { '/tmp' })
+
+                // create a new database, user, and privs with SQL file inside the main/runtime
+                // container which will be invoked on initial start of the container only.
+                // this is a postgres specific thing and is shown here only to document how one
+                // might add/create/script a file dynamically.
+                withFile({
+                    final File createUser = new File("$buildDir/CREATE_DATABASE_AND_USER_WITH_PRIVS.sql")
+                    createUser.withWriter('UTF-8') {
+                        it.println('CREATE DATABASE docker;')
+                        it.println('CREATE USER docker;')
+                        it.println('GRANT ALL PRIVILEGES ON DATABASE docker TO docker;')
+                        createUser
+                    }
+                }, { '/docker-entrypoint-initdb.d' })
             }
             exec {
-                withCommand(['echo', 'Hello World'])
-                withCommand(['date'])
-                withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl status"])
+
+                // create a new database, user, and privs AFTER container has started but BEFORE
+                // the **UP** task-chain has finished using commands inside the container.
+                withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE DATABASE devops'"])
+                withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE USER devops'"])
+                withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'GRANT ALL PRIVILEGES ON DATABASE devops TO devops'"])
                 successOnExitCodes = [0]
             }
             liveness {
@@ -255,9 +303,6 @@ applications {
         data {
             create {
                 envVars << ['DATA_CONTAINER' : 'true']
-            }
-            files {
-                withFile(project.file($projectDir/HelloWorld.txt"), project.file('/'))
             }
         }
     }

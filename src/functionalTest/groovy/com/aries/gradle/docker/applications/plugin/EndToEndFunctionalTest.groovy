@@ -31,8 +31,30 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
     @Timeout(value = 5, unit = MINUTES)
     def "Can start, stop, and remove a postgres application stack"() {
 
-        new File("$projectDir/HelloWorld.txt").withWriter('UTF-8') {
-            it.write('Hello, World!')
+        // splitting things up into multiple files only to show that the user
+        // can add as many files as they want.
+        final File createDatabase = new File("$projectDir/CREATE_DATABASE.sql")
+        createDatabase.withWriter('UTF-8') {
+            it.println('CREATE DATABASE docker;')
+            createDatabase
+        }
+
+        final File createUser = new File("$projectDir/CREATE_DATABASE_USER.sql")
+        createUser.withWriter('UTF-8') {
+            it.println('CREATE USER docker;')
+            createUser
+        }
+
+        final File grantPrivileges = new File("$projectDir/CREATE_DATABASE_USER_PRIVS.sql")
+        grantPrivileges.withWriter('UTF-8') {
+            it.println('GRANT ALL PRIVILEGES ON DATABASE docker TO docker;')
+            grantPrivileges
+        }
+
+        final File createCookie = new File("$projectDir/cookie.txt")
+        createCookie.withWriter('UTF-8') {
+            it.println('Somebody Was Here')
+            createCookie
         }
 
         String uuid = randomString()
@@ -46,10 +68,12 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                         tag = 'alpine'
                         create {
                             envVars << ['CI' : 'TRUE', 'DEVOPS' : 'ROCKS']
+                            portBindings = [':5432']
                         }
                         files {
-                            withFile("$projectDir/HelloWorld.txt", '/') // demo with strings
-                            withFile( { "$projectDir/HelloWorld.txt" }, { '/tmp' }) // demo with closures
+                            withFile("${createDatabase.path}", '/docker-entrypoint-initdb.d') // demo with strings
+                            withFile( { "${createUser.path}" }, { '/docker-entrypoint-initdb.d' }) // demo with closures
+                            withFile(project.file("${grantPrivileges.path}"), project.file('/docker-entrypoint-initdb.d')) // demo with files
                         }
                         stop {
                             cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
@@ -61,6 +85,13 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                             livenessProbe(300000, 10000, 'database system is ready to accept connections')
                         }
                         exec {
+                        
+                            // can define as many of these commands as you'd like
+                            // which will kick on initial **UP** only.
+                            withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE DATABASE devops'"])
+                            withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE USER devops'"])
+                            withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'GRANT ALL PRIVILEGES ON DATABASE devops TO devops'"])
+
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl status"])
                             successOnExitCodes = [0]
                         }
@@ -70,7 +101,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                             volumes = ["/var/lib/postgresql/data"]
                         }
                         files {
-                            withFile(project.file("$projectDir/HelloWorld.txt"), project.file('/root')) // demo with files
+                            withFile(project.file("$projectDir/cookie.txt"), project.file('/')) // demo with files
                         }
                     }
                 }
