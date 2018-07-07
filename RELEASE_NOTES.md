@@ -1,3 +1,11 @@
+### Version 0.9.8 (TBA)
+
+### Version 0.9.7 (July 7, 2018)
+* Bump gradle-docker-plugin to 3.4.2
+
+### Version 0.9.6 (July 1, 2018)
+* Bump gradle-docker-plugin to 3.4.1
+
 ### Version 0.9.5 (June 25, 2018)
 * Rename project and package structure to be `gradle-docker-applications-plugin`
 * Only execute *CopyFiles tasks if have more than 0 `files` configs.
