@@ -1,4 +1,7 @@
-### Version 0.9.8 (TBA)
+### Version 0.9.9 (TBA)
+
+### Version 0.9.8 (July 8, 2018)
+* Bump gradle-docker-plugin to 3.4.3
 
 ### Version 0.9.7 (July 7, 2018)
 * Bump gradle-docker-plugin to 3.4.2
