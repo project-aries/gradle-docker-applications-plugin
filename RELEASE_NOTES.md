@@ -1,4 +1,8 @@
-### Version 0.9.9 (TBA)
+### Version 1.0.0 (TBA)
+
+### Version 0.9.9 (July 14, 2018)
+* If 'id' is defined tha will take the place of the entire container name instead of being a concatenation of if and the image being used.
+* Add 'ConflictException' to list of regex's we will check should container not be present or running.
 
 ### Version 0.9.8 (July 8, 2018)
 * Bump gradle-docker-plugin to 3.4.3
