@@ -36,7 +36,7 @@ public class AbstractApplication {
     @Optional
     String id
     String id() {
-        this.id ? "${getName()}-${this.id}" : getName()
+        this.id
     }
 
     // methods and properties used to configure the main container
@@ -48,7 +48,7 @@ public class AbstractApplication {
         Objects.requireNonNull(this.main, "The 'main' container has not been defined.")
     }
     String mainId() {
-        "${id()}-${this.main().repository().split('/').last()}"
+        id() ?: getName()
     }
 
     // methods and properties used to configure the data container
