@@ -52,7 +52,10 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
     public static final String EXTENSION_NAME = 'applications'
 
-    public static final String NOT_PRESENT_REGEX = '^(NotModifiedException|NotFoundException)$'
+    // list of exception class names which, if thrown in our context
+    // from the docker-java library, simply means the container is either
+    // not running or doesn't even exist.
+    public static final String NOT_PRESENT_REGEX = '^(NotModifiedException|NotFoundException|ConflictException)$'
 
     @Override
     void apply(final Project project) {
