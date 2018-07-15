@@ -54,13 +54,13 @@ for you to define as many apps as you need:
 
 ```
 applications {
-    myAppOne {
+    myPostgresStackOne {
     
     }
-    myAppTwo {
+    myPostgresStackTwo {
     
     }
-    myAppThree {
+    myPostgresStackThree {
     
     }
 }
@@ -71,7 +71,7 @@ Furthermore each application allows you to define a `main` and optionally a `dat
 
 ```
 applications {
-   myAppOne {
+   myPostgresStack {
       main { // required
       
       }
