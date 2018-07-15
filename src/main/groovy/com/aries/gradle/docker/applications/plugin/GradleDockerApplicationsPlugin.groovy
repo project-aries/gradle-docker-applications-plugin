@@ -430,14 +430,17 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             targetContainerId { appContainer.mainId() }
 
             // only 2 ways this task can kick so we will proceed to configure
-            // the `since` option based upon which one did actual work
+            // the `since` option based ONLY upon a "restart" scenario as we will
+            // use it to determine where in the logs we should start from whereas
+            // in the "start" scenario we simply start from the very beginning
+            // of the logs docker gives us.
             doFirst {
-                since = startContainerTask.state.didWork ?
-                    startContainerTask.ext.startTime :
-                    restartContainerTask.ext.startTime
+                since = restartContainerTask.state.didWork ?
+                    restartContainerTask.ext.startTime :
+                    null
 
-                // this pause, to allow the container to come up and potentially exit, needs to be
-                // done within the `DockerLivenessContainer` task itself and not here.
+                // pause done to allow the container to come up and potentially
+                // exit (e.g. container that has no entrypoint or cmd defined).
                 sleep(2000)
             }
             onComplete {
