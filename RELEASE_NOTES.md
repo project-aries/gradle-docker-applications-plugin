@@ -1,4 +1,7 @@
-### Version 1.0.0 (TBA)
+### Version 1.0.1 (TBA)
+
+### Version 1.0.0 (July 15, 2018)
+* Bump gradle-docker-plugin to 3.4.4
 
 ### Version 0.9.9 (July 14, 2018)
 * If 'id' is defined tha will take the place of the entire container name instead of being a concatenation of if and the image being used.
