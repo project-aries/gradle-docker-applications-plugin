@@ -16,13 +16,13 @@
 
 package com.aries.gradle.docker.applications.plugin
 
-import com.bmuschko.gradle.docker.tasks.container.DockerCopyFileToContainer
-
 import static GradleDockerApplicationsPluginUtils.randomString
 import static com.bmuschko.gradle.docker.utils.IOUtils.getProgressLogger
 
 import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
 
+import com.bmuschko.gradle.docker.DockerRemoteApiPlugin
+import com.bmuschko.gradle.docker.tasks.container.DockerCopyFileToContainer
 import com.bmuschko.gradle.docker.tasks.container.DockerExecContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessContainer
@@ -36,6 +36,7 @@ import com.bmuschko.gradle.docker.tasks.image.DockerPullImage
 import com.bmuschko.gradle.docker.tasks.DockerClient
 
 import org.gradle.api.GradleException
+import org.gradle.api.plugins.UnknownPluginException
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -61,7 +62,11 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
     void apply(final Project project) {
 
         // 1.) apply required plugins
-        project.plugins.apply('com.bmuschko.docker-remote-api')
+        try {
+            project.plugins.apply('com.bmuschko.docker-remote-api')
+        } catch (UnknownPluginException upe) {
+            project.plugins.apply(DockerRemoteApiPlugin)
+        }
 
         // 2.) build domain-container for housing ad-hoc applications
         final NamedDomainObjectContainer<AbstractApplication> appContainers = project.container(AbstractApplication)

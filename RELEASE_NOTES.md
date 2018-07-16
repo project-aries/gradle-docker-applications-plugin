@@ -1,4 +1,7 @@
-### Version 1.0.1 (TBA)
+### Version 1.0.2 (TBA)
+
+### Version 1.0.1 (July 16, 2018)
+* Account for when plugin is applied to a script which is not the root script.
 
 ### Version 1.0.0 (July 15, 2018)
 * Bump gradle-docker-plugin to 3.4.4
