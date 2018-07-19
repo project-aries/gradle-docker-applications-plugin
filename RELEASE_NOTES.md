@@ -1,4 +1,8 @@
-### Version 1.0.2 (TBA)
+### Version 1.0.3 (TBA)
+
+### Version 1.0.2 (July 19, 2018)
+* Removal of application extension points which were created after evaluation and not very useful.
+* Valid container failure checking will now take into account exception messages which contain the phrase `not running`.
 
 ### Version 1.0.1 (July 16, 2018)
 * Account for when plugin is applied to a script which is not the root script.
