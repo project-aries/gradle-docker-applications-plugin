@@ -17,6 +17,9 @@
 package com.aries.gradle.docker.applications.plugin
 
 import static GradleDockerApplicationsPluginUtils.randomString
+import static GradleDockerApplicationsPluginUtils.throwOnValidError
+import static GradleDockerApplicationsPluginUtils.throwOnValidErrorElseGradleException
+
 import static com.bmuschko.gradle.docker.utils.IOUtils.getProgressLogger
 
 import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
@@ -52,11 +55,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
     public static final String EXTENSION_NAME = 'applications'
-
-    // list of exception class names which, if thrown in our context
-    // from the docker-java library, simply means the container is either
-    // not running or doesn't even exist.
-    public static final String NOT_PRESENT_REGEX = '^(NotModifiedException|NotFoundException|ConflictException)$'
 
     @Override
     void apply(final Project project) {
@@ -139,12 +137,9 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             ext.exists = true
             onNext {} // defining so that the output will get piped to nowhere as we don't need it
             onError { err ->
-                if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
-                    throw err
-                } else {
-                    ext.exists = false
-                    logger.quiet "Container with ID '${appContainer.dataId()}' is not running or available to inspect."
-                }
+                throwOnValidError(err)
+                ext.exists = false
+                logger.quiet "Container with ID '${appContainer.dataId()}' is not running or available to inspect."
             }
         }
 
@@ -163,12 +158,9 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 ext.inspection = possibleContainer
             }
             onError { err ->
-                if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
-                    throw err
-                } else {
-                    ext.exists = false
-                    logger.quiet "Container with ID '${appContainer.mainId()}' is not running or available to inspect."
-                }
+                throwOnValidError(err)
+                ext.exists = false
+                logger.quiet "Container with ID '${appContainer.mainId()}' is not running or available to inspect."
             }
         }
 
@@ -277,11 +269,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             repository = appContainer.main().repository()
             tag = appContainer.main().tag()
             onError { err ->
-                if (err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
-                    throw new GradleException("Image '${appContainer.main().image()}' for '${appContainer.mainId()}' was not found remotely.", err)
-                } else {
-                    throw err
-                }
+                throwOnValidErrorElseGradleException(err, "Image '${appContainer.main().image()}' for '${appContainer.mainId()}' was not found remotely.")
             }
         }
 
@@ -298,11 +286,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             repository = appContainer.data().repository()
             tag = appContainer.data().tag()
             onError { err ->
-                if (err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
-                    throw new GradleException("Image '${appContainer.data().image()}' for '${appContainer.dataId()}' was not found remotely.", err)
-                } else {
-                    throw err
-                }
+                throwOnValidErrorElseGradleException(err, "Image '${appContainer.data().image()}' for '${appContainer.dataId()}' was not found remotely.")
             }
         }
 
@@ -344,11 +328,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             targetContainerId { appContainer.dataId() }
 
             onError { err ->
-                if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
-                    throw err
-                } else {
-                    logger.quiet "Container with ID '${appContainer.dataId()}' is not available to remove."
-                }
+                throwOnValidError(err)
+                logger.quiet "Container with ID '${appContainer.dataId()}' is not available to remove."
             }
         }
 
@@ -574,11 +555,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 // pipe output to nowhere for the time being
             }
             onError { err ->
-                if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
-                    throw err
-                } else {
-                    logger.quiet "Container with ID '${appContainer.mainId()}' is not running or available to stop."
-                }
+                throwOnValidError(err)
+                logger.quiet "Container with ID '${appContainer.mainId()}' is not running or available to stop."
             }
         }
         appContainer.main().stopConfigs.each { execStopContainerTask.configure(it) }
@@ -615,11 +593,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             targetContainerId { appContainer.mainId() }
 
             onError { err ->
-                if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
-                    throw err
-                } else {
-                    logger.quiet "Container with ID '${appContainer.mainId()}' is not available to delete."
-                }
+                throwOnValidError(err)
+                logger.quiet "Container with ID '${appContainer.mainId()}' is not available to delete."
             }
         }
 
@@ -635,11 +610,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             targetContainerId { appContainer.dataId() }
 
             onError { err ->
-                if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
-                    throw err
-                } else {
-                    logger.quiet "Container with ID '${appContainer.dataId()}' is not available to delete."
-                }
+                throwOnValidError(err)
+                logger.quiet "Container with ID '${appContainer.dataId()}' is not available to delete."
             }
         }
 
