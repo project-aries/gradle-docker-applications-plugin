@@ -16,10 +16,7 @@
 
 package com.aries.gradle.docker.applications.plugin
 
-import org.gradle.api.Project
-import org.gradle.internal.logging.progress.ProgressLoggerFactory
-import org.gradle.internal.logging.progress.ProgressLogger
-import org.gradle.internal.service.ServiceRegistry
+import org.gradle.api.GradleException
 
 /**
  *
@@ -28,17 +25,58 @@ import org.gradle.internal.service.ServiceRegistry
  */
 class GradleDockerApplicationsPluginUtils {
 
+    // list of exception class names which, if thrown in our context
+    // from the docker-java library, simply means the container is either
+    // not running or doesn't even exist.
+    public static final String CLASS_NAME_REGEX = '^(NotModifiedException|NotFoundException|ConflictException)$'
+
+    public static final String EXCEPTION_MESSAGE_REGEX = 'not running'
+
+    private GradleDockerApplicationsPluginUtils() {
+        throw new RuntimeException('Purposefully not implemented')
+    }
+
     /**
      * Get a random string prepended with some identifer.
      *
      * @param prependWith optional string to prepend to generated random string.
-     * @return
+     * @return randomized String
      */
     static String randomString(def prependWith = 'gdap-') {
         (prependWith ?: '') + UUID.randomUUID().toString().replaceAll("-", "")
     }
 
-    private GradleDockerApplicationsPluginUtils() {
-        throw new RuntimeException('Purposefully not implemented')
+    /**
+     * Return true if this is a valid error and not something we can ignore.
+     *
+     * @param throwable the Exception to check for validity.
+     * @return true if valid error false otherwise.
+     */
+    static boolean isValidError(final Throwable throwable) {
+        (throwable.class.simpleName.matches(CLASS_NAME_REGEX) ||
+            throwable.getMessage().contains(EXCEPTION_MESSAGE_REGEX)) ? false : true
+    }
+
+    /**
+     * Throw the passed Throwable IF its a valid error.
+     *
+     * @param throwable the Exception to validate and potentially re-throw.
+     */
+    static void throwOnValidError(final Throwable throwable) {
+        if (isValidError(throwable)) { throw throwable }
+    }
+
+    /**
+     * Throw the passed Throwable IF its a valid error otherwise re-throw as GradleException.
+     *
+     * @param throwable the Exception to validate and potentially re-throw.
+     * @param message the message to insert into potentially re-thrown GradleException.
+     */
+    static void throwOnValidErrorElseGradleException(final Throwable throwable, final String message) {
+        if (isValidError(throwable)) {
+            throw throwable
+        } else {
+            throw new GradleException(message, throwable)
+        }
     }
 }
