@@ -74,22 +74,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         project.afterEvaluate {
 
-            // 4.) create all application extension points
-            createApplicationExtensionPoints(project, appContainers)
-
-            // 5.) create all application tasks
+            // 4.) create all application tasks
             createApplicationTasks(project, appContainers)
-        }
-    }
-
-    /*
-     * Create our various application extension points which are currently only
-     * available AFTER evaluation has occurred..
-     */
-    private createApplicationExtensionPoints(final Project project,
-                                             final NamedDomainObjectContainer<AbstractApplication> appContainers) {
-        appContainers.each { app ->
-            project.extensions.add(app.name, app)
         }
     }
 
