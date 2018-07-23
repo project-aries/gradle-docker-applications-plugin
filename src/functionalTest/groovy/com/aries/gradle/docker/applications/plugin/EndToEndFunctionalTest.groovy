@@ -31,6 +31,15 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
     @Timeout(value = 5, unit = MINUTES)
     def "Can start, stop, and remove a postgres application stack"() {
 
+        final File mySpecialEntryPoint = new File("$projectDir/special-docker-entrypoint.sh")
+        mySpecialEntryPoint.withWriter('UTF-8') {
+            it.println('#!/usr/bin/env bash')
+            it.println('echo My Special Hello World')
+            it.println('docker-entrypoint.sh "$@"')
+            mySpecialEntryPoint
+        }
+        mySpecialEntryPoint.setExecutable(true);
+
         // splitting things up into multiple files only to show that the user
         // can add as many files as they want.
         final File createDatabase = new File("$projectDir/CREATE_DATABASE.sql")
@@ -69,8 +78,11 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                         create {
                             envVars << ['CI' : 'TRUE', 'DEVOPS' : 'ROCKS']
                             portBindings = [':5432']
+                            entrypoint = ["/${mySpecialEntryPoint.getName()}"]
+                            cmd = ['postgres', '-c', 'shared_buffers=256MB', '-c', 'max_connections=200']
                         }
                         files {
+                            withFile("${mySpecialEntryPoint.path}", '/') // demo with strings
                             withFile("${createDatabase.path}", '/docker-entrypoint-initdb.d') // demo with strings
                             withFile( { "${createUser.path}" }, { '/docker-entrypoint-initdb.d' }) // demo with closures
                             withFile(project.file("${grantPrivileges.path}"), '/docker-entrypoint-initdb.d') // mixed demo with files
@@ -91,7 +103,10 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE DATABASE devops'"])
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE USER devops'"])
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'GRANT ALL PRIVILEGES ON DATABASE devops TO devops'"])
-
+                            
+                            // sleeping as below calls will fail while the above is still catching up
+                            withCommand(['sleep', '5'])
+                            withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'SELECT * FROM pg_settings'"])
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl status"])
                             successOnExitCodes = [0]
                         }
@@ -126,7 +141,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('Inspecting container with ID')
             result.output.contains('PullDataImage SKIPPED')
             result.output.contains('Created container with ID')
-            count(result.output, 'Copying file to container') == 4
+            count(result.output, 'Copying file to container') == 5
             result.output.contains('Copying file to container')
             result.output.contains('Starting liveness')
             result.output.contains('CI=TRUE')
@@ -136,6 +151,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('CREATE ROLE')
             result.output.contains('GRANT')
             result.output.contains('pg_ctl: server is running')
+            result.output.contains('max_connections                     | 200')
             result.output.contains('Removing container with ID')
             result.output.contains('RestartContainer SKIPPED')
             !result.output.contains('ListImages SKIPPED')
