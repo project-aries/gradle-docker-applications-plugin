@@ -1,4 +1,8 @@
-### Version 1.0.3 (TBA)
+### Version 1.1.1 (TBA)
+
+### Version 1.1.0 (July 27, 2018)
+* All configs will now be applied/configured within its backing tasks doFirst block.
+* Bump gradle-docker-plugin to 3.5.0
 
 ### Version 1.0.2 (July 19, 2018)
 * Removal of application extension points which were created after evaluation and not very useful.

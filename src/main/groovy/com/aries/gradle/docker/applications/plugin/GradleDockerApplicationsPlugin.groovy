@@ -332,7 +332,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 containerName = appContainer.dataId()
             }
         }
-        appContainer.data().createConfigs.each { createDataContainerTask.configure(it) }
+        createDataContainerTask.doFirst { appContainer.data().createConfigs.each { createDataContainerTask.configure(it) } }
 
         final DockerCreateContainer createContainerTask = project.task("${appName}CreateContainer",
             type: DockerCreateContainer,
@@ -348,7 +348,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 volumesFrom = [appContainer.dataId()]
             }
         }
-        appContainer.main().createConfigs.each { createContainerTask.configure(it) }
+        createContainerTask.doFirst { appContainer.main().createConfigs.each { createContainerTask.configure(it) } }
 
         final DockerCopyFileToContainer copyFilesToDataContainerTask = project.task("${appName}CopyFilesToDataContainer",
             type: DockerCopyFileToContainer,
@@ -361,7 +361,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
             targetContainerId { appContainer.dataId() }
         }
-        appContainer.data().filesConfigs.each { copyFilesToDataContainerTask.configure(it) }
+        copyFilesToDataContainerTask.doFirst { appContainer.data().filesConfigs.each { copyFilesToDataContainerTask.configure(it) } }
 
         final DockerCopyFileToContainer copyFilesToContainerTask = project.task("${appName}CopyFilesToContainer",
             type: DockerCopyFileToContainer,
@@ -374,7 +374,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
             targetContainerId { appContainer.mainId() }
         }
-        appContainer.main().filesConfigs.each { copyFilesToContainerTask.configure(it) }
+        copyFilesToContainerTask.doFirst { appContainer.main().filesConfigs.each { copyFilesToContainerTask.configure(it) } }
 
         final DockerStartContainer startContainerTask = project.task("${appName}StartContainer",
             type: DockerStartContainer,
@@ -424,7 +424,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 sleep(2000)
             }
         }
-        appContainer.main().livenessConfigs.each { livenessContainerTask.configure(it) }
+        livenessContainerTask.doFirst { appContainer.main().livenessConfigs.each { livenessContainerTask.configure(it) } }
 
         final DockerExecContainer execContainerTask = project.task("${appName}ExecContainer",
             type: DockerExecContainer,
@@ -444,7 +444,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 sleep(2000)
             }
         }
-        appContainer.main().execConfigs.each { execContainerTask.configure(it) }
+        execContainerTask.doFirst { appContainer.main().execConfigs.each { execContainerTask.configure(it) } }
 
         final Task upTask = project.task("${appName}Up",
             type: DockerClient,
@@ -545,7 +545,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 logger.quiet "Container with ID '${appContainer.mainId()}' is not running or available to stop."
             }
         }
-        appContainer.main().stopConfigs.each { execStopContainerTask.configure(it) }
+        execStopContainerTask.doFirst { appContainer.main().stopConfigs.each { execStopContainerTask.configure(it) } }
 
         final Task stopTask = project.task("${appName}Stop",
             dependsOn: [execStopContainerTask]) {
