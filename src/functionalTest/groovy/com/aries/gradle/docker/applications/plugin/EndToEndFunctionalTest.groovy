@@ -76,7 +76,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                         repository = 'postgres'
                         tag = 'alpine'
                         create {
-                            envVars << ['CI' : 'TRUE', 'DEVOPS' : 'ROCKS']
+                            envVars = ['CI' : 'TRUE', 'DEVOPS' : 'ROCKS']
                             portBindings = [':5432']
                             entrypoint = ["/${mySpecialEntryPoint.getName()}"]
                             cmd = ['postgres', '-c', 'shared_buffers=256MB', '-c', 'max_connections=200']
@@ -88,9 +88,9 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                             withFile(project.file("${grantPrivileges.path}"), '/docker-entrypoint-initdb.d') // mixed demo with files
                         }
                         stop {
-                            cmd = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
+                            commands = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
                             successOnExitCodes = [0, 127, 137]
-                            timeout = 60000
+                            awaitStatusTimeout = 60000
                             execStopProbe(60000, 10000)
                         }
                         liveness {
@@ -104,10 +104,12 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE USER devops'"])
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'GRANT ALL PRIVILEGES ON DATABASE devops TO devops'"])
                             
-                            // sleeping as below calls will fail while the above is still catching up
+                            // sleeping as below calls can fail while the above is still catching up
                             withCommand(['sleep', '5'])
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'SELECT * FROM pg_settings'"])
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl status"])
+                            withCommand(['printenv'])
+                            withCommand(['su', 'postgres', "-c", "/usr/bin/printenv"])
                             successOnExitCodes = [0]
                         }
                     }
@@ -122,7 +124,17 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                 }
             }
             
+            task inspectContainer(type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer) {
+                targetContainerId "${uuid}"
+            }
+            task logContainer(type: com.bmuschko.gradle.docker.tasks.container.DockerLogsContainer) {
+                dependsOn inspectContainer
+                targetContainerId "${uuid}"
+                tailAll = true
+            }
+            
             task up(dependsOn: ['myPostgresStackUp']) {
+                finalizedBy logContainer
                 doLast {
                     logger.quiet 'FOUND INSPECTION: ' + myPostgresStackUp.ext.inspection
                 }

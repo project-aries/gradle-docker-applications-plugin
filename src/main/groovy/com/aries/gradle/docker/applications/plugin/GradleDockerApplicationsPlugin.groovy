@@ -202,7 +202,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                     img.repoTags.each { rep ->
                         if (rep) {
                             if (!ext.mainImageFound || !ext.dataImageFound) {
-                                if (!ext.mainImageFound && rep.first() == appContainer.main().image()) {
+                                if (!ext.mainImageFound && rep == appContainer.main().image()) {
                                     ext.mainImageFound = true
                                     if (ext.duplicateImages) {
                                         logger.quiet "Images for '${appContainer.mainId()}' and '${appContainer.dataId()}' were found locally."
@@ -212,7 +212,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                                         logger.quiet "Image '${appContainer.main().image()}' for '${appContainer.mainId()}' was found locally."
                                     }
                                 }
-                                if (!ext.dataImageFound && rep.first() == appContainer.data().image()) {
+                                if (!ext.dataImageFound && rep == appContainer.data().image()) {
                                     logger.quiet "Image '${appContainer.data().image()}' for '${appContainer.dataId()}' was found locally."
                                     ext.dataImageFound = true
                                     if (ext.mainImageFound) {
@@ -328,9 +328,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             description: "Create '${appName}' data container."
 
             targetImageId { appContainer.data().image() }
-            doFirst {
-                containerName = appContainer.dataId()
-            }
+            containerName = appContainer.dataId()
         }
         createDataContainerTask.doFirst { appContainer.data().createConfigs.each { createDataContainerTask.configure(it) } }
 
@@ -343,10 +341,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             description: "Create '${appName}' container."
 
             targetImageId { appContainer.main().image() }
-            doFirst {
-                containerName = appContainer.mainId()
-                volumesFrom = [appContainer.dataId()]
-            }
+            containerName = appContainer.mainId()
+            volumesFrom = [appContainer.dataId()]
         }
         createContainerTask.doFirst { appContainer.main().createConfigs.each { createContainerTask.configure(it) } }
 
