@@ -36,7 +36,7 @@ import com.bmuschko.gradle.docker.tasks.container.DockerRestartContainer
 import com.bmuschko.gradle.docker.tasks.container.DockerStartContainer
 import com.bmuschko.gradle.docker.tasks.image.DockerListImages
 import com.bmuschko.gradle.docker.tasks.image.DockerPullImage
-import com.bmuschko.gradle.docker.tasks.DockerClient
+import com.bmuschko.gradle.docker.tasks.DockerOperation
 
 import org.gradle.api.GradleException
 import org.gradle.api.plugins.UnknownPluginException
@@ -447,7 +447,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         execContainerTask.doFirst { appContainer.main().execConfigs.each { execContainerTask.configure(it) } }
 
         final Task upTask = project.task("${appName}Up",
-            type: DockerClient,
+            type: DockerOperation,
             dependsOn: [execContainerTask]) {
             outputs.upToDateWhen { false }
 
