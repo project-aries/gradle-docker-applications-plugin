@@ -43,7 +43,7 @@ apply plugin: 'gradle-docker-applications-plugin'
 ```
 ## Backend powered by _gradle-docker-plugin_
 
-Because we use the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) to drive this one: you are free to use the `docker` extension point to configure your docker connection as is described in more detail [HERE](https://github.com/bmuschko/gradle-docker-plugin#extension-examples).
+Because we use the [gradle-docker-plugin](https://github.com/bmuschko/gradle-docker-plugin) to drive this one: you are free to use the `docker` extension point to configure your docker connection as is described in more detail [HERE](https://bmuschko.github.io/gradle-docker-plugin/#extension).
 
 ## On the _applications_ extension point and DSL
 
@@ -114,7 +114,7 @@ applications {
     myPostgresStack {
         main {
             create {
-                envVars << ['MAIN_CONTAINER' : 'true']
+                envVars = ['MAIN_CONTAINER' : 'true']
             }
             create {
                 shmSize = 123456789
@@ -122,7 +122,6 @@ applications {
         }
         data {
             create {
-                envVars << ['HELLO' : 'WORLD']
                 withEnvVar('DATA_CONTAINER', 'true')
                 withEnvVar('DEVOPS', 'ROCKS')
             }
@@ -268,7 +267,7 @@ applications {
             repository = 'postgres'
             tag = 'alpine'
             create {
-                envVars << ['MAIN_CONTAINER' : 'true']
+                envVars = ['MAIN_CONTAINER' : 'true']
             }
             files {
 
@@ -307,7 +306,7 @@ applications {
         }
         data {
             create {
-                envVars << ['DATA_CONTAINER' : 'true']
+                envVars = ['DATA_CONTAINER' : 'true']
             }
         }
     }
