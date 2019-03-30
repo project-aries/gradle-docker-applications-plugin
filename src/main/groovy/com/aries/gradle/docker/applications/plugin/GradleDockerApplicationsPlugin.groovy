@@ -16,6 +16,9 @@
 
 package com.aries.gradle.docker.applications.plugin
 
+import org.gradle.api.tasks.TaskContainer
+import org.gradle.api.tasks.TaskProvider
+
 import static GradleDockerApplicationsPluginUtils.randomString
 import static GradleDockerApplicationsPluginUtils.throwOnValidError
 import static GradleDockerApplicationsPluginUtils.throwOnValidErrorElseGradleException
@@ -89,12 +92,11 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             // Must be run after evalution has happened but prior to tasks
             // being built. This ensures our main and data container were
             // properly setup and in the case of the latter we will inherit
-            // its properties from the former it wasn't defined.
+            // its properties from the former if it wasn't defined.
             appContainer.sanityCheck()
 
             // create tasks after evaluation so that we can pick up any changes
             // made to our various extension points.
-            //buildLockTasks(project, app.name, appGroup, appContainer)
             buildTaskChainFor_Up(project, appContainer)
             buildTaskChainFor_Stop(project, appContainer)
             buildTaskChainFor_Down(project, appContainer)
@@ -105,15 +107,17 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
     private buildTaskChainFor_Up(final Project project,
                                  final AbstractApplication appContainer) {
 
+        final TaskContainer tasks = project.tasks;
+
         final String appName = appContainer.getName()
         final String appGroup = appContainer.mainId()
 
-        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appContainer)
-        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appContainer)
+        final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appContainer)
+        final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appContainer)
 
-        final DockerInspectContainer availableDataContainerTask = project.task("${appName}AvailableDataContainer",
-            type: DockerInspectContainer,
-            dependsOn: [acquireExecutionLockTask]) {
+        final TaskProvider<DockerInspectContainer> availableDataContainerTask = tasks.register("${appName}AvailableDataContainer", DockerInspectContainer) {
+
+            dependsOn(acquireExecutionLockTask)
 
             group: appGroup
             description: "Check if '${appName}' data container is available."
@@ -129,9 +133,9 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             }
         }
 
-        final DockerInspectContainer availableContainerTask = project.task("${appName}AvailableContainer",
-            type: DockerInspectContainer,
-            dependsOn: [availableDataContainerTask]) {
+        final TaskProvider<DockerInspectContainer> availableContainerTask = tasks.register("${appName}AvailableContainer", DockerInspectContainer) {
+
+            dependsOn(availableDataContainerTask)
 
             group: appGroup
             description: "Check if '${appName}' container is available."
@@ -150,11 +154,11 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             }
         }
 
-        final DockerRestartContainer restartContainerTask = project.task("${appName}RestartContainer",
-            type: DockerRestartContainer,
-            dependsOn: [availableContainerTask]) {
-            onlyIf { availableContainerTask.ext.exists == true &&
-                availableContainerTask.ext.inspection.state.running == false }
+        final TaskProvider<DockerRestartContainer> restartContainerTask = tasks.register("${appName}RestartContainer", DockerRestartContainer) {
+            onlyIf { availableContainerTask.get().ext.exists == true &&
+                availableContainerTask.get().ext.inspection.state.running == false }
+
+            dependsOn(availableContainerTask)
 
             group: appGroup
             description: "Restart '${appName}' container if it is present and not running."
@@ -169,11 +173,11 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         // if a previous main/data container is present than the assumption is that
         // the containerImage in question must also be present and so we don't need to check
         // for the existence of its backing containerImage
-        final DockerListImages listImagesTask = project.task("${appName}ListImages",
-            type: DockerListImages,
-            dependsOn: [restartContainerTask]) {
-            onlyIf { availableDataContainerTask.ext.exists == false ||
-                availableContainerTask.ext.exists == false }
+        final TaskProvider<DockerListImages> listImagesTask = tasks.register("${appName}ListImages", DockerListImages) {
+            onlyIf { availableDataContainerTask.get().ext.exists == false ||
+                availableContainerTask.get().ext.exists == false }
+
+            dependsOn(restartContainerTask)
 
             group: appGroup
             description: "Check if image for '${appName}' exists locally."
@@ -243,11 +247,11 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         }
 
 
-        final DockerPullImage pullImageTask = project.task("${appName}PullImage",
-            type: DockerPullImage,
-            dependsOn: [listImagesTask]) {
-            onlyIf { availableContainerTask.ext.exists == false &&
-                listImagesTask.ext.mainImageFound == false }
+        final TaskProvider<DockerPullImage> pullImageTask = tasks.register("${appName}PullImage", DockerPullImage) {
+            onlyIf { availableContainerTask.get().ext.exists == false &&
+                listImagesTask.get().ext.mainImageFound == false }
+
+            dependsOn(listImagesTask)
 
             group: appGroup
             description: "Pull image for '${appName}'."
@@ -259,12 +263,12 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             }
         }
 
-        final DockerPullImage pullDataImageTask = project.task("${appName}PullDataImage",
-            type: DockerPullImage,
-            dependsOn: [pullImageTask]) {
-            onlyIf { availableDataContainerTask.ext.exists == false &&
-                listImagesTask.ext.dataImageFound == false &&
-                listImagesTask.ext.duplicateImages == false }
+        final TaskProvider<DockerPullImage> pullDataImageTask = tasks.register("${appName}PullDataImage", DockerPullImage) {
+            onlyIf { availableDataContainerTask.get().ext.exists == false &&
+                listImagesTask.get().ext.dataImageFound == false &&
+                listImagesTask.get().ext.duplicateImages == false }
+
+            dependsOn(pullImageTask)
 
             group: appGroup
             description: "Pull data image for '${appName}'."
@@ -276,12 +280,12 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             }
         }
 
-        final DockerRemoveContainer removeContainerTask = project.task("${appName}RemoveContainer",
-            type: DockerRemoveContainer,
-            dependsOn: [pullDataImageTask]) {
-            onlyIf { availableContainerTask.ext.exists == true &&
-                availableContainerTask.ext.inspection.state.running == false &&
-                restartContainerTask.state.didWork == false }
+        final TaskProvider<DockerRemoveContainer> removeContainerTask = tasks.register("${appName}RemoveContainer", DockerRemoveContainer) {
+            onlyIf { availableContainerTask.get().ext.exists == true &&
+                availableContainerTask.get().ext.inspection.state.running == false &&
+                restartContainerTask.get().didWork == false }
+
+            dependsOn(pullDataImageTask)
 
             group: appGroup
             description: "Remove '${appName}' container."
@@ -299,12 +303,12 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             }
         }
 
-        final DockerRemoveContainer removeDataContainerTask = project.task("${appName}RemoveDataContainer",
-            type: DockerRemoveContainer,
-            dependsOn: [removeContainerTask]) {
-            onlyIf { availableDataContainerTask.ext.exists == true &&
-                restartContainerTask.state.didWork == false &&
-                removeContainerTask.state.didWork == true }
+        final TaskProvider<DockerRemoveContainer> removeDataContainerTask = tasks.register("${appName}RemoveDataContainer", DockerRemoveContainer) {
+            onlyIf { availableDataContainerTask.get().ext.exists == true &&
+                restartContainerTask.get().didWork == false &&
+                removeContainerTask.get().didWork == true }
+
+            dependsOn(removeContainerTask)
 
             group: appGroup
             description: "Remove '${appName}' data container."
@@ -319,10 +323,10 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             }
         }
 
-        final DockerCreateContainer createDataContainerTask = project.task("${appName}CreateDataContainer",
-            type: DockerCreateContainer,
-            dependsOn: [removeDataContainerTask]) {
-            onlyIf { availableDataContainerTask.ext.exists == false }
+        final TaskProvider<DockerCreateContainer> createDataContainerTask = tasks.register("${appName}CreateDataContainer", DockerCreateContainer) {
+            onlyIf { availableDataContainerTask.get().ext.exists == false }
+
+            dependsOn(removeDataContainerTask)
 
             group: appGroup
             description: "Create '${appName}' data container."
@@ -330,12 +334,12 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             targetImageId { appContainer.data().image() }
             containerName = appContainer.dataId()
         }
-        createDataContainerTask.doFirst { appContainer.data().createConfigs.each { createDataContainerTask.configure(it) } }
+        applyConfigs(createDataContainerTask, appContainer.data().createConfigs)
 
-        final DockerCreateContainer createContainerTask = project.task("${appName}CreateContainer",
-            type: DockerCreateContainer,
-            dependsOn: [createDataContainerTask]) {
-            onlyIf { availableContainerTask.ext.exists == false }
+        final TaskProvider<DockerCreateContainer> createContainerTask = tasks.register("${appName}CreateContainer", DockerCreateContainer) {
+            onlyIf { availableContainerTask.get().ext.exists == false }
+
+            dependsOn(createDataContainerTask)
 
             group: appGroup
             description: "Create '${appName}' container."
@@ -344,38 +348,38 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             containerName = appContainer.mainId()
             volumesFrom = [appContainer.dataId()]
         }
-        createContainerTask.doFirst { appContainer.main().createConfigs.each { createContainerTask.configure(it) } }
+        applyConfigs(createContainerTask, appContainer.main().createConfigs)
 
-        final DockerCopyFileToContainer copyFilesToDataContainerTask = project.task("${appName}CopyFilesToDataContainer",
-            type: DockerCopyFileToContainer,
-            dependsOn: [createContainerTask]) {
-            onlyIf { createDataContainerTask.state.didWork &&
+        final TaskProvider<DockerCopyFileToContainer> copyFilesToDataContainerTask = tasks.register("${appName}CopyFilesToDataContainer", DockerCopyFileToContainer) {
+            onlyIf { createDataContainerTask.get().didWork &&
                 appContainer.data().filesConfigs.size() > 0 }
+
+            dependsOn(createContainerTask)
 
             group: appGroup
             description: "Copy file(s) into '${appName}' data container."
 
             targetContainerId { appContainer.dataId() }
         }
-        copyFilesToDataContainerTask.doFirst { appContainer.data().filesConfigs.each { copyFilesToDataContainerTask.configure(it) } }
+        applyConfigs(copyFilesToDataContainerTask, appContainer.data().filesConfigs)
 
-        final DockerCopyFileToContainer copyFilesToContainerTask = project.task("${appName}CopyFilesToContainer",
-            type: DockerCopyFileToContainer,
-            dependsOn: [copyFilesToDataContainerTask]) {
-            onlyIf { createContainerTask.state.didWork &&
+        final TaskProvider<DockerCopyFileToContainer> copyFilesToContainerTask = tasks.register("${appName}CopyFilesToContainer", DockerCopyFileToContainer) {
+            onlyIf { createContainerTask.get().didWork &&
                 appContainer.main().filesConfigs.size() > 0 }
+
+            dependsOn(copyFilesToDataContainerTask)
 
             group: appGroup
             description: "Copy file(s) into '${appName}' container."
 
             targetContainerId { appContainer.mainId() }
         }
-        copyFilesToContainerTask.doFirst { appContainer.main().filesConfigs.each { copyFilesToContainerTask.configure(it) } }
+        applyConfigs(copyFilesToContainerTask, appContainer.main().filesConfigs)
 
-        final DockerStartContainer startContainerTask = project.task("${appName}StartContainer",
-            type: DockerStartContainer,
-            dependsOn: [copyFilesToContainerTask]) {
-            onlyIf { createContainerTask.state.didWork }
+        final TaskProvider<DockerStartContainer> startContainerTask = tasks.register("${appName}StartContainer", DockerStartContainer) {
+            onlyIf { createContainerTask.get().didWork }
+
+            dependsOn(copyFilesToContainerTask)
 
             group: appGroup
             description: "Start '${appName}' container."
@@ -386,11 +390,11 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             targetContainerId { appContainer.mainId() }
         }
 
-        final DockerLivenessContainer livenessContainerTask = project.task("${appName}LivenessContainer",
-            type: DockerLivenessContainer,
-            dependsOn: [startContainerTask]) {
-            onlyIf { startContainerTask.state.didWork ||
-                restartContainerTask.state.didWork }
+        final TaskProvider<DockerLivenessContainer> livenessContainerTask = tasks.register("${appName}LivenessContainer", DockerLivenessContainer) {
+            onlyIf { startContainerTask.get().didWork ||
+                restartContainerTask.get().didWork }
+
+            dependsOn(startContainerTask)
 
             group: appGroup
             description: "Check if '${appName}' container is live."
@@ -403,8 +407,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             // in the "start" scenario we simply start from the very beginning
             // of the logs docker gives us.
             doFirst {
-                since = restartContainerTask.state.didWork ?
-                    restartContainerTask.ext.startTime :
+                since = restartContainerTask.get().didWork ?
+                    restartContainerTask.get().ext.startTime :
                     null
 
                 // pause done to allow the container to come up and potentially
@@ -420,13 +424,13 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 sleep(2000)
             }
         }
-        livenessContainerTask.doFirst { appContainer.main().livenessConfigs.each { livenessContainerTask.configure(it) } }
+        applyConfigs(livenessContainerTask, appContainer.main().livenessConfigs)
 
-        final DockerExecContainer execContainerTask = project.task("${appName}ExecContainer",
-            type: DockerExecContainer,
-            dependsOn: [livenessContainerTask]) {
-            onlyIf { livenessContainerTask.state.didWork &&
+        final TaskProvider<DockerExecContainer> execContainerTask = tasks.register("${appName}ExecContainer", DockerExecContainer) {
+            onlyIf { livenessContainerTask.get().didWork &&
                 appContainer.main().execConfigs.size() > 0 }
+
+            dependsOn(livenessContainerTask)
 
             group: appGroup
             description: "Execute commands within '${appName}' container."
@@ -440,12 +444,13 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 sleep(2000)
             }
         }
-        execContainerTask.doFirst { appContainer.main().execConfigs.each { execContainerTask.configure(it) } }
+        applyConfigs(execContainerTask, appContainer.main().execConfigs)
 
-        final Task upTask = project.task("${appName}Up",
-            type: DockerOperation,
-            dependsOn: [execContainerTask]) {
+        tasks.register("${appName}Up", DockerOperation) {
             outputs.upToDateWhen { false }
+
+            dependsOn(execContainerTask)
+            finalizedBy(releaseExecutionLockTask)
 
             group: appGroup
             description: "Start '${appName}' container application if not already started."
@@ -453,7 +458,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             onNext { dockerClient ->
 
                 // 1.) Set the last used "inspection" for potential downstream use
-                if (execContainerTask.state.didWork) {
+                if (execContainerTask.get().didWork) {
 
                     // if the `execContainerTask` task kicked we need to
                     // make an additional inspection call to ensure things
@@ -462,10 +467,10 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                     if (!ext.inspection.state.running) {
                         throw new GradleException("The 'main' container was NOT in a running state after exec(s) finished. Was this expected?")
                     }
-                } else if (livenessContainerTask.state.didWork) {
-                    ext.inspection = livenessContainerTask.lastInspection()
-                } else if (availableContainerTask.ext.inspection) {
-                    ext.inspection = availableContainerTask.ext.inspection
+                } else if (livenessContainerTask.get().didWork) {
+                    ext.inspection = livenessContainerTask.get().lastInspection()
+                } else if (availableContainerTask.get().ext.inspection) {
+                    ext.inspection = availableContainerTask.get().ext.inspection
                 } else {
                     throw new GradleException('No task found that inspected container: was this expected?')
                 }
@@ -512,7 +517,6 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 logger.quiet banner
             }
         }
-        upTask.finalizedBy(releaseExecutionLockTask)
     }
 
     // create required tasks for invoking the "stop" chain.
@@ -522,12 +526,27 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         final String appName = appContainer.getName()
         final String appGroup = appContainer.mainId()
 
-        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appContainer)
-        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appContainer)
+        final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appContainer)
+        final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appContainer)
 
-        final DockerExecStopContainer execStopContainerTask = project.task("${appName}ExecStopContainer",
-            type: DockerExecStopContainer,
-            dependsOn: [acquireExecutionLockTask]) {
+        /*
+                            commands = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
+                            successOnExitCodes = [0, 127, 137]
+                            awaitStatusTimeout = 60000
+                            execStopProbe(60000, 10000)
+
+
+        DockerExecStopContainer stopper;
+        stopper.commands = []
+        stopper.successOnExitCodes = []
+        stopper.awaitStatusTimeout = 60000
+        stopper.ex
+        */
+
+
+        final TaskProvider<DockerExecStopContainer> execStopContainerTask = project.tasks.register("${appName}ExecStopContainer", DockerExecStopContainer) {
+
+            dependsOn(acquireExecutionLockTask)
 
             group: appGroup
             description: "Stop '${appName}' container."
@@ -541,16 +560,17 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 logger.quiet "Container with ID '${appContainer.mainId()}' is not running or available to stop."
             }
         }
-        execStopContainerTask.doFirst { appContainer.main().stopConfigs.each { execStopContainerTask.configure(it) } }
+        applyConfigs(execStopContainerTask, appContainer.main().stopConfigs)
 
-        final Task stopTask = project.task("${appName}Stop",
-            dependsOn: [execStopContainerTask]) {
+        project.tasks.register("${appName}Stop") {
             outputs.upToDateWhen { false }
+
+            dependsOn(execStopContainerTask)
+            finalizedBy(releaseExecutionLockTask)
 
             group: appGroup
             description: "Stop '${appName}' container application if not already paused."
         }
-        stopTask.finalizedBy(releaseExecutionLockTask)
     }
 
     // create required tasks for invoking the "down" chain.
@@ -560,12 +580,12 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         final String appName = appContainer.getName()
         final String appGroup = appContainer.mainId()
 
-        final Task acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appContainer)
-        final Task releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appContainer)
+        final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appContainer)
+        final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appContainer)
 
-        final DockerRemoveContainer deleteContainerTask = project.task("${appName}DeleteContainer",
-            type: DockerRemoveContainer,
-            dependsOn: [acquireExecutionLockTask]) {
+        final TaskProvider<DockerRemoveContainer> deleteContainerTask = project.tasks.register("${appName}DeleteContainer", DockerRemoveContainer) {
+
+            dependsOn(acquireExecutionLockTask)
 
             group: appGroup
             description: "Delete '${appName}' container."
@@ -580,9 +600,9 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             }
         }
 
-        final DockerRemoveContainer deleteDataContainerTask = project.task("${appName}DeleteDataContainer",
-            type: DockerRemoveContainer,
-            dependsOn: [deleteContainerTask]) {
+        final TaskProvider<DockerRemoveContainer> deleteDataContainerTask = project.tasks.register("${appName}DeleteDataContainer", DockerRemoveContainer) {
+
+            dependsOn(deleteContainerTask)
 
             group: appGroup
             description: "Delete '${appName}' data container."
@@ -597,18 +617,19 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             }
         }
 
-        final Task downTask = project.task("${appName}Down",
-            dependsOn: [deleteDataContainerTask]) {
+        project.tasks.register("${appName}Down") {
             outputs.upToDateWhen { false }
+
+            dependsOn(deleteDataContainerTask)
+            finalizedBy(releaseExecutionLockTask)
 
             group: appGroup
             description: "Delete '${appName}' container application if not already deleted."
         }
-        downTask.finalizedBy(releaseExecutionLockTask)
     }
 
     // create task which will acquire an execution lock for a given task chain
-    private Task buildAcquireExecutionLockTask(final Project project,
+    private TaskProvider<Task> buildAcquireExecutionLockTask(final Project project,
                                                final AbstractApplication appContainer) {
 
         final String appName = appContainer.getName()
@@ -616,7 +637,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         // using random string as this method is called ad-hoc in multiple places
         // and so the name must be unique but still named appropriately.
-        return project.task("${appName}AcquireExecutionLock_${randomString(null)}") {
+        return project.tasks.register("${appName}AcquireExecutionLock_${randomString(null)}") {
             outputs.upToDateWhen { false }
 
             group: appGroup
@@ -659,7 +680,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
     }
 
     // create task which will release an execution lock for a given task chain
-    private Task buildReleaseExecutionLockTask(final Project project,
+    private TaskProvider<Task> buildReleaseExecutionLockTask(final Project project,
                                                final AbstractApplication appContainer) {
 
         final String appName = appContainer.getName()
@@ -667,7 +688,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         // using random string as this method is called ad-hoc in multiple places
         // and so the name must be unique but still named appropriately.
-        return project.task("${appName}ReleaseExecutionLock_${randomString(null)}") {
+        return project.tasks.register("${appName}ReleaseExecutionLock_${randomString(null)}") {
             outputs.upToDateWhen { false }
 
             group: appGroup
@@ -683,6 +704,17 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 } else {
                     throw new GradleException("Failed to find execution lock for '${appName}'.")
                 }
+            }
+        }
+    }
+
+    // helper method to configure a given task multiple times
+    private static void applyConfigs(final TaskProvider<?> taskToConfig,
+                              final List<Closure> configsToApply) {
+
+        taskToConfig.configure { tsk ->
+            configsToApply.each { cnf ->
+                tsk.configure(cnf)
             }
         }
     }

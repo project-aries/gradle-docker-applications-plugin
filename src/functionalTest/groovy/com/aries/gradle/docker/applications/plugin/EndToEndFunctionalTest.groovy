@@ -76,7 +76,8 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                         repository = 'postgres'
                         tag = 'alpine'
                         create {
-                            envVars = ['CI' : 'TRUE', 'DEVOPS' : 'ROCKS']
+                            withEnvVar("CI", "TRUE")
+                            withEnvVar("DEVOPS", "ROCKS")
                             portBindings = [':5432']
                             entrypoint = ["/${mySpecialEntryPoint.getName()}"]
                             cmd = ['postgres', '-c', 'shared_buffers=256MB', '-c', 'max_connections=200']
@@ -88,7 +89,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                             withFile(project.file("${grantPrivileges.path}"), '/docker-entrypoint-initdb.d') // mixed demo with files
                         }
                         stop {
-                            commands = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
+                            withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"])
                             successOnExitCodes = [0, 127, 137]
                             awaitStatusTimeout = 60000
                             execStopProbe(60000, 10000)
@@ -109,7 +110,6 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'SELECT * FROM pg_settings'"])
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl status"])
                             withCommand(['printenv'])
-                            withCommand(['su', 'postgres', "-c", "/usr/bin/printenv"])
                             successOnExitCodes = [0]
                         }
                     }
@@ -124,25 +124,16 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                 }
             }
             
-            task inspectContainer(type: com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer) {
-                targetContainerId "${uuid}"
-            }
-            task logContainer(type: com.bmuschko.gradle.docker.tasks.container.DockerLogsContainer) {
-                dependsOn inspectContainer
-                targetContainerId "${uuid}"
-                tailAll = true
-            }
-            
             task up(dependsOn: ['myPostgresStackUp']) {
-                finalizedBy logContainer
                 doLast {
                     logger.quiet 'FOUND INSPECTION: ' + myPostgresStackUp.ext.inspection
+
                 }
             }
             
             task stop(dependsOn: ['myPostgresStackStop'])
 
-            task down(dependsOn: ['myPostgresStackDown'])
+            task down(dependsOn: ['myPostgresStackDown'])            
         """
 
         when:
@@ -163,7 +154,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('CREATE ROLE')
             result.output.contains('GRANT')
             result.output.contains('pg_ctl: server is running')
-            result.output.contains('max_connections                     | 200')
+            result.output.contains('max_connections                        | 200')
             result.output.contains('Removing container with ID')
             result.output.contains('RestartContainer SKIPPED')
             !result.output.contains('ListImages SKIPPED')
