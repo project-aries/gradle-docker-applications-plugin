@@ -340,9 +340,8 @@ NAME = myTomcatServer-tomcat
 IMAGE = tomcat:8.5-alpine
 COMMAND = run
 CREATED = 2018-06-30T12:05:48.222160433Z
-ADDRESS = 172.17.0.1
-PORTS = 32807->8080
-LINKS = [:]
+ADDRESS = 172.23.0.2
+GATEWAY = 172.23.0.1
 =====================================================================
 ```
 Once the **Up** task has completed this banner is displayed giving you some basic 
@@ -360,8 +359,9 @@ task myDownstreamTask(dependsOn: tomcatUp) {
         println tomcatUp.ext.command // List<String>
         println tomcatUp.ext.created // String
         println tomcatUp.ext.ports // Map<String, String>
-        println tomcatUp.ext.links // List<String>
-        
+        println tomcatUp.ext.address // String
+        println tomcatUp.ext.gateway // String
+
         // the actual inspection object itself which contains all of the
         // above as well as every other property/object attached to an
         // inspection you can think of.
