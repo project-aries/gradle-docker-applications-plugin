@@ -16,7 +16,6 @@
 
 package com.aries.gradle.docker.applications.plugin.domain
 
-import org.gradle.api.tasks.Optional
 import org.gradle.util.ConfigureUtil
 
 /**
@@ -24,16 +23,14 @@ import org.gradle.util.ConfigureUtil
  *  Base class for all applications to inherit functionality from.
  *
  */
-public class AbstractApplication {
+class AbstractApplication {
 
     final String name
-
     AbstractApplication(final String name) {
         this.name = name
     }
 
     // if set will override the application-name part of the docker container
-    @Optional
     String id
     String id() {
         this.id

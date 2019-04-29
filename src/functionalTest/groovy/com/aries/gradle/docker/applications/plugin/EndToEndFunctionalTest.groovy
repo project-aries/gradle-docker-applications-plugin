@@ -66,7 +66,8 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             createCookie
         }
 
-        String uuid = randomString()
+        //String uuid = randomString()
+        String uuid = "gdap-f8b845c86e5e430282517b090a2a2262"
         buildFile << """
 
             applications {
@@ -137,7 +138,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
         """
 
         when:
-            BuildResult result = build('up', 'stop', 'down')
+            BuildResult result = build('up')
 
         then:
             result.output.contains('is not running or available to inspect')
@@ -145,6 +146,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('PullDataImage SKIPPED')
             result.output.contains('Created container with ID')
             count(result.output, 'Copying file to container') == 5
+            result.output.contains('Connecting network+')
             result.output.contains('Copying file to container')
             result.output.contains('Starting liveness')
             result.output.contains('CI=TRUE')
@@ -157,6 +159,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('max_connections                        | 200')
             result.output.contains('Removing container with ID')
             result.output.contains('RestartContainer SKIPPED')
+            result.output.contains('Removing network')
             !result.output.contains('ListImages SKIPPED')
     }
 }

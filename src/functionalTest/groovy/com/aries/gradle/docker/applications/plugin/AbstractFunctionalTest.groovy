@@ -74,6 +74,7 @@ abstract class AbstractFunctionalTest extends Specification {
 
     private GradleRunner createAndConfigureGradleRunner(String... arguments) {
         def args = ['-s',
+            '--warning-mode=all',
             '-Dorg.gradle.daemon=false',
             '-Dorg.gradle.jvmargs=-XX:+CMSPermGenSweepingEnabled -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -XX:+HeapDumpOnOutOfMemoryError']
         if (Boolean.valueOf(possibleOffline).booleanValue() == true) {
@@ -86,7 +87,7 @@ abstract class AbstractFunctionalTest extends Specification {
         GradleRunner.create().withProjectDir(projectDir).withArguments(args).withPluginClasspath()
     }
 
-    public static String randomString() {
+    static String randomString() {
         'gdap-' + UUID.randomUUID().toString().replaceAll("-", "")
     }
 
@@ -97,7 +98,7 @@ abstract class AbstractFunctionalTest extends Specification {
      * @param substring  Sub-string to look for.
      * @return           Count of substrings in string.
      */
-    public static int count(final String string, final String substring) {
+    static int count(final String string, final String substring) {
        int count = 0;
        int idx = 0;
 
@@ -110,7 +111,7 @@ abstract class AbstractFunctionalTest extends Specification {
     }
 
     // load an arbitrary file from classpath resource
-    public static URL loadResource(String resourcePath) {
+    static URL loadResource(String resourcePath) {
         this.getClass().getResource(resourcePath)
     }
 
@@ -122,7 +123,7 @@ abstract class AbstractFunctionalTest extends Specification {
      * @param destination the destination file we will write
      * @param tokensToReplaceWithValues map where key=token-to-replace, value=value-to-replace-with
      */
-    public static void copyAndReplaceTokensInFile(File source, File destination, def tokensToReplaceWithValues = [:]) {
+    static void copyAndReplaceTokensInFile(File source, File destination, def tokensToReplaceWithValues = [:]) {
         destination.withWriter { dest ->
             source.eachLine { line ->
                 def localLine = line

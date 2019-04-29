@@ -15,9 +15,10 @@ As maintainer of the [gradle-docker-plugin](https://github.com/bmuschko/gradle-d
 When designing this plugin I wanted to get the following right without any compromises:
 
 * Provide exactly **3** high-level tasks with which to manage a dockerized-application: **Up**, **Stop**, and **Down**.
-* Allow for defining up to N number of dockerized-application(s) for extremely complex workloads.
-* Be able to work in a complex multi-project setup with synchronization around all high-level tasks.
+* Allow for defining up to N number of dockerized-application(s) for highly complex workloads.
+* Be able to work in a multi-project build with synchronization around all high-level tasks.
 * Fail **ONLY** when necessary (i.e. invoking `Down` on an application that does not exist does not fail).
+* Applications, by default, get their own private network.
 * Highly opinionated design for dockerized-application(s) based off of best practices.
 
 Furthermore, this plugin solves the following problems for developers, devops, and site-reliability engineers:

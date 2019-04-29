@@ -16,6 +16,15 @@
 
 package com.aries.gradle.docker.applications.plugin
 
+import com.bmuschko.gradle.docker.tasks.network.DockerCreateNetwork
+import com.bmuschko.gradle.docker.tasks.network.DockerInspectNetwork
+import com.bmuschko.gradle.docker.tasks.network.DockerRemoveNetwork
+import com.github.dockerjava.api.DockerClient
+import com.github.dockerjava.api.command.CreateNetworkResponse
+import com.github.dockerjava.api.command.InspectContainerResponse
+import com.github.dockerjava.api.command.RestartContainerCmd
+import com.github.dockerjava.api.model.ContainerNetwork
+import com.github.dockerjava.api.model.HostConfig
 import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.TaskProvider
 
@@ -111,6 +120,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         final String appName = appContainer.getName()
         final String appGroup = appContainer.mainId()
+        final String networkName = appContainer.mainId()
 
         final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appContainer)
         final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appContainer)
@@ -124,11 +134,14 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
             targetContainerId { appContainer.dataId() }
 
-            ext.exists = true
-            onNext {} // defining so that the output will get piped to nowhere as we don't need it
+            ext.exists = false
+            ext.inspection = null
+            onNext { possibleContainer ->
+                ext.exists = true
+                ext.inspection = possibleContainer
+            }
             onError { err ->
                 throwOnValidError(err)
-                ext.exists = false
                 logger.quiet "Container with ID '${appContainer.dataId()}' is not running or available to inspect."
             }
         }
@@ -142,23 +155,51 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
             targetContainerId { appContainer.mainId() }
 
-            ext.exists = true
+            ext.exists = false
             ext.inspection = null
+            ext.hasNetwork = false
             onNext { possibleContainer ->
+                ext.exists = true
                 ext.inspection = possibleContainer
+                ext.hasNetwork = possibleContainer.getNetworkSettings().getNetworks().containsKey(networkName)
             }
             onError { err ->
                 throwOnValidError(err)
-                ext.exists = false
                 logger.quiet "Container with ID '${appContainer.mainId()}' is not running or available to inspect."
             }
+        }
+
+        final TaskProvider<DockerInspectNetwork> inspectNetworkTask = tasks.register("${appName}InspectNetwork", DockerInspectNetwork) {
+            onlyIf { !availableContainerTask.get().ext.hasNetwork }
+
+            dependsOn(availableContainerTask)
+
+            group: appGroup
+            description: "Inspect '${appName}' network."
+
+            ext.hasNetwork = true
+            networkId = networkName
+            onError {
+                ext.hasNetwork = false
+            }
+        }
+
+        final TaskProvider<DockerCreateNetwork> createNetworkTask = tasks.register("${appName}CreateNetwork", DockerCreateNetwork) {
+            onlyIf { !inspectNetworkTask.get().ext.hasNetwork }
+
+            dependsOn(inspectNetworkTask)
+
+            group: appGroup
+            description: "Create '${appName}' network."
+
+            networkId = networkName
         }
 
         final TaskProvider<DockerRestartContainer> restartContainerTask = tasks.register("${appName}RestartContainer", DockerRestartContainer) {
             onlyIf { availableContainerTask.get().ext.exists == true &&
                 availableContainerTask.get().ext.inspection.state.running == false }
 
-            dependsOn(availableContainerTask)
+            dependsOn(createNetworkTask)
 
             group: appGroup
             description: "Restart '${appName}' container if it is present and not running."
@@ -167,7 +208,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 ext.startTime = new Date()
             }
             targetContainerId { appContainer.mainId() }
-            timeout = 30000
+            waitTime = 3000
         }
 
         // if a previous main/data container is present than the assumption is that
@@ -187,12 +228,12 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             // to dockers horrible image filtering,  we'll have to search
             // through all images looking for the 2 we want.
             ext.duplicateImages = false
-            doFirst {
+            imageName.set(project.provider {
                 ext.duplicateImages = appContainer.main().image() == appContainer.data().image()
                 if (ext.duplicateImages) {
-                    imageName = appContainer.main().image()
+                    imageName.set(appContainer.main().image())
                 }
-            }
+            })
 
             // check if both the main and data images we require are already available
             // so that we don't have to pull them further below. we also make an attempt
@@ -245,7 +286,6 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 }
             }
         }
-
 
         final TaskProvider<DockerPullImage> pullImageTask = tasks.register("${appName}PullImage", DockerPullImage) {
             onlyIf { availableContainerTask.get().ext.exists == false &&
@@ -324,26 +364,28 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         }
 
         final TaskProvider<DockerCreateContainer> createDataContainerTask = tasks.register("${appName}CreateDataContainer", DockerCreateContainer) {
-            onlyIf { availableDataContainerTask.get().ext.exists == false }
+            onlyIf { !availableDataContainerTask.get().ext.exists }
 
             dependsOn(removeDataContainerTask)
 
             group: appGroup
             description: "Create '${appName}' data container."
 
+            network = networkName
             targetImageId { appContainer.data().image() }
             containerName = appContainer.dataId()
         }
         applyConfigs(createDataContainerTask, appContainer.data().createConfigs)
 
         final TaskProvider<DockerCreateContainer> createContainerTask = tasks.register("${appName}CreateContainer", DockerCreateContainer) {
-            onlyIf { availableContainerTask.get().ext.exists == false }
+            onlyIf { !availableContainerTask.get().ext.exists }
 
             dependsOn(createDataContainerTask)
 
             group: appGroup
             description: "Create '${appName}' container."
 
+            network = networkName
             targetImageId { appContainer.main().image() }
             containerName = appContainer.mainId()
             volumesFrom = [appContainer.dataId()]
@@ -351,8 +393,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         applyConfigs(createContainerTask, appContainer.main().createConfigs)
 
         final TaskProvider<DockerCopyFileToContainer> copyFilesToDataContainerTask = tasks.register("${appName}CopyFilesToDataContainer", DockerCopyFileToContainer) {
-            onlyIf { createDataContainerTask.get().didWork &&
-                appContainer.data().filesConfigs.size() > 0 }
+            onlyIf { createDataContainerTask.get().didWork && appContainer.data().filesConfigs.size() > 0 }
 
             dependsOn(createContainerTask)
 
@@ -364,8 +405,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         applyConfigs(copyFilesToDataContainerTask, appContainer.data().filesConfigs)
 
         final TaskProvider<DockerCopyFileToContainer> copyFilesToContainerTask = tasks.register("${appName}CopyFilesToContainer", DockerCopyFileToContainer) {
-            onlyIf { createContainerTask.get().didWork &&
-                appContainer.main().filesConfigs.size() > 0 }
+            onlyIf { createContainerTask.get().didWork && appContainer.main().filesConfigs.size() > 0 }
 
             dependsOn(copyFilesToDataContainerTask)
 
@@ -376,10 +416,33 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         }
         applyConfigs(copyFilesToContainerTask, appContainer.main().filesConfigs)
 
+        final TaskProvider<DockerOperation> connectNetworkTask = tasks.register("${appName}ConnectNetwork", DockerOperation) {
+            onlyIf { !availableContainerTask.get().ext.hasNetwork &&
+                (restartContainerTask.get().didWork ||
+                    ((createNetworkTask.get().didWork ||
+                        inspectNetworkTask.get().ext.hasNetwork) &&
+                        !createContainerTask.get().didWork)) }
+
+            dependsOn(copyFilesToContainerTask)
+
+            group: appGroup
+            description: "Connect '${appName}' network."
+
+            onNext { dockerCli ->
+
+                logger.quiet "Connecting network '${appContainer.mainId()}'."
+
+                dockerCli.connectToNetworkCmd()
+                    .withNetworkId(networkName)
+                    .withContainerId(appContainer.mainId())
+                    .exec()
+            }
+        }
+
         final TaskProvider<DockerStartContainer> startContainerTask = tasks.register("${appName}StartContainer", DockerStartContainer) {
             onlyIf { createContainerTask.get().didWork }
 
-            dependsOn(copyFilesToContainerTask)
+            dependsOn(connectNetworkTask)
 
             group: appGroup
             description: "Start '${appName}' container."
@@ -406,10 +469,13 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             // use it to determine where in the logs we should start from whereas
             // in the "start" scenario we simply start from the very beginning
             // of the logs docker gives us.
-            doFirst {
-                since = restartContainerTask.get().didWork ?
+            since.set(project.provider {
+                restartContainerTask.get().didWork ?
                     restartContainerTask.get().ext.startTime :
                     null
+            })
+
+            doFirst {
 
                 // pause done to allow the container to come up and potentially
                 // exit (e.g. container that has no entrypoint or cmd defined).
@@ -428,7 +494,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         final TaskProvider<DockerExecContainer> execContainerTask = tasks.register("${appName}ExecContainer", DockerExecContainer) {
             onlyIf { livenessContainerTask.get().didWork &&
-                appContainer.main().execConfigs.size() > 0 }
+                appContainer.main().execConfigs.size() > 0 &&
+                !restartContainerTask.get().didWork }
 
             dependsOn(livenessContainerTask)
 
@@ -469,6 +536,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                     }
                 } else if (livenessContainerTask.get().didWork) {
                     ext.inspection = livenessContainerTask.get().lastInspection()
+                } else if (connectNetworkTask.get().didWork) {
+                    ext.inspection = dockerClient.inspectContainerCmd(appContainer.mainId()).exec()
                 } else if (availableContainerTask.get().ext.inspection) {
                     ext.inspection = availableContainerTask.get().ext.inspection
                 } else {
@@ -485,7 +554,6 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                     ext.command = ("${ext.command} " + ext.inspection.getArgs().join(' ')).trim()
                 }
                 ext.created = ext.inspection.created
-                ext.address = ext.inspection.getNetworkSettings().getGateway()
                 ext.ports = [:]
                 if (ext.inspection.getNetworkSettings().getPorts()) {
                     ext.inspection.getNetworkSettings().getPorts().getBindings().each { k, v ->
@@ -494,12 +562,10 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                         ext.ports.put(key, value)
                     }
                 }
-                ext.links = [:]
-                if (ext.inspection.hostConfig.links) {
-                    ext.inspection.hostConfig.links.each {
-                        ext.links.put(it.name, it.alias)
-                    }
-                }
+
+                final ContainerNetwork network = ext.inspection.getNetworkSettings().networks.get(appContainer.mainId())
+                ext.address = network.getIpAddress()
+                ext.gateway = network.getGateway()
 
                 // 3.) print all variables to stdout as an indication that we are now live
                 String banner = '====='
@@ -511,9 +577,9 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 logger.quiet "IMAGE = ${ext.image}"
                 logger.quiet "COMMAND = ${ext.command}"
                 logger.quiet "CREATED = ${ext.created}"
-                logger.quiet "ADDRESS = ${ext.address}"
                 logger.quiet "PORTS = " + ((ext.ports) ? ext.ports.collect { k, v -> "${v}->${k}"}.join(',') : ext.ports.toString())
-                logger.quiet "LINKS = " + ((ext.links) ? ext.links.collect { k, v -> "${k}:${v}"}.join(',') : ext.links.toString())
+                logger.quiet "ADDRESS = ${ext.address}"
+                logger.quiet "GATEWAY = ${ext.gateway}"
                 logger.quiet banner
             }
         }
@@ -528,21 +594,6 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appContainer)
         final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appContainer)
-
-        /*
-                            commands = ['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"]
-                            successOnExitCodes = [0, 127, 137]
-                            awaitStatusTimeout = 60000
-                            execStopProbe(60000, 10000)
-
-
-        DockerExecStopContainer stopper;
-        stopper.commands = []
-        stopper.successOnExitCodes = []
-        stopper.awaitStatusTimeout = 60000
-        stopper.ex
-        */
-
 
         final TaskProvider<DockerExecStopContainer> execStopContainerTask = project.tasks.register("${appName}ExecStopContainer", DockerExecStopContainer) {
 
@@ -617,10 +668,25 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             }
         }
 
+        final TaskProvider<DockerRemoveNetwork> removeNetworkTask = project.tasks.register("${appName}RemoveNetwork", DockerRemoveNetwork) {
+
+            dependsOn(deleteDataContainerTask)
+
+            group: appGroup
+            description: "Remove '${appName}' network."
+
+            targetNetworkId { appContainer.mainId() }
+
+            onError { err ->
+                throwOnValidError(err)
+                logger.quiet "Network with ID '${appContainer.mainId()}' is not available to remove."
+            }
+        }
+
         project.tasks.register("${appName}Down") {
             outputs.upToDateWhen { false }
 
-            dependsOn(deleteDataContainerTask)
+            dependsOn(removeNetworkTask)
             finalizedBy(releaseExecutionLockTask)
 
             group: appGroup
