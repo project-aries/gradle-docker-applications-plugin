@@ -37,15 +37,15 @@ class AbstractApplication {
     @Optional
     String network
     String network() {
-        return Boolean.valueOf(disableNetwork()).booleanValue() ? null : (this.network ?: mainId())
+        return Boolean.valueOf(skipNetwork()).booleanValue() ? null : (this.network ?: mainId())
     }
 
-    // if set to true will disable custom network creation and/or connecting to.
+    // if set to true we will skip custom network creation and/or connecting to.
     @Input
     @Optional
-    boolean disableNetwork = false
-    String disableNetwork() {
-        this.disableNetwork
+    boolean skipNetwork = false
+    String skipNetwork() {
+        this.skipNetwork
     }
 
     // if set will override the application-name part of the docker container.
