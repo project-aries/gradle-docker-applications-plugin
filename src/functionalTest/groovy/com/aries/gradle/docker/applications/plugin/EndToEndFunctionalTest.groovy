@@ -125,20 +125,21 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                 }
             }
             
+            task stop(dependsOn: ['myPostgresStackStop'])
+
+            task down(dependsOn: ['myPostgresStackDown'])  
+            
             task up(dependsOn: ['myPostgresStackUp']) {
                 doLast {
                     logger.quiet 'FOUND INSPECTION: ' + myPostgresStackUp.ext.inspection
 
-                }
+                }                
             }
-            
-            task stop(dependsOn: ['myPostgresStackStop'])
-
-            task down(dependsOn: ['myPostgresStackDown'])            
+                   
         """
 
         when:
-            BuildResult result = build('up')
+            BuildResult result = build('up', 'stop', 'down')
 
         then:
             result.output.contains('is not running or available to inspect')
@@ -146,7 +147,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('PullDataImage SKIPPED')
             result.output.contains('Created container with ID')
             count(result.output, 'Copying file to container') == 5
-            result.output.contains('Connecting network+')
+            result.output.contains('Creating network')
             result.output.contains('Copying file to container')
             result.output.contains('Starting liveness')
             result.output.contains('CI=TRUE')

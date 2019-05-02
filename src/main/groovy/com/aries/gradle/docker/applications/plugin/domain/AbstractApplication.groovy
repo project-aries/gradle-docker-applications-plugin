@@ -16,6 +16,8 @@
 
 package com.aries.gradle.docker.applications.plugin.domain
 
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Optional
 import org.gradle.util.ConfigureUtil
 
 /**
@@ -30,13 +32,31 @@ class AbstractApplication {
         this.name = name
     }
 
-    // if set will override the application-name part of the docker container
+    // if set will pass along a network name to use (will create custom network if not present) for application.
+    @Input
+    @Optional
+    String network
+    String network() {
+        return Boolean.valueOf(disableNetwork()).booleanValue() ? null : (this.network ?: mainId())
+    }
+
+    // if set to true will disable custom network creation and/or connecting to.
+    @Input
+    @Optional
+    boolean disableNetwork = false
+    String disableNetwork() {
+        this.disableNetwork
+    }
+
+    // if set will override the application-name part of the docker container.
+    @Input
+    @Optional
     String id
     String id() {
         this.id
     }
 
-    // methods and properties used to configure the main container
+    // methods and properties used to configure the main container.
     protected MainContainer main
     void main(final Closure<MainContainer> info) {
         this.main = ConfigureUtil.configure(info, this.main ?: new MainContainer())
