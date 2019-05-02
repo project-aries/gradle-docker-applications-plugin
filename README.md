@@ -93,6 +93,8 @@ like so:
 ```
 applications {
     myPostgresStack {
+        network = 'hello-world' // Optional. Sets the custom network name. Defaults to app-name if not set.
+        skipNetwork = false // Optional. Whether to skip creating/connecting to custom network. Defaults to false. 
         main {
             repository = 'postgres'
             tag = 'alpine' // optional and defaults to 'latest' if not set
