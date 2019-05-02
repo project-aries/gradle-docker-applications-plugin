@@ -19,12 +19,7 @@ package com.aries.gradle.docker.applications.plugin
 import com.bmuschko.gradle.docker.tasks.network.DockerCreateNetwork
 import com.bmuschko.gradle.docker.tasks.network.DockerInspectNetwork
 import com.bmuschko.gradle.docker.tasks.network.DockerRemoveNetwork
-import com.github.dockerjava.api.DockerClient
-import com.github.dockerjava.api.command.CreateNetworkResponse
-import com.github.dockerjava.api.command.InspectContainerResponse
-import com.github.dockerjava.api.command.RestartContainerCmd
 import com.github.dockerjava.api.model.ContainerNetwork
-import com.github.dockerjava.api.model.HostConfig
 import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.TaskProvider
 
