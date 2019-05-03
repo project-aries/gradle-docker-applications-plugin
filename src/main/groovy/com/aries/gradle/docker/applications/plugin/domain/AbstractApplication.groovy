@@ -16,6 +16,8 @@
 
 package com.aries.gradle.docker.applications.plugin.domain
 
+import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
+import org.gradle.api.GradleException
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.util.ConfigureUtil
@@ -88,24 +90,52 @@ class AbstractApplication {
     }
 
     // methods and properties used to configure the main container.
-    protected MainContainer main
-    void main(final Closure<MainContainer> info) {
-        this.main = ConfigureUtil.configure(info, this.main ?: new MainContainer())
+    protected MainContainer mainContainer
+    final List<Closure<MainContainer>> mainContainerConfigs = []
+    void main(final Closure<MainContainer> mainContainerConfig) {
+        if (mainContainerConfig) {
+            mainContainerConfigs.add(mainContainerConfig)
+        }
     }
     MainContainer main() {
-        Objects.requireNonNull(this.main, "The 'main' container has not been defined.")
+        if (!mainContainer) {
+            if (mainContainerConfigs) {
+                if (!mainContainer) { mainContainer = new MainContainer() }
+                for (final Closure<MainContainer> cnf : mainContainerConfigs) {
+                    mainContainer = ConfigureUtil.configure(cnf, mainContainer)
+                }
+            } else {
+                throw new GradleException("The 'main' container has not been defined.")
+            }
+        }
+
+        mainContainer
     }
     String mainId() {
         id() ?: getName()
     }
 
     // methods and properties used to configure the data container
-    protected DataContainer data
-    void data(final Closure<DataContainer> info) {
-        data = ConfigureUtil.configure(info, data ?: new DataContainer())
+    protected DataContainer dataContainer
+    final List<Closure<DataContainer>> dataContainerConfigs = []
+    void data(final Closure<DataContainer> dataContainerConfig) {
+        if (dataContainerConfig) {
+            dataContainerConfigs.add(dataContainerConfig)
+        }
     }
     DataContainer data() {
-        this.data = this.data ?: new DataContainer()
+        if (!dataContainer) {
+            if (dataContainerConfigs) {
+                if (!dataContainer) { dataContainer = new DataContainer() }
+                for (final Closure<DataContainer> cnf : dataContainerConfigs) {
+                    dataContainer = ConfigureUtil.configure(cnf, dataContainer)
+                }
+            } else {
+                throw new GradleException("The 'data' container has not been defined.")
+            }
+        }
+
+        dataContainer
     }
     String dataId() {
         "${mainId()}-data"
