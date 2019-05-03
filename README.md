@@ -94,7 +94,8 @@ like so:
 applications {
     myPostgresStack {
         network = 'hello-world' // Optional. Sets the custom network name. Defaults to app-name if not set.
-        skipNetwork = false // Optional. Whether to skip creating/connecting to custom network. Defaults to false. 
+        skipNetwork = false // Optional. Whether to skip creating/connecting to custom network. Defaults to false.
+        count = 2 // Optional. Number of instances to start. Defaults to 1.
         main {
             repository = 'postgres'
             tag = 'alpine' // optional and defaults to 'latest' if not set
@@ -342,12 +343,13 @@ NAME = myTomcatServer-tomcat
 IMAGE = tomcat:8.5-alpine
 COMMAND = run
 CREATED = 2018-06-30T12:05:48.222160433Z
+PORTS = 32789->8080
 ADDRESS = 172.23.0.2
 GATEWAY = 172.23.0.1
 =====================================================================
 ```
 Once the **Up** task has completed this banner is displayed giving you some basic 
-information about the running dockerized application. Each of these properties, as 
+information about the running dockerized application(s). Each of these properties, as 
 well as an [InspectContainerResponse object](https://github.com/docker-java/docker-java/blob/master/src/main/java/com/github/dockerjava/api/command/InspectContainerResponse.java)
 of the running container, are available to you as _gradle extension properties_ on the **Up** 
 task itself but are ONLY set once the task has completed. An example of how you might 
@@ -355,22 +357,25 @@ access these could look like:
 ```
 task myDownstreamTask(dependsOn: tomcatUp) {
     doLast {
-        println tomcatUp.ext.id // String
-        println tomcatUp.ext.name // String
-        println tomcatUp.ext.image // String
-        println tomcatUp.ext.command // List<String>
-        println tomcatUp.ext.created // String
-        println tomcatUp.ext.ports // Map<String, String>
-        println tomcatUp.ext.address // String
-        println tomcatUp.ext.gateway // String
+        println tomcatUp.ext.applications.get(0).get().ext.id // String
+        println tomcatUp.ext.applications.get(0).get().ext.name // String
+        println tomcatUp.ext.applications.get(0).get().ext.image // String
+        println tomcatUp.ext.applications.get(0).get().ext.command // List<String>
+        println tomcatUp.ext.applications.get(0).get().ext.created // String
+        println tomcatUp.ext.applications.get(0).get().ext.ports // Map<String, String>
+        println tomcatUp.ext.applications.get(0).get().ext.address // String
+        println tomcatUp.ext.applications.get(0).get().ext.gateway // String
 
         // the actual inspection object itself which contains all of the
         // above as well as every other property/object attached to an
         // inspection you can think of.
-        println tomcatUp.ext.inspection
+        println tomcatUp.ext.applications.get(0).get().ext.inspection
     }
 }
 ```
+Because each application can start multiple instances of itself it is necessary to use the
+above noted syntax in order to get the details surrounding the specific instance you're
+interested in.
 
 #### Stop
 
