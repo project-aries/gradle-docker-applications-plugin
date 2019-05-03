@@ -43,11 +43,8 @@ final class Stop {
 
         final List<TaskProvider<Task>> taskList = new ArrayList();
 
-        final String appName = appContainer.getName()
-        final String mainId = appContainer.mainId()
-
         for (int i = 0; i < appContainer.count(); i++) {
-            final TaskProvider<Task> singleTaskChain = _createTaskChain(project, appName, mainId, appContainer.main(), "_" + (i + 1))
+            final TaskProvider<Task> singleTaskChain = _createTaskChain(project, appContainer, "_" + (i + 1))
             taskList.add(singleTaskChain)
         }
 
@@ -56,12 +53,11 @@ final class Stop {
 
     // create required tasks for invoking the "stop" chain.
     private static TaskProvider<Task> _createTaskChain(final Project project,
-                                              final String appName,
-                                              String mainId,
-                                              final MainContainer mainContainer,
-                                              final String appender) {
+                                                       final AbstractApplication appContainer,
+                                                       final String appender) {
 
-        mainId = mainId + appender
+        final String appName = appContainer.getName()
+        final String mainId = appContainer.mainId() + appender
 
         final TaskContainer tasks = project.tasks;
         final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, mainId)
@@ -84,7 +80,7 @@ final class Stop {
                 logger.quiet "Container with ID '${mainId}' is not running or available to stop."
             }
         }
-        applyConfigs(execStopContainerTask, mainContainer.stopConfigs)
+        applyConfigs(execStopContainerTask, appContainer.main().stopConfigs)
 
         taskName = "${appName}Stop" + appender
         return tasks.register(taskName) {

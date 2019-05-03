@@ -162,6 +162,5 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('RestartContainer_1 SKIPPED')
             result.output.contains('Removing network')
             !result.output.contains('ListImages_1 SKIPPED')
-            result.output.contains('fish bears')
     }
 }
