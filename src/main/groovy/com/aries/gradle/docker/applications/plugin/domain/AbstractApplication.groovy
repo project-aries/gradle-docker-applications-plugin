@@ -48,6 +48,14 @@ class AbstractApplication {
         this.skipNetwork
     }
 
+    // if set to true we will skip custom network creation and/or connecting to.
+    @Input
+    @Optional
+    int count = 1
+    int count() {
+        this.count <= 0 ? 1 : this.count
+    }
+
     // if set will override the application-name part of the docker container.
     @Input
     @Optional

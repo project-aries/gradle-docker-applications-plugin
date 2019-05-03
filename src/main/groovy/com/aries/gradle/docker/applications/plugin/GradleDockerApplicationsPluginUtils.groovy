@@ -16,7 +16,16 @@
 
 package com.aries.gradle.docker.applications.plugin
 
+import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
 import org.gradle.api.GradleException
+import org.gradle.api.Project
+import org.gradle.api.Task
+import org.gradle.api.tasks.TaskProvider
+
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+
+import static com.bmuschko.gradle.docker.utils.IOUtils.getProgressLogger
 
 /**
  *
@@ -77,6 +86,98 @@ class GradleDockerApplicationsPluginUtils {
             throw throwable
         } else {
             throw new GradleException(message, throwable)
+        }
+    }
+
+    /**
+     * Configure the passed TaskProvider against a list of Closures.
+     *
+     * @param taskToConfig the task to further configure.
+     * @param configsToApply list of Closure's to configure against task.
+     */
+    static void applyConfigs(final TaskProvider<?> taskToConfig,
+                             final List<Closure> configsToApply) {
+
+        taskToConfig.configure { tsk ->
+            configsToApply.each { cnf ->
+                tsk.configure(cnf)
+            }
+        }
+    }
+
+    // create task which will acquire an execution lock for a given task chain
+    static TaskProvider<Task> buildAcquireExecutionLockTask(final Project project,
+                                                            final String appName,
+                                                            final String appGroup) {
+
+        // using random string as this method is called ad-hoc in multiple places
+        // and so the name must be unique but still named appropriately.
+        return project.tasks.register("${appName}AcquireExecutionLock_${randomString(null)}") {
+            outputs.upToDateWhen { false }
+
+            group: appGroup
+            description: "Acquire execution lock for '${appName}'."
+
+            doLast {
+                logger.quiet "Acquiring execution lock for '${appName}'."
+
+                final String lockName = appGroup
+                if(!project.gradle.ext.has(lockName)) {
+                    synchronized (GradleDockerApplicationsPluginUtils) {
+                        if(!project.gradle.ext.has(lockName)) {
+                            final AtomicBoolean executionLock = new AtomicBoolean(false);
+                            project.gradle.ext.set(lockName, executionLock)
+                        }
+                    }
+                }
+
+                final def progressLogger = getProgressLogger(project, GradleDockerApplicationsPluginUtils)
+                progressLogger.started()
+
+                int pollTimes = 0
+                long pollInterval = 5000
+                long totalMillis = 0
+                final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
+                while(!executionLock.compareAndSet(false, true)) {
+                    pollTimes += 1
+
+                    totalMillis = pollTimes * pollInterval
+                    long totalMinutes = TimeUnit.MILLISECONDS.toMinutes(totalMillis)
+
+                    progressLogger.progress("Waiting on lock for ${totalMinutes}m...")
+                    sleep(pollInterval)
+                }
+                progressLogger.completed()
+
+                logger.info "Lock took ${totalMillis}m to acquire."
+            }
+        }
+    }
+
+    // create task which will release an execution lock for a given task chain
+    static TaskProvider<Task> buildReleaseExecutionLockTask(final Project project,
+                                                            final String appName,
+                                                            final String appGroup) {
+
+        // using random string as this method is called ad-hoc in multiple places
+        // and so the name must be unique but still named appropriately.
+        return project.tasks.register("${appName}ReleaseExecutionLock_${randomString(null)}") {
+            outputs.upToDateWhen { false }
+
+            group: appGroup
+            description: "Release execution lock for '${appName}'."
+
+            doLast {
+                logger.quiet "Releasing execution lock for '${appName}'."
+
+                final String lockName = appGroup
+                if(project.gradle.ext.has(lockName)) {
+                    final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
+                    executionLock.set(false)
+                } else {
+                    throw new GradleException("Failed to find execution lock for '${appName}'.")
+                }
+            }
         }
     }
 }
