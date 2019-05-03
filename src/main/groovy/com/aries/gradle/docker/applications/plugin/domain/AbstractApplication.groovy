@@ -98,14 +98,12 @@ class AbstractApplication {
         }
     }
     MainContainer main() {
-        if (!mainContainer) {
-            if (mainContainerConfigs) {
-                if (!mainContainer) { mainContainer = new MainContainer() }
-                for (final Closure<MainContainer> cnf : mainContainerConfigs) {
-                    mainContainer = ConfigureUtil.configure(cnf, mainContainer)
-                }
-            } else {
-                throw new GradleException("The 'main' container has not been defined.")
+        if (!mainContainer) { mainContainer = new MainContainer() }
+
+        if (mainContainerConfigs) {
+            if (!mainContainer) { mainContainer = new MainContainer() }
+            for (final Closure<MainContainer> cnf : mainContainerConfigs) {
+                mainContainer = ConfigureUtil.configure(cnf, mainContainer)
             }
         }
 
@@ -124,14 +122,12 @@ class AbstractApplication {
         }
     }
     DataContainer data() {
-        if (!dataContainer) {
-            if (dataContainerConfigs) {
-                if (!dataContainer) { dataContainer = new DataContainer() }
-                for (final Closure<DataContainer> cnf : dataContainerConfigs) {
-                    dataContainer = ConfigureUtil.configure(cnf, dataContainer)
-                }
-            } else {
-                throw new GradleException("The 'data' container has not been defined.")
+        if (!dataContainer) { dataContainer = new DataContainer() }
+
+        if (dataContainerConfigs) {
+            if (!dataContainer) { dataContainer = new DataContainer() }
+            for (final Closure<DataContainer> cnf : dataContainerConfigs) {
+                dataContainer = ConfigureUtil.configure(cnf, dataContainer)
             }
         }
 
