@@ -83,24 +83,44 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
     private TaskProvider<Task> createUpChain(final Project project,
                                                final AbstractApplication appContainer) {
 
-        final List<TaskProvider<Task>> taskChains = Up.createTaskChain(project, appContainer)
+        final Collection<TaskProvider<Task>> taskChains = Up.createTaskChain(project, appContainer)
         final String appName = appContainer.getName()
+
+        final TaskProvider<Task> upDependencies = project.tasks.register("${appName}Up_Dependencies") {
+            onlyIf { appContainer.dependsOn() }
+            outputs.upToDateWhen { false }
+
+            dependsOn(appContainer.dependsOn())
+
+            group: appName
+            description: "Trigger all '${appName}' dependencies if not already triggered."
+        }
+
+        final TaskProvider<Task> upChain = project.tasks.register("${appName}Up_Chain") {
+            outputs.upToDateWhen { false }
+
+            mustRunAfter(upDependencies)
+            dependsOn(taskChains)
+
+            group: appName
+            description: "Start all '${appName}' container application(s) if not already started."
+        }
 
         return project.tasks.register("${appName}Up") {
             outputs.upToDateWhen { false }
 
-            dependsOn(taskChains)
+            dependsOn(upChain, upDependencies)
             ext.applications = taskChains
 
             group: appName
-            description: "Start all '${appName}' container application(s) if not already started."
+            description: "Wrapper for starting all '${appName}' container application(s), and their dependencies, if not already done."
         }
     }
 
     private TaskProvider<Task> createStopChain(final Project project,
                                                final AbstractApplication appContainer) {
 
-        final List<TaskProvider<Task>> taskChains = Stop.createTaskChain(project, appContainer)
+        final Collection<TaskProvider<Task>> taskChains = Stop.createTaskChain(project, appContainer)
         final String appName = appContainer.getName()
 
         return project.tasks.register("${appName}Stop") {
@@ -117,7 +137,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
     private TaskProvider<Task> createDownChain(final Project project,
                                                final AbstractApplication appContainer) {
 
-        final List<TaskProvider<Task>> taskChains = Down.createTaskChain(project, appContainer)
+        final Collection<TaskProvider<Task>> taskChains = Down.createTaskChain(project, appContainer)
         final String appName = appContainer.getName()
 
         return project.tasks.register("${appName}Down") {

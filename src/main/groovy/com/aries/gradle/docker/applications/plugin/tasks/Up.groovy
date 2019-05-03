@@ -47,10 +47,10 @@ final class Up {
         throw new UnsupportedOperationException("Purposefully not implemented.")
     }
 
-    static List<TaskProvider<Task>> createTaskChain(final Project project,
+    static Collection<TaskProvider<Task>> createTaskChain(final Project project,
                                                     final AbstractApplication appContainer) {
 
-        final List<TaskProvider<Task>> taskList = new ArrayList();
+        final Collection<TaskProvider<Task>> taskList = ArrayList.newInstance()
 
         for (int i = 0; i < appContainer.count(); i++) {
             final TaskProvider<Task> singleTaskChain = _createTaskChain(project, appContainer, "_" + (i + 1))

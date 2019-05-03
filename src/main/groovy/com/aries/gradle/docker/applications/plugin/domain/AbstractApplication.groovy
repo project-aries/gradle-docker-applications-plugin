@@ -72,6 +72,21 @@ class AbstractApplication {
         this.lock
     }
 
+    // if set will be used as a shared lock amongst all tasks.
+    @Input
+    @Optional
+    Collection<Object> dependsOn
+    Collection<Object> dependsOn(Object... paths) {
+        if (this.dependsOn == null) {
+            this.dependsOn = ArrayList.newInstance()
+        }
+
+        if (paths) {
+            this.dependsOn.addAll(paths)
+        }
+        this.dependsOn
+    }
+
     // methods and properties used to configure the main container.
     protected MainContainer main
     void main(final Closure<MainContainer> info) {

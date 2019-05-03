@@ -70,14 +70,28 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
         String uuid = "gdap-f8b845c86e5e430282517b090a2a2262"
         buildFile << """
 
+            configurations {
+                dev
+            }
+
+            dependencies {
+                dev 'org.ajoberstar:gradle-git:1.7.2' // random dep just to get the point across
+            }
+
+            task kicker {
+                doLast {
+                    println 'In the KICKER' // random task just to get the point across
+                }
+            }
+
             applications {
                 myPostgresStack {
                     id = "${uuid}"
+                    count = 2
+                    dependsOn(configurations.dev, kicker)
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
-                        count = 2
-                        lock = 'fish-face'
                         create {
                             withEnvVar("CI", "TRUE")
                             withEnvVar("DEVOPS", "ROCKS")
@@ -143,6 +157,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             BuildResult result = build('up', 'stop', 'down')
 
         then:
+            result.output.contains('In the KICKER')
             result.output.contains('is not running or available to inspect')
             result.output.contains('Inspecting container with ID')
             result.output.contains('PullDataImage_1 SKIPPED')
