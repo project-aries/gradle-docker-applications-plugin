@@ -71,13 +71,13 @@ final class Up {
         final String networkName = appContainer.network()
 
         final TaskContainer tasks = project.tasks;
-        final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, mainId)
+        //final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, mainId)
         final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, mainId)
 
         String taskName = "${appName}AvailableDataContainer" + appender
         final TaskProvider<DockerInspectContainer> availableDataContainerTask = tasks.register(taskName, DockerInspectContainer) {
 
-            dependsOn(acquireExecutionLockTask)
+            //dependsOn(acquireExecutionLockTask)
 
             group: appName
             description: "Check if '${appName}' data container is available."

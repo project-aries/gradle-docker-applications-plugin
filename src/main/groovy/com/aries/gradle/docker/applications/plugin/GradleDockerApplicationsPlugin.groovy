@@ -74,9 +74,9 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
             // create tasks after evaluation so that we can pick up any changes
             // made to our various extension points.
-            createUpChain(project, appContainer)
-            createStopChain(project, appContainer)
-            createDownChain(project, appContainer)
+            final TaskProvider<Task> upTaskChain = createUpChain(project, appContainer)
+            final TaskProvider<Task> stopTaskChain = createStopChain(project, appContainer)
+            final TaskProvider<Task> downTaskChain = createDownChain(project, appContainer)
         }
     }
 

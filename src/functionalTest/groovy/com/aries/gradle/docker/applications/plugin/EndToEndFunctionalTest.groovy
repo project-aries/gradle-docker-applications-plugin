@@ -146,7 +146,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('Inspecting container with ID')
             result.output.contains('PullDataImage_1 SKIPPED')
             result.output.contains('Created container with ID')
-            count(result.output, 'Copying file to container') == 5
+            count(result.output, 'Copying file to container') == 10
             result.output.contains('Creating network')
             result.output.contains('Copying file to container')
             result.output.contains('Starting liveness')
@@ -162,5 +162,6 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('RestartContainer_1 SKIPPED')
             result.output.contains('Removing network')
             !result.output.contains('ListImages_1 SKIPPED')
+            result.output.contains('fish bears')
     }
 }

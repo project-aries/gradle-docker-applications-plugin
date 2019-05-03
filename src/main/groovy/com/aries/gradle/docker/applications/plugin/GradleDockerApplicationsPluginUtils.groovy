@@ -170,10 +170,12 @@ class GradleDockerApplicationsPluginUtils {
                 logger.quiet "Releasing execution lock with '${lockName}'."
 
                 if(project.gradle.ext.has(lockName)) {
-                    final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
-                    executionLock.set(false)
-                } else {
-                    throw new GradleException("Failed to find execution lock for '${appName}'.")
+                    synchronized (GradleDockerApplicationsPluginUtils) {
+                        if(project.gradle.ext.has(lockName)) {
+                            final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
+                            executionLock.set(false)
+                        }
+                    }
                 }
             }
         }

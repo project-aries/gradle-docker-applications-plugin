@@ -75,6 +75,8 @@ abstract class AbstractFunctionalTest extends Specification {
     private GradleRunner createAndConfigureGradleRunner(String... arguments) {
         def args = ['-s',
             '--warning-mode=all',
+            '-Dorg.gradle.parallel=true',
+            '-Dorg.gradle.workers.max=4',
             '-Dorg.gradle.daemon=false',
             '-Dorg.gradle.jvmargs=-XX:+CMSPermGenSweepingEnabled -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -XX:+HeapDumpOnOutOfMemoryError']
         if (Boolean.valueOf(possibleOffline).booleanValue() == true) {
