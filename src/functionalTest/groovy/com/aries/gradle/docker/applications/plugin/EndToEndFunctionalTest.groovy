@@ -77,6 +77,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                         repository = 'postgres'
                         tag = 'alpine'
                         count = 2
+                        lock = 'fish-face'
                         create {
                             withEnvVar("CI", "TRUE")
                             withEnvVar("DEVOPS", "ROCKS")

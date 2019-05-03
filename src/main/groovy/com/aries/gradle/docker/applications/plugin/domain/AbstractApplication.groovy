@@ -64,6 +64,14 @@ class AbstractApplication {
         this.id
     }
 
+    // if set will be used as a shared lock amongst all tasks.
+    @Input
+    @Optional
+    String lock
+    String lock() {
+        this.lock
+    }
+
     // methods and properties used to configure the main container.
     protected MainContainer main
     void main(final Closure<MainContainer> info) {

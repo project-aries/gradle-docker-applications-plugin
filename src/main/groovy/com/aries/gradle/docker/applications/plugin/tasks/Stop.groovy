@@ -56,12 +56,13 @@ final class Stop {
                                                        final AbstractApplication appContainer,
                                                        final String appender) {
 
-        final String appName = appContainer.getName()
         final String mainId = appContainer.mainId() + appender
+        final String appName = appContainer.getName()
+        final String lockName = appContainer.lock() ?: mainId
 
         final TaskContainer tasks = project.tasks;
-        final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, mainId)
-        final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, mainId)
+        final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, lockName)
+        final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, lockName)
 
         String taskName = "${appName}ExecStopContainer" + appender
         final TaskProvider<DockerExecStopContainer> execStopContainerTask = tasks.register(taskName, DockerExecStopContainer) {
