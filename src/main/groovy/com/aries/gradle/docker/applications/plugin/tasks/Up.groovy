@@ -16,7 +16,6 @@
 
 package com.aries.gradle.docker.applications.plugin.tasks
 
-import com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils
 import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
 import com.bmuschko.gradle.docker.tasks.DockerOperation
 import com.bmuschko.gradle.docker.tasks.container.*
@@ -36,6 +35,8 @@ import org.gradle.api.tasks.TaskProvider
 import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.buildAcquireExecutionLockTask
 import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.buildReleaseExecutionLockTask
 import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.applyConfigs
+import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.throwOnValidError
+import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.throwOnValidErrorElseGradleException
 
 /**
  *  Contains single static method to create the `Up` task chain.
@@ -46,29 +47,49 @@ final class Up {
         throw new UnsupportedOperationException("Purposefully not implemented.")
     }
 
-    // create required tasks for invoking the "up" chain.
-    static TaskProvider<DockerOperation> createTaskChain(final Project project,
-                                 final AbstractApplication appContainer) {
+    static List<TaskProvider<Task>> createTaskChain(final Project project,
+                                                    final AbstractApplication appContainer) {
 
-        final TaskContainer tasks = project.tasks;
+        final List<TaskProvider<Task>> taskList = new ArrayList();
 
         final String appName = appContainer.getName()
-        final String appGroup = appContainer.mainId()
+        final String dataId = appContainer.dataId()
+        final String mainId = appContainer.mainId()
         final String networkName = appContainer.network()
 
-        final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup)
-        final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup)
+        for (int i = 0; i < appContainer.count(); i++) {
+            final TaskProvider<Task> singleTaskChain = _createTaskChain(project, appContainer, appName, dataId, mainId, networkName, "_" + (i + 1))
+            taskList.add(singleTaskChain)
+        }
 
-        final TaskProvider<DockerInspectContainer> availableDataContainerTask = tasks.register("${appName}AvailableDataContainer", DockerInspectContainer) {
+        return taskList
+    }
+
+    // create required tasks for invoking the "up" chain.
+    private static TaskProvider<DockerOperation> _createTaskChain(final Project project,
+                                                         final AbstractApplication appContainer,
+                                                         final String appName,
+                                                         String dataId,
+                                                         String mainId,
+                                                         final String networkName,
+                                                         final String appender) {
+
+        dataId = dataId + appender
+        mainId = mainId + appender
+
+        final TaskContainer tasks = project.tasks;
+        final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, mainId)
+        final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, mainId)
+
+        String taskName = "${appName}AvailableDataContainer" + appender
+        final TaskProvider<DockerInspectContainer> availableDataContainerTask = tasks.register(taskName, DockerInspectContainer) {
 
             dependsOn(acquireExecutionLockTask)
 
-            group:
-            appGroup
-            description:
-            "Check if '${appName}' data container is available."
+            group: appName
+            description: "Check if '${appName}' data container is available."
 
-            targetContainerId { appContainer.dataId() }
+            targetContainerId { dataId }
 
             ext.exists = false
             ext.inspection = null
@@ -77,23 +98,20 @@ final class Up {
                 ext.inspection = possibleContainer
             }
             onError { err ->
-                GradleDockerApplicationsPluginUtils.throwOnValidError(err)
-                logger.quiet "Container with ID '${appContainer.dataId()}' is not running or available to inspect."
+                throwOnValidError(err)
+                logger.quiet "Container with ID '${dataId}' is not running or available to inspect."
             }
         }
 
-        releaseExecutionLockTask.get().finalizedBy()
-
-        final TaskProvider<DockerInspectContainer> availableContainerTask = tasks.register("${appName}AvailableContainer", DockerInspectContainer) {
+        taskName = "${appName}AvailableContainer" + appender
+        final TaskProvider<DockerInspectContainer> availableContainerTask = tasks.register(taskName, DockerInspectContainer) {
 
             dependsOn(availableDataContainerTask)
 
-            group:
-            appGroup
-            description:
-            "Check if '${appName}' container is available."
+            group: appName
+            description: "Check if '${appName}' container is available."
 
-            targetContainerId { appContainer.mainId() }
+            targetContainerId { mainId }
 
             ext.exists = false
             ext.inspection = null
@@ -104,20 +122,19 @@ final class Up {
                 ext.hasNetwork = possibleContainer.getNetworkSettings().getNetworks().containsKey(networkName)
             }
             onError { err ->
-                GradleDockerApplicationsPluginUtils.throwOnValidError(err)
-                logger.quiet "Container with ID '${appContainer.mainId()}' is not running or available to inspect."
+                throwOnValidError(err)
+                logger.quiet "Container with ID '${mainId}' is not running or available to inspect."
             }
         }
 
-        final TaskProvider<DockerInspectNetwork> inspectNetworkTask = tasks.register("${appName}InspectNetwork", DockerInspectNetwork) {
+        taskName = "${appName}InspectNetwork" + appender
+        final TaskProvider<DockerInspectNetwork> inspectNetworkTask = tasks.register(taskName, DockerInspectNetwork) {
             onlyIf { networkName && !availableContainerTask.get().ext.hasNetwork }
 
             dependsOn(availableContainerTask)
 
-            group:
-            appGroup
-            description:
-            "Inspect '${appName}' network."
+            group: appName
+            description: "Inspect '${appName}' network."
 
             ext.hasNetwork = true
             networkId = networkName
@@ -126,20 +143,20 @@ final class Up {
             }
         }
 
-        final TaskProvider<DockerCreateNetwork> createNetworkTask = tasks.register("${appName}CreateNetwork", DockerCreateNetwork) {
+        taskName = "${appName}CreateNetwork" + appender
+        final TaskProvider<DockerCreateNetwork> createNetworkTask = tasks.register(taskName, DockerCreateNetwork) {
             onlyIf { networkName && !inspectNetworkTask.get().ext.hasNetwork }
 
             dependsOn(inspectNetworkTask)
 
-            group:
-            appGroup
-            description:
-            "Create '${appName}' network."
+            group: appName
+            description: "Create '${appName}' network."
 
             networkId = networkName
         }
 
-        final TaskProvider<DockerRestartContainer> restartContainerTask = tasks.register("${appName}RestartContainer", DockerRestartContainer) {
+        taskName = "${appName}RestartContainer" + appender
+        final TaskProvider<DockerRestartContainer> restartContainerTask = tasks.register(taskName, DockerRestartContainer) {
             onlyIf {
                 availableContainerTask.get().ext.exists == true &&
                     availableContainerTask.get().ext.inspection.state.running == false
@@ -147,22 +164,21 @@ final class Up {
 
             dependsOn(createNetworkTask)
 
-            group:
-            appGroup
-            description:
-            "Restart '${appName}' container if it is present and not running."
+            group: appName
+            description: "Restart '${appName}' container if it is present and not running."
 
             doFirst {
                 ext.startTime = new Date()
             }
-            targetContainerId { appContainer.mainId() }
+            targetContainerId { mainId}
             waitTime = 3000
         }
 
         // if a previous main/data container is present than the assumption is that
         // the containerImage in question must also be present and so we don't need to check
         // for the existence of its backing containerImage
-        final TaskProvider<DockerListImages> listImagesTask = tasks.register("${appName}ListImages", DockerListImages) {
+        taskName = "${appName}ListImages" + appender
+        final TaskProvider<DockerListImages> listImagesTask = tasks.register(taskName, DockerListImages) {
             onlyIf {
                 availableDataContainerTask.get().ext.exists == false ||
                     availableContainerTask.get().ext.exists == false
@@ -170,10 +186,8 @@ final class Up {
 
             dependsOn(restartContainerTask)
 
-            group:
-            appGroup
-            description:
-            "Check if image for '${appName}' exists locally."
+            group: appName
+            description: "Check if image for '${appName}' exists locally."
 
             // if both images are the same we only need to search for one,
             // and thus we can filter down the images, otherwise, and due
@@ -202,15 +216,15 @@ final class Up {
                                 if (!ext.mainImageFound && rep == appContainer.main().image()) {
                                     ext.mainImageFound = true
                                     if (ext.duplicateImages) {
-                                        logger.quiet "Images for '${appContainer.mainId()}' and '${appContainer.dataId()}' were found locally."
+                                        logger.quiet "Images for '${mainId}' and '${dataId}' were found locally."
                                         ext.dataImageFound = true
                                         throw new StopExecutionException();
                                     } else {
-                                        logger.quiet "Image '${appContainer.main().image()}' for '${appContainer.mainId()}' was found locally."
+                                        logger.quiet "Image '${appContainer.main().image()}' for '${mainId}' was found locally."
                                     }
                                 }
                                 if (!ext.dataImageFound && rep == appContainer.data().image()) {
-                                    logger.quiet "Image '${appContainer.data().image()}' for '${appContainer.dataId()}' was found locally."
+                                    logger.quiet "Image '${appContainer.data().image()}' for '${dataId}' was found locally."
                                     ext.dataImageFound = true
                                     if (ext.mainImageFound) {
                                         throw new StopExecutionException();
@@ -226,20 +240,21 @@ final class Up {
                 // print to stdout any images that were not found locally that need a pull
                 if (ext.duplicateImages) {
                     if (!ext.mainImageFound) {
-                        logger.quiet "Images for '${appContainer.mainId()}' and '${appContainer.dataId()}' were not found locally: pull required."
+                        logger.quiet "Images for '${mainId}' and '${dataId}' were not found locally: pull required."
                     }
                 } else {
                     if (!ext.mainImageFound) {
-                        logger.quiet "Image for '${appContainer.mainId()}' was not found locally: pull required."
+                        logger.quiet "Image for '${mainId}' was not found locally: pull required."
                     }
                     if (!ext.dataImageFound) {
-                        logger.quiet "Image for '${appContainer.dataId()}' was not found locally: pull required."
+                        logger.quiet "Image for '${dataId}' was not found locally: pull required."
                     }
                 }
             }
         }
 
-        final TaskProvider<DockerPullImage> pullImageTask = tasks.register("${appName}PullImage", DockerPullImage) {
+        taskName = "${appName}PullImage" + appender
+        final TaskProvider<DockerPullImage> pullImageTask = tasks.register(taskName, DockerPullImage) {
             onlyIf {
                 availableContainerTask.get().ext.exists == false &&
                     listImagesTask.get().ext.mainImageFound == false
@@ -247,19 +262,18 @@ final class Up {
 
             dependsOn(listImagesTask)
 
-            group:
-            appGroup
-            description:
-            "Pull image for '${appName}'."
+            group: appName
+            description: "Pull image for '${appName}'."
 
             repository = appContainer.main().repository()
             tag = appContainer.main().tag()
             onError { err ->
-                GradleDockerApplicationsPluginUtils.throwOnValidErrorElseGradleException(err, "Image '${appContainer.main().image()}' for '${appContainer.mainId()}' was not found remotely.")
+                throwOnValidErrorElseGradleException(err, "Image '${appContainer.main().image()}' for '${mainId}' was not found remotely.")
             }
         }
 
-        final TaskProvider<DockerPullImage> pullDataImageTask = tasks.register("${appName}PullDataImage", DockerPullImage) {
+        taskName = "${appName}PullDataImage" + appender
+        final TaskProvider<DockerPullImage> pullDataImageTask = tasks.register(taskName, DockerPullImage) {
             onlyIf {
                 availableDataContainerTask.get().ext.exists == false &&
                     listImagesTask.get().ext.dataImageFound == false &&
@@ -268,19 +282,18 @@ final class Up {
 
             dependsOn(pullImageTask)
 
-            group:
-            appGroup
-            description:
-            "Pull data image for '${appName}'."
+            group: appName
+            description: "Pull data image for '${appName}'."
 
             repository = appContainer.data().repository()
             tag = appContainer.data().tag()
             onError { err ->
-                GradleDockerApplicationsPluginUtils.throwOnValidErrorElseGradleException(err, "Image '${appContainer.data().image()}' for '${appContainer.dataId()}' was not found remotely.")
+                throwOnValidErrorElseGradleException(err, "Image '${appContainer.data().image()}' for '${dataId}' was not found remotely.")
             }
         }
 
-        final TaskProvider<DockerRemoveContainer> removeContainerTask = tasks.register("${appName}RemoveContainer", DockerRemoveContainer) {
+        taskName = "${appName}RemoveContainer" + appender
+        final TaskProvider<DockerRemoveContainer> removeContainerTask = tasks.register(taskName, DockerRemoveContainer) {
             onlyIf {
                 availableContainerTask.get().ext.exists == true &&
                     availableContainerTask.get().ext.inspection.state.running == false &&
@@ -289,25 +302,24 @@ final class Up {
 
             dependsOn(pullDataImageTask)
 
-            group:
-            appGroup
-            description:
-            "Remove '${appName}' container."
+            group: appName
+            description: "Remove '${appName}' container."
 
             removeVolumes = true
             force = true
-            targetContainerId { appContainer.mainId() }
+            targetContainerId { mainId }
 
             onError { err ->
                 if (!err.class.simpleName.matches(NOT_PRESENT_REGEX)) {
                     throw err
                 } else {
-                    logger.quiet "Container with ID '${appContainer.mainId()}' is not available to remove."
+                    logger.quiet "Container with ID '${mainId}' is not available to remove."
                 }
             }
         }
 
-        final TaskProvider<DockerRemoveContainer> removeDataContainerTask = tasks.register("${appName}RemoveDataContainer", DockerRemoveContainer) {
+        taskName = "${appName}RemoveDataContainer" + appender
+        final TaskProvider<DockerRemoveContainer> removeDataContainerTask = tasks.register(taskName, DockerRemoveContainer) {
             onlyIf {
                 availableDataContainerTask.get().ext.exists == true &&
                     restartContainerTask.get().didWork == false &&
@@ -316,83 +328,78 @@ final class Up {
 
             dependsOn(removeContainerTask)
 
-            group:
-            appGroup
-            description:
-            "Remove '${appName}' data container."
+            group: appName
+            description: "Remove '${appName}' data container."
 
             removeVolumes = true
             force = true
-            targetContainerId { appContainer.dataId() }
+            targetContainerId { dataId }
 
             onError { err ->
-                GradleDockerApplicationsPluginUtils.throwOnValidError(err)
-                logger.quiet "Container with ID '${appContainer.dataId()}' is not available to remove."
+                throwOnValidError(err)
+                logger.quiet "Container with ID '${dataId}' is not available to remove."
             }
         }
 
-        final TaskProvider<DockerCreateContainer> createDataContainerTask = tasks.register("${appName}CreateDataContainer", DockerCreateContainer) {
+        taskName = "${appName}CreateDataContainer" + appender
+        final TaskProvider<DockerCreateContainer> createDataContainerTask = tasks.register(taskName, DockerCreateContainer) {
             onlyIf { !availableDataContainerTask.get().ext.exists }
 
             dependsOn(removeDataContainerTask)
 
-            group:
-            appGroup
-            description:
-            "Create '${appName}' data container."
+            group: appName
+            description: "Create '${appName}' data container."
 
             network = networkName
             targetImageId { appContainer.data().image() }
-            containerName = appContainer.dataId()
+            containerName = dataId
         }
         applyConfigs(createDataContainerTask, appContainer.data().createConfigs)
 
-        final TaskProvider<DockerCreateContainer> createContainerTask = tasks.register("${appName}CreateContainer", DockerCreateContainer) {
+        taskName = "${appName}CreateContainer" + appender
+        final TaskProvider<DockerCreateContainer> createContainerTask = tasks.register(taskName, DockerCreateContainer) {
             onlyIf { !availableContainerTask.get().ext.exists }
 
             dependsOn(createDataContainerTask)
 
-            group:
-            appGroup
-            description:
-            "Create '${appName}' container."
+            group: appName
+            description: "Create '${appName}' container."
 
             network = networkName
             targetImageId { appContainer.main().image() }
-            containerName = appContainer.mainId()
-            volumesFrom = [appContainer.dataId()]
+            containerName = mainId
+            volumesFrom = [dataId]
         }
         applyConfigs(createContainerTask, appContainer.main().createConfigs)
 
-        final TaskProvider<DockerCopyFileToContainer> copyFilesToDataContainerTask = tasks.register("${appName}CopyFilesToDataContainer", DockerCopyFileToContainer) {
+        taskName = "${appName}CopyFilesToDataContainer" + appender
+        final TaskProvider<DockerCopyFileToContainer> copyFilesToDataContainerTask = tasks.register(taskName, DockerCopyFileToContainer) {
             onlyIf { createDataContainerTask.get().didWork && appContainer.data().filesConfigs.size() > 0 }
 
             dependsOn(createContainerTask)
 
-            group:
-            appGroup
-            description:
-            "Copy file(s) into '${appName}' data container."
+            group: appName
+            description: "Copy file(s) into '${appName}' data container."
 
-            targetContainerId { appContainer.dataId() }
+            targetContainerId { dataId }
         }
         applyConfigs(copyFilesToDataContainerTask, appContainer.data().filesConfigs)
 
-        final TaskProvider<DockerCopyFileToContainer> copyFilesToContainerTask = tasks.register("${appName}CopyFilesToContainer", DockerCopyFileToContainer) {
+        taskName = "${appName}CopyFilesToContainer" + appender
+        final TaskProvider<DockerCopyFileToContainer> copyFilesToContainerTask = tasks.register(taskName, DockerCopyFileToContainer) {
             onlyIf { createContainerTask.get().didWork && appContainer.main().filesConfigs.size() > 0 }
 
             dependsOn(copyFilesToDataContainerTask)
 
-            group:
-            appGroup
-            description:
-            "Copy file(s) into '${appName}' container."
+            group: appName
+            description: "Copy file(s) into '${appName}' container."
 
-            targetContainerId { appContainer.mainId() }
+            targetContainerId { mainId }
         }
         applyConfigs(copyFilesToContainerTask, appContainer.main().filesConfigs)
 
-        final TaskProvider<DockerOperation> connectNetworkTask = tasks.register("${appName}ConnectNetwork", DockerOperation) {
+        taskName = "${appName}ConnectNetwork" + appender
+        final TaskProvider<DockerOperation> connectNetworkTask = tasks.register(taskName, DockerOperation) {
             onlyIf {
                 networkName && !availableContainerTask.get().ext.hasNetwork &&
                     (restartContainerTask.get().didWork ||
@@ -403,39 +410,37 @@ final class Up {
 
             dependsOn(copyFilesToContainerTask)
 
-            group:
-            appGroup
-            description:
-            "Connect '${appName}' network."
+            group: appName
+            description: "Connect '${appName}' network."
 
             onNext { dockerCli ->
 
-                logger.quiet "Connecting network '${appContainer.mainId()}'."
+                logger.quiet "Connecting network '${mainId}'."
 
                 dockerCli.connectToNetworkCmd()
                     .withNetworkId(networkName)
-                    .withContainerId(appContainer.mainId())
+                    .withContainerId(mainId)
                     .exec()
             }
         }
 
-        final TaskProvider<DockerStartContainer> startContainerTask = tasks.register("${appName}StartContainer", DockerStartContainer) {
+        taskName = "${appName}StartContainer" + appender
+        final TaskProvider<DockerStartContainer> startContainerTask = tasks.register(taskName, DockerStartContainer) {
             onlyIf { createContainerTask.get().didWork }
 
             dependsOn(connectNetworkTask)
 
-            group:
-            appGroup
-            description:
-            "Start '${appName}' container."
+            group: appName
+            description: "Start '${appName}' container."
 
             doFirst {
                 ext.startTime = new Date()
             }
-            targetContainerId { appContainer.mainId() }
+            targetContainerId { mainId }
         }
 
-        final TaskProvider<DockerLivenessContainer> livenessContainerTask = tasks.register("${appName}LivenessContainer", DockerLivenessContainer) {
+        taskName = "${appName}LivenessContainer" + appender
+        final TaskProvider<DockerLivenessContainer> livenessContainerTask = tasks.register(taskName, DockerLivenessContainer) {
             onlyIf {
                 startContainerTask.get().didWork ||
                     restartContainerTask.get().didWork
@@ -443,12 +448,10 @@ final class Up {
 
             dependsOn(startContainerTask)
 
-            group:
-            appGroup
-            description:
-            "Check if '${appName}' container is live."
+            group: appName
+            description: "Check if '${appName}' container is live."
 
-            targetContainerId { appContainer.mainId() }
+            targetContainerId { mainId }
 
             // only 2 ways this task can kick so we will proceed to configure
             // the `since` option based ONLY upon a "restart" scenario as we will
@@ -478,7 +481,8 @@ final class Up {
         }
         applyConfigs(livenessContainerTask, appContainer.main().livenessConfigs)
 
-        final TaskProvider<DockerExecContainer> execContainerTask = tasks.register("${appName}ExecContainer", DockerExecContainer) {
+        taskName = "${appName}ExecContainer" + appender
+        final TaskProvider<DockerExecContainer> execContainerTask = tasks.register(taskName, DockerExecContainer) {
             onlyIf {
                 livenessContainerTask.get().didWork &&
                     appContainer.main().execConfigs.size() > 0 &&
@@ -487,12 +491,10 @@ final class Up {
 
             dependsOn(livenessContainerTask)
 
-            group:
-            appGroup
-            description:
-            "Execute commands within '${appName}' container."
+            group: appName
+            description: "Execute commands within '${appName}' container."
 
-            targetContainerId { appContainer.mainId() }
+            targetContainerId { mainId }
 
             onComplete {
 
@@ -503,16 +505,15 @@ final class Up {
         }
         applyConfigs(execContainerTask, appContainer.main().execConfigs)
 
-        return tasks.register("${appName}Up", DockerOperation) {
+        taskName = "${appName}Up" + appender
+        return tasks.register(taskName, DockerOperation) {
             outputs.upToDateWhen { false }
 
             dependsOn(execContainerTask)
             finalizedBy(releaseExecutionLockTask)
 
-            group:
-            appGroup
-            description:
-            "Start '${appName}' container application if not already started."
+            group: appName
+            description: "Start '${appName}' container application if not already started."
 
             onNext { dockerClient ->
 
@@ -522,14 +523,14 @@ final class Up {
                     // if the `execContainerTask` task kicked we need to
                     // make an additional inspection call to ensure things
                     // are still live and running just to be on the safe side.
-                    ext.inspection = dockerClient.inspectContainerCmd(appContainer.mainId()).exec()
+                    ext.inspection = dockerClient.inspectContainerCmd(mainId).exec()
                     if (!ext.inspection.state.running) {
                         throw new GradleException("The 'main' container was NOT in a running state after exec(s) finished. Was this expected?")
                     }
                 } else if (livenessContainerTask.get().didWork) {
                     ext.inspection = livenessContainerTask.get().lastInspection()
                 } else if (connectNetworkTask.get().didWork) {
-                    ext.inspection = dockerClient.inspectContainerCmd(appContainer.mainId()).exec()
+                    ext.inspection = dockerClient.inspectContainerCmd(mainId).exec()
                 } else if (availableContainerTask.get().ext.inspection) {
                     ext.inspection = availableContainerTask.get().ext.inspection
                 } else {

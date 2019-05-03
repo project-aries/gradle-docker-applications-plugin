@@ -108,20 +108,19 @@ class GradleDockerApplicationsPluginUtils {
     // create task which will acquire an execution lock for a given task chain
     static TaskProvider<Task> buildAcquireExecutionLockTask(final Project project,
                                                             final String appName,
-                                                            final String appGroup) {
+                                                            final String lockName) {
 
         // using random string as this method is called ad-hoc in multiple places
         // and so the name must be unique but still named appropriately.
         return project.tasks.register("${appName}AcquireExecutionLock_${randomString(null)}") {
             outputs.upToDateWhen { false }
 
-            group: appGroup
+            group: appName
             description: "Acquire execution lock for '${appName}'."
 
             doLast {
-                logger.quiet "Acquiring execution lock for '${appName}'."
+                logger.quiet "Acquiring execution lock with '${lockName}'."
 
-                final String lockName = appGroup
                 if(!project.gradle.ext.has(lockName)) {
                     synchronized (GradleDockerApplicationsPluginUtils) {
                         if(!project.gradle.ext.has(lockName)) {
@@ -157,20 +156,19 @@ class GradleDockerApplicationsPluginUtils {
     // create task which will release an execution lock for a given task chain
     static TaskProvider<Task> buildReleaseExecutionLockTask(final Project project,
                                                             final String appName,
-                                                            final String appGroup) {
+                                                            final String lockName) {
 
         // using random string as this method is called ad-hoc in multiple places
         // and so the name must be unique but still named appropriately.
         return project.tasks.register("${appName}ReleaseExecutionLock_${randomString(null)}") {
             outputs.upToDateWhen { false }
 
-            group: appGroup
+            group: appName
             description: "Release execution lock for '${appName}'."
 
             doLast {
-                logger.quiet "Releasing execution lock for '${appName}'."
+                logger.quiet "Releasing execution lock with '${lockName}'."
 
-                final String lockName = appGroup
                 if(project.gradle.ext.has(lockName)) {
                     final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
                     executionLock.set(false)

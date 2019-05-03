@@ -16,48 +16,17 @@
 
 package com.aries.gradle.docker.applications.plugin
 
+import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
 import com.aries.gradle.docker.applications.plugin.tasks.Down
 import com.aries.gradle.docker.applications.plugin.tasks.Stop
 import com.aries.gradle.docker.applications.plugin.tasks.Up
-import com.bmuschko.gradle.docker.tasks.network.DockerCreateNetwork
-import com.bmuschko.gradle.docker.tasks.network.DockerInspectNetwork
-import com.bmuschko.gradle.docker.tasks.network.DockerRemoveNetwork
-import com.github.dockerjava.api.model.ContainerNetwork
-import org.gradle.api.tasks.TaskContainer
-import org.gradle.api.tasks.TaskProvider
-
-import static GradleDockerApplicationsPluginUtils.randomString
-import static GradleDockerApplicationsPluginUtils.throwOnValidError
-import static GradleDockerApplicationsPluginUtils.throwOnValidErrorElseGradleException
-
-import static com.bmuschko.gradle.docker.utils.IOUtils.getProgressLogger
-
-import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
-
 import com.bmuschko.gradle.docker.DockerRemoteApiPlugin
-import com.bmuschko.gradle.docker.tasks.container.DockerCopyFileToContainer
-import com.bmuschko.gradle.docker.tasks.container.DockerExecContainer
-import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
-import com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessContainer
-import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
-import com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer
-import com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer
-import com.bmuschko.gradle.docker.tasks.container.DockerRestartContainer
-import com.bmuschko.gradle.docker.tasks.container.DockerStartContainer
-import com.bmuschko.gradle.docker.tasks.image.DockerListImages
-import com.bmuschko.gradle.docker.tasks.image.DockerPullImage
-import com.bmuschko.gradle.docker.tasks.DockerOperation
-
-import org.gradle.api.GradleException
-import org.gradle.api.plugins.UnknownPluginException
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.api.tasks.StopExecutionException
-
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
+import org.gradle.api.plugins.UnknownPluginException
+import org.gradle.api.tasks.TaskProvider
 
 /**
  *  Plugin providing common tasks for starting (*Up), stopping (*Stop), and deleting (*Down) dockerized applications.
@@ -105,9 +74,60 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
             // create tasks after evaluation so that we can pick up any changes
             // made to our various extension points.
-            Up.createTaskChain(project, appContainer)
-            Stop.createTaskChain(project, appContainer)
-            Down.createTaskChain(project, appContainer)
+            createUpChain(project, appContainer)
+            createStopChain(project, appContainer)
+            createDownChain(project, appContainer)
+        }
+    }
+
+    private TaskProvider<Task> createUpChain(final Project project,
+                                               final AbstractApplication appContainer) {
+
+        final List<TaskProvider<Task>> taskChains = Up.createTaskChain(project, appContainer)
+        final String appName = appContainer.getName()
+
+        return project.tasks.register("${appName}Up") {
+            outputs.upToDateWhen { false }
+
+            dependsOn(taskChains)
+            ext.applications = taskChains
+
+            group: appName
+            description: "Start all '${appName}' container application(s) if not already started."
+        }
+    }
+
+    private TaskProvider<Task> createStopChain(final Project project,
+                                               final AbstractApplication appContainer) {
+
+        final List<TaskProvider<Task>> taskChains = Stop.createTaskChain(project, appContainer)
+        final String appName = appContainer.getName()
+
+        return project.tasks.register("${appName}Stop") {
+            outputs.upToDateWhen { false }
+
+            dependsOn(taskChains)
+            ext.applications = taskChains
+
+            group: appName
+            description: "Pause all '${appName}' container application(s) if not already paused."
+        }
+    }
+
+    private TaskProvider<Task> createDownChain(final Project project,
+                                               final AbstractApplication appContainer) {
+
+        final List<TaskProvider<Task>> taskChains = Down.createTaskChain(project, appContainer)
+        final String appName = appContainer.getName()
+
+        return project.tasks.register("${appName}Down") {
+            outputs.upToDateWhen { false }
+
+            dependsOn(taskChains)
+            ext.applications = taskChains
+
+            group: appName
+            description: "Delete all '${appName}' container application(s) if not already deleted."
         }
     }
 }

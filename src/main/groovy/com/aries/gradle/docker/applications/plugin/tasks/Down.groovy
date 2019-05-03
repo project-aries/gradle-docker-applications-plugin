@@ -16,7 +16,6 @@
 
 package com.aries.gradle.docker.applications.plugin.tasks
 
-import com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils
 import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
 import com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer
 import com.bmuschko.gradle.docker.tasks.network.DockerRemoveNetwork
@@ -27,6 +26,7 @@ import org.gradle.api.tasks.TaskProvider
 
 import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.buildAcquireExecutionLockTask
 import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.buildReleaseExecutionLockTask
+import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.throwOnValidError
 
 /**
  *  Contains single static method to create the `Down` task chain.
@@ -37,76 +37,100 @@ final class Down {
         throw new UnsupportedOperationException("Purposefully not implemented.")
     }
 
-    // create required tasks for invoking the "down" chain.
-    private static TaskProvider<Task> createTaskChain(final Project project,
+    static List<TaskProvider<Task>> createTaskChain(final Project project,
                                               final AbstractApplication appContainer) {
 
-        final TaskContainer tasks = project.tasks;
+        final List<TaskProvider<Task>> taskList = new ArrayList();
 
         final String appName = appContainer.getName()
-        final String appGroup = appContainer.mainId()
+        final String dataId = appContainer.dataId()
+        final String mainId = appContainer.mainId()
         final String networkName = appContainer.network()
 
-        final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup)
-        final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup)
+        for (int i = 0; i < appContainer.count(); i++) {
+            final TaskProvider<Task> singleTaskChain = _createTaskChain(project, appName, dataId, mainId, networkName, "_" + (i + 1))
+            taskList.add(singleTaskChain)
+        }
 
-        final TaskProvider<DockerRemoveContainer> deleteContainerTask = tasks.register("${appName}DeleteContainer", DockerRemoveContainer) {
+        return taskList
+    }
+
+    // create required tasks for invoking the "down" chain.
+    private static TaskProvider<Task> _createTaskChain(final Project project,
+                                              final String appName,
+                                              String dataId,
+                                              String mainId,
+                                              final String networkName,
+                                              final String appender) {
+
+        dataId = dataId + appender
+        mainId = mainId + appender
+
+        final TaskContainer tasks = project.tasks;
+        final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, mainId)
+        final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, mainId)
+
+        String taskName = "${appName}DeleteContainer" + appender
+        final TaskProvider<DockerRemoveContainer> deleteContainerTask = tasks.register(taskName, DockerRemoveContainer) {
 
             dependsOn(acquireExecutionLockTask)
 
-            group: appGroup
+            group: appName
             description: "Delete '${appName}' container."
 
             removeVolumes = true
             force = true
-            targetContainerId { appContainer.mainId() }
+            targetContainerId { mainId }
 
             onError { err ->
-                GradleDockerApplicationsPluginUtils.throwOnValidError(err)
-                logger.quiet "Container with ID '${appContainer.mainId()}' is not available to delete."
+                throwOnValidError(err)
+                logger.quiet "Container with ID '${mainId}' is not available to delete."
             }
         }
 
-        final TaskProvider<DockerRemoveContainer> deleteDataContainerTask = tasks.register("${appName}DeleteDataContainer", DockerRemoveContainer) {
+        taskName = "${appName}DeleteDataContainer" + appender
+        final TaskProvider<DockerRemoveContainer> deleteDataContainerTask = tasks.register(taskName, DockerRemoveContainer) {
 
             dependsOn(deleteContainerTask)
 
-            group: appGroup
+            group: appName
             description: "Delete '${appName}' data container."
 
             removeVolumes = true
             force = true
-            targetContainerId { appContainer.dataId() }
+            targetContainerId { dataId }
 
             onError { err ->
-                GradleDockerApplicationsPluginUtils.throwOnValidError(err)
-                logger.quiet "Container with ID '${appContainer.dataId()}' is not available to delete."
+                throwOnValidError(err)
+                logger.quiet "Container with ID '${dataId}' is not available to delete."
             }
         }
 
-        final TaskProvider<DockerRemoveNetwork> removeNetworkTask = tasks.register("${appName}RemoveNetwork", DockerRemoveNetwork) {
+        taskName = "${appName}RemoveNetwork" + appender
+        final TaskProvider<DockerRemoveNetwork> removeNetworkTask = tasks.register(taskName, DockerRemoveNetwork) {
             onlyIf { networkName }
 
             dependsOn(deleteDataContainerTask)
 
-            group: appGroup
-            description: "Remove '${appName}' network."
+            group: appName
+            description: "Remove '${networkName}' network."
 
-            targetNetworkId { appContainer.mainId() }
+            targetNetworkId { networkName }
 
             onError { err ->
-                GradleDockerApplicationsPluginUtils.throwOnValidError(err)
-                logger.quiet "Network with ID '${appContainer.mainId()}' is not available to remove."
+                throwOnValidError(err)
+                logger.quiet "Network with ID '${networkName}' is not available to remove."
             }
         }
 
-        return project.tasks.register("${appName}Down") {
+        taskName = "${appName}Down" + appender
+        return project.tasks.register(taskName) {
             outputs.upToDateWhen { false }
 
             dependsOn(removeNetworkTask)
             finalizedBy(releaseExecutionLockTask)
 
-            group: appGroup
+            group: appName
             description: "Delete '${appName}' container application if not already deleted."
         }
     }

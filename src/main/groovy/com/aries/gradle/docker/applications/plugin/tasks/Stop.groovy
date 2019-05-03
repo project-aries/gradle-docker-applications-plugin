@@ -16,8 +16,8 @@
 
 package com.aries.gradle.docker.applications.plugin.tasks
 
-import com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils
 import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
+import com.aries.gradle.docker.applications.plugin.domain.MainContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -27,6 +27,7 @@ import org.gradle.api.tasks.TaskProvider
 import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.buildAcquireExecutionLockTask
 import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.buildReleaseExecutionLockTask
 import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.applyConfigs
+import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.throwOnValidError
 
 /**
  *  Contains single static method to create the `Stop` task chain.
@@ -37,43 +38,62 @@ final class Stop {
         throw new UnsupportedOperationException("Purposefully not implemented.")
     }
 
-    // create required tasks for invoking the "stop" chain.
-    static TaskProvider<Task> createTaskChain(final Project project,
-                                   final AbstractApplication appContainer) {
+    static List<TaskProvider<Task>> createTaskChain(final Project project,
+                                                    final AbstractApplication appContainer) {
 
-        final TaskContainer tasks = project.tasks;
+        final List<TaskProvider<Task>> taskList = new ArrayList();
 
         final String appName = appContainer.getName()
-        final String appGroup = appContainer.mainId()
+        final String mainId = appContainer.mainId()
 
-        final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, appGroup)
-        final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, appGroup)
+        for (int i = 0; i < appContainer.count(); i++) {
+            final TaskProvider<Task> singleTaskChain = _createTaskChain(project, appName, mainId, appContainer.main(), "_" + (i + 1))
+            taskList.add(singleTaskChain)
+        }
 
-        final TaskProvider<DockerExecStopContainer> execStopContainerTask = tasks.register("${appName}ExecStopContainer", DockerExecStopContainer) {
+        return taskList
+    }
+
+    // create required tasks for invoking the "stop" chain.
+    private static TaskProvider<Task> _createTaskChain(final Project project,
+                                              final String appName,
+                                              String mainId,
+                                              final MainContainer mainContainer,
+                                              final String appender) {
+
+        mainId = mainId + appender
+
+        final TaskContainer tasks = project.tasks;
+        final TaskProvider<Task> acquireExecutionLockTask = buildAcquireExecutionLockTask(project, appName, mainId)
+        final TaskProvider<Task> releaseExecutionLockTask = buildReleaseExecutionLockTask(project, appName, mainId)
+
+        String taskName = "${appName}ExecStopContainer" + appender
+        final TaskProvider<DockerExecStopContainer> execStopContainerTask = tasks.register(taskName, DockerExecStopContainer) {
 
             dependsOn(acquireExecutionLockTask)
 
-            group: appGroup
+            group: appName
             description: "Stop '${appName}' container."
 
-            targetContainerId { appContainer.mainId() }
+            targetContainerId { mainId }
             onNext { output ->
                 // pipe output to nowhere for the time being
             }
             onError { err ->
-                GradleDockerApplicationsPluginUtils.throwOnValidError(err)
-                logger.quiet "Container with ID '${appContainer.mainId()}' is not running or available to stop."
+                throwOnValidError(err)
+                logger.quiet "Container with ID '${mainId}' is not running or available to stop."
             }
         }
-        applyConfigs(execStopContainerTask, appContainer.main().stopConfigs)
+        applyConfigs(execStopContainerTask, mainContainer.stopConfigs)
 
-        return tasks.register("${appName}Stop") {
+        taskName = "${appName}Stop" + appender
+        return tasks.register(taskName) {
             outputs.upToDateWhen { false }
 
             dependsOn(execStopContainerTask)
             finalizedBy(releaseExecutionLockTask)
 
-            group: appGroup
+            group: appName
             description: "Stop '${appName}' container application if not already paused."
         }
     }
