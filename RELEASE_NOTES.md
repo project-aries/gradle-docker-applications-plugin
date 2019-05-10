@@ -1,4 +1,10 @@
-### Version 1.1.1 (TBA)
+### Version 1.3.0 (May 10, 2019)
+* `main` and `data` containers now lazily initialized.
+* application dsl gained `lock` and `dependsOn`.
+
+### Version 1.2.0 (May 1, 2019)
+* Each application gets its own private network stack.
+* application dsl gained `network` and `disableNetwork`.
 
 ### Version 1.1.0 (July 27, 2018)
 * All configs will now be applied/configured within its backing tasks doFirst block.
