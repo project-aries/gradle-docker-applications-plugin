@@ -16,6 +16,8 @@
 
 package com.aries.gradle.docker.applications.plugin
 
+import spock.lang.Ignore
+
 import static java.util.concurrent.TimeUnit.MINUTES
 
 import org.gradle.testkit.runner.BuildResult
@@ -29,6 +31,7 @@ import spock.lang.Timeout
 class EndToEndFunctionalTest extends AbstractFunctionalTest {
 
     @Timeout(value = 5, unit = MINUTES)
+    @Ignore
     def "Can start, stop, and remove a postgres application stack"() {
 
         final File mySpecialEntryPoint = new File("$projectDir/special-docker-entrypoint.sh")
