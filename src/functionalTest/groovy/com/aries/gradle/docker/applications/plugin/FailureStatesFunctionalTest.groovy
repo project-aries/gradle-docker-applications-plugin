@@ -30,7 +30,6 @@ import static java.util.concurrent.TimeUnit.MINUTES
 class FailureStatesFunctionalTest extends AbstractFunctionalTest {
 
     @Timeout(value = 5, unit = MINUTES)
-    @Ignore
     def "Will fail if no main container is defined"() {
 
         String uuid = randomString()
@@ -49,11 +48,10 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
             BuildResult result = buildAndFail('up')
 
         then:
-            result.output.contains('container has not been defined')
+            result.output.contains('must have a valid repository defined')
     }
 
     @Timeout(value = 5, unit = MINUTES)
-    @Ignore
     def "Will fail if main container is defined but no repository is set"() {
 
         String uuid = randomString()
@@ -79,7 +77,6 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
     }
 
     @Timeout(value = 5, unit = MINUTES)
-    @Ignore
     def "Will fail if container image does not exist"() {
 
         String uuid = randomString()
@@ -107,7 +104,6 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
     }
 
     @Timeout(value = 5, unit = MINUTES)
-    @Ignore
     def "Will fail if container does not have an entrypoint or start command"() {
 
         String uuid = randomString()
@@ -134,7 +130,6 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
     }
 
     @Timeout(value = 5, unit = MINUTES)
-    @Ignore
     def "Will fail if container issues exec which brings the 'main' container down"() {
 
         String uuid = randomString()
