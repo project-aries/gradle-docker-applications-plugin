@@ -31,7 +31,6 @@ import spock.lang.Timeout
 class EndToEndFunctionalTest extends AbstractFunctionalTest {
 
     @Timeout(value = 5, unit = MINUTES)
-    @Ignore
     def "Can start, stop, and remove a postgres application stack"() {
 
         final File mySpecialEntryPoint = new File("$projectDir/special-docker-entrypoint.sh")
@@ -69,8 +68,8 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             createCookie
         }
 
-        //String uuid = randomString()
-        String uuid = "gdap-f8b845c86e5e430282517b090a2a2262"
+        String uuid = randomString()
+        //String uuid = "gdap-f8b845c86e5e430282517b090a2a2262"
         buildFile << """
 
             configurations {
@@ -89,7 +88,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
 
             applications {
                 myPostgresStack {
-                    id = "${uuid}"
+                    // id = "${uuid}"
                     count = 2
                     dependsOn(configurations.dev, kicker)
                     main {
@@ -151,7 +150,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             task up(dependsOn: ['myPostgresStackUp']) {
                 doLast {
                     logger.quiet 'FOUND INSPECTION: ' + myPostgresStackUp.ext.applications.get(0).get().ext.inspection
-                }                
+                }
             }
                    
         """
@@ -181,6 +180,5 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('RestartContainer_1 SKIPPED')
             result.output.contains('Removing network')
             !result.output.contains('ListImages_1 SKIPPED')
-            result.output.contains('fish bears')
     }
 }

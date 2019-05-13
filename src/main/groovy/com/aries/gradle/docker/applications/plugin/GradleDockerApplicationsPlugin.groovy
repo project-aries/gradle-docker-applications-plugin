@@ -70,7 +70,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             // being built. This ensures our main and data container were
             // properly setup and in the case of the latter we will inherit
             // its properties from the former if it wasn't defined.
-            appContainer.sanityCheck()
+            appContainer.initializeApplication()
 
             // create tasks after evaluation so that we can pick up any changes
             // made to our various extension points.

@@ -98,15 +98,6 @@ class AbstractApplication {
         }
     }
     MainContainer main() {
-        if (!mainContainer) { mainContainer = new MainContainer() }
-
-        if (mainContainerConfigs) {
-            if (!mainContainer) { mainContainer = new MainContainer() }
-            for (final Closure<MainContainer> cnf : mainContainerConfigs) {
-                mainContainer = ConfigureUtil.configure(cnf, mainContainer)
-            }
-        }
-
         mainContainer
     }
     String mainId() {
@@ -122,15 +113,6 @@ class AbstractApplication {
         }
     }
     DataContainer data() {
-        if (!dataContainer) { dataContainer = new DataContainer() }
-
-        if (dataContainerConfigs) {
-            if (!dataContainer) { dataContainer = new DataContainer() }
-            for (final Closure<DataContainer> cnf : dataContainerConfigs) {
-                dataContainer = ConfigureUtil.configure(cnf, dataContainer)
-            }
-        }
-
         dataContainer
     }
     String dataId() {
@@ -138,17 +120,27 @@ class AbstractApplication {
     }
 
     // internal method to check that our main and data containers are setup properly
-    protected void sanityCheck() {
+    protected AbstractApplication initializeApplication() {
 
         // 1.) `main`, and all its properties, are required to be set and defined.
-        final MainContainer mainCheck = main()
-        Objects.requireNonNull(mainCheck.repository(), "'main' must have a valid repository defined")
+        mainContainer = new MainContainer()
+        for (final Closure<MainContainer> cnf : mainContainerConfigs) {
+            mainContainer = ConfigureUtil.configure(cnf, mainContainer)
+        }
+
+        Objects.requireNonNull(mainContainer.repository(), "'main' must have a valid repository defined")
 
         // 2.) `data` is not required to be defined as it will/can inherit properties from main.
-        final DataContainer dataCheck = data()
-        if (!dataCheck.repository()) {
-            dataCheck.repository = mainCheck.repository()
-            dataCheck.tag = mainCheck.tag()
+        dataContainer = new DataContainer()
+        for (final Closure<DataContainer> cnf : dataContainerConfigs) {
+            dataContainer = ConfigureUtil.configure(cnf, dataContainer)
         }
+
+        if (!dataContainer.repository()) {
+            dataContainer.repository = mainContainer.repository()
+            dataContainer.tag = mainContainer.tag()
+        }
+
+        this
     }
 }
