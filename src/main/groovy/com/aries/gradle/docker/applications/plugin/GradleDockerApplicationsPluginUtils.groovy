@@ -90,6 +90,51 @@ class GradleDockerApplicationsPluginUtils {
     }
 
     /**
+     * Execute an arbitrary task ensuring it's doFirst closures are run before hand
+     * and its doLast closures are run after.
+     *
+     * @param taskToExecute arbitrary task to execute.
+     */
+    static void executeTask(final Task taskToExecute) {
+        try {
+
+            // Execute doFirst actions in an ad-hoc manner
+            taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('doFirst') }.each {
+                it.execute(taskToExecute)
+            }
+
+            // Execute start action(s) in an ad-hoc manner (this should only return 1)
+            taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('start') }.each {
+                it.execute(taskToExecute)
+            }
+
+        } finally {
+
+            // Execute doLast actions in an ad-hoc manner
+            taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('doLast') }.each {
+                it.execute(taskToExecute)
+            }
+        }
+
+    }
+
+    /**
+     * Configure the passed TaskProvider against a list of Closures.
+     *
+     * @param taskToConfig the task to further configure.
+     * @param configsToApply list of Closure's to configure against task.
+     */
+    static void applyConfigs(final Task taskToConfig,
+                             final List<Closure> configsToApply) {
+
+        taskToConfig.configure { tsk ->
+            configsToApply.each { cnf ->
+                tsk.configure(cnf)
+            }
+        }
+    }
+
+    /**
      * Configure the passed TaskProvider against a list of Closures.
      *
      * @param taskToConfig the task to further configure.
