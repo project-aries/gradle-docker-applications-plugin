@@ -14,25 +14,26 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.applications.plugin.tasks
+package com.aries.gradle.docker.applications.plugin.chains
 
 import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
+import com.aries.gradle.docker.applications.plugin.tasks.DockerManageContainer
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.TaskProvider
 
 /**
- *  Contains single static method to create the `Down` task chain.
+ *  Contains single static method to create the `Up` task chain.
  */
-final class Down {
+final class Up {
 
-    private Down() {
+    private Up() {
         throw new UnsupportedOperationException("Purposefully not implemented.")
     }
 
     static Collection<TaskProvider<Task>> createTaskChain(final Project project,
-                                                    final AbstractApplication appContainer) {
+                                                          final AbstractApplication appContainer) {
 
         final Collection<TaskProvider<Task>> taskList = ArrayList.newInstance()
 
@@ -44,11 +45,10 @@ final class Down {
         return taskList
     }
 
-    // create required tasks for invoking the "down" chain.
-    private static TaskProvider<Task> _createTaskChain(final Project project,
-                                                       final AbstractApplication appContainer,
-                                                       final String appender) {
-
+    // create required tasks for invoking the "up" chain.
+    private static TaskProvider<DockerManageContainer> _createTaskChain(final Project project,
+                                                                        final AbstractApplication appContainer,
+                                                                        final String appender) {
         final String dataId = appContainer.dataId() + appender
         final String mainId = appContainer.mainId() + appender
         final String appName = appContainer.getName()
@@ -57,14 +57,20 @@ final class Down {
 
         final TaskContainer tasks = project.tasks;
 
-        final TaskProvider<DockerManageContainer> dataContainer = tasks.register("${appName}_Data_Down" + appender, DockerManageContainer) {
+        final TaskProvider<DockerManageContainer> dataContainer = tasks.register("${appName}_Data_Up" + appender, DockerManageContainer) {
 
             group: appName
-            description: "Delete '${appName}' data container if not already deleted."
+            description: "Start '${appName}' data container if not already started."
 
             id = dataId
-            command = 'down'
+            repository = appContainer.data().repository()
+            tag = appContainer.data().tag()
+            createOnly = true
+            command = 'up'
             network = networkName
+
+            create(appContainer.data().createConfigs)
+            files(appContainer.data().filesConfigs)
 
             lock {
                 name = lockName
@@ -72,16 +78,24 @@ final class Down {
             }
         }
 
-        final TaskProvider<DockerManageContainer> mainContainer = tasks.register("${appName}_Main_Down" + appender, DockerManageContainer) {
+        final TaskProvider<DockerManageContainer> mainContainer = tasks.register("${appName}_Main_Up" + appender, DockerManageContainer) {
 
             dependsOn(dataContainer)
 
             group: appName
-            description: "Delete '${appName}' main container if not already deleted."
+            description: "Start '${appName}' main container if not already started."
 
             id = mainId
-            command = 'down'
+            repository = appContainer.main().repository()
+            tag = appContainer.main().tag()
+            command = 'up'
             network = networkName
+            volumesFrom = ["${dataId}"]
+
+            create(appContainer.main().getCreateConfigs())
+            files(appContainer.main().getFilesConfigs())
+            liveness(appContainer.main().getLivenessConfigs())
+            exec(appContainer.main().getExecConfigs())
 
             lock {
                 name = lockName

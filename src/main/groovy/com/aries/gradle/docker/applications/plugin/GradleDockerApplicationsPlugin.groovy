@@ -17,9 +17,9 @@
 package com.aries.gradle.docker.applications.plugin
 
 import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
-import com.aries.gradle.docker.applications.plugin.tasks.Down
-import com.aries.gradle.docker.applications.plugin.tasks.Stop
-import com.aries.gradle.docker.applications.plugin.tasks.Up
+import com.aries.gradle.docker.applications.plugin.chains.Down
+import com.aries.gradle.docker.applications.plugin.chains.Stop
+import com.aries.gradle.docker.applications.plugin.chains.Up
 import com.bmuschko.gradle.docker.DockerRemoteApiPlugin
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin

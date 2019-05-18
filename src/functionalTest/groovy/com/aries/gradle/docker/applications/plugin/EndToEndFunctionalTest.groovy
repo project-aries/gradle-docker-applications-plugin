@@ -145,7 +145,9 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             task down(dependsOn: ['myPostgresStackDown'])  
             
             task up(dependsOn: ['myPostgresStackUp']) {
-
+                doLast {
+                    println "FOUND REPORT: " + myPostgresStackUp.applications.get(0).get().getSummaryReport()
+                }
             }
                    
         """
@@ -171,5 +173,6 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('max_connections                        | 200')
             result.output.contains('Removing container with ID')
             result.output.contains('Removing network')
+            result.output.contains('Removing networkfda')
     }
 }

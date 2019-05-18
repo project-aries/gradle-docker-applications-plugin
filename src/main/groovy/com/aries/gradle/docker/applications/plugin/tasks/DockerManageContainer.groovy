@@ -17,6 +17,7 @@
 package com.aries.gradle.docker.applications.plugin.tasks
 
 import com.aries.gradle.docker.applications.plugin.domain.GradleLock
+import com.aries.gradle.docker.applications.plugin.domain.SummaryReport
 import com.bmuschko.gradle.docker.tasks.DockerOperation
 import com.bmuschko.gradle.docker.tasks.container.*
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
@@ -26,6 +27,7 @@ import com.bmuschko.gradle.docker.tasks.image.DockerPullImage
 import com.bmuschko.gradle.docker.tasks.network.DockerCreateNetwork
 import com.bmuschko.gradle.docker.tasks.network.DockerInspectNetwork
 import com.bmuschko.gradle.docker.tasks.network.DockerRemoveNetwork
+import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.api.model.ContainerNetwork
 import groovy.transform.Internal
 import org.gradle.api.DefaultTask
@@ -101,6 +103,9 @@ class DockerManageContainer extends DefaultTask {
 
     @Internal
     private GradleLock gradleLock
+
+    @Internal
+    private SummaryReport summaryReport
 
     DockerManageContainer() {
 
@@ -308,6 +313,7 @@ class DockerManageContainer extends DefaultTask {
             }
 
             // 8.) get the summary for the running container and print to stdout
+            summaryReport = new SummaryReport()
             final Task summaryContainerTask = project.tasks.create(randomString(), DockerOperation, {
 
                 onNext { dockerClient ->
@@ -318,70 +324,63 @@ class DockerManageContainer extends DefaultTask {
                         // if the `execContainerTask` task kicked we need to
                         // make an additional inspection call to ensure things
                         // are still live and running just to be on the safe side.
-                        ext.inspection = dockerClient.inspectContainerCmd(containerId).exec()
-                        if (!ext.inspection.state.running) {
+                        summaryReport.inspection = dockerClient.inspectContainerCmd(containerId).exec()
+                        if (!summaryReport.inspection.state.running) {
                             throw new GradleException("Container '${containerId}' was NOT in a running state after exec(s) finished. Was this expected?")
                         }
                     } else {
-                        ext.inspection = livenessContainerTask.lastInspection()
+                        summaryReport.inspection = livenessContainerTask.lastInspection()
                     }
 
                     // 2.) set handful of variables for easy access and downstream use
-                    ext.id = ext.inspection.id
-                    ext.name = ext.inspection.name.replaceFirst('/', '')
-                    ext.image = ext.inspection.getConfig().image
-                    ext.command = (ext.inspection.getConfig().getEntrypoint()) ? ext.inspection.getConfig().getEntrypoint().join(' ') : null
-                    if (ext.inspection.getArgs()) {
-                        if (!ext.command) {
-                            ext.command = ""
+                    summaryReport.id = summaryReport.inspection.id
+                    summaryReport.name = summaryReport.inspection.name.replaceFirst('/', '')
+                    summaryReport.image = summaryReport.inspection.getConfig().image
+                    summaryReport.command = (summaryReport.inspection.getConfig().getEntrypoint()) ? summaryReport.inspection.getConfig().getEntrypoint().join(' ') : null
+                    if (summaryReport.inspection.getArgs()) {
+                        if (!summaryReport.command) {
+                            summaryReport.command = ""
                         }
-                        ext.command = ("${ext.command} " + ext.inspection.getArgs().join(' ')).trim()
+                        summaryReport.command = ("${summaryReport.command} " + summaryReport.inspection.getArgs().join(' ')).trim()
                     }
-                    ext.created = ext.inspection.created
-                    ext.ports = [:]
-                    if (ext.inspection.getNetworkSettings().getPorts()) {
-                        ext.inspection.getNetworkSettings().getPorts().getBindings().each { k, v ->
+                    summaryReport.created = summaryReport.inspection.created
+                    if (summaryReport.inspection.getNetworkSettings().getPorts()) {
+                        summaryReport.inspection.getNetworkSettings().getPorts().getBindings().each { k, v ->
                             def key = '' + k.getPort()
                             def value = '' + (v ? v[0].hostPortSpec : 0)
-                            ext.ports.put(key, value)
+                            summaryReport.ports.put(key, value)
                         }
                     }
 
                     // find the proper network to use for downstream consumption
-                    if (ext.inspection.getNetworkSettings().getNetworks().isEmpty()) {
-                        ext.address = null
-                        ext.gateway = null
+                    String foundNetwork = null
+                    if (summaryReport.inspection.getNetworkSettings().getNetworks().isEmpty()) {
+                        summaryReport.address = null
+                        summaryReport.gateway = null
                     } else {
                         ContainerNetwork containerNetwork
                         if (networkName) {
-                            containerNetwork = ext.inspection.getNetworkSettings().getNetworks().get(networkName)
+                            containerNetwork = summaryReport.inspection.getNetworkSettings().getNetworks().get(networkName)
+                            foundNetwork = networkName
                         } else {
-                            for (final Map.Entry<String, ContainerNetwork> entry : ext.inspection.getNetworkSettings().getNetworks().entrySet()) {
+                            for (final Map.Entry<String, ContainerNetwork> entry : summaryReport.inspection.getNetworkSettings().getNetworks().entrySet()) {
                                 if (!entry.getKey().equals('none')) {
+                                    foundNetwork = entry.getKey()
                                     containerNetwork = entry.getValue()
                                     break
                                 }
                             }
                         }
-                        ext.address = containerNetwork?.getIpAddress()
-                        ext.gateway = containerNetwork?.getGateway()
+
+                        summaryReport.address = containerNetwork?.getIpAddress()
+                        summaryReport.gateway = containerNetwork?.getGateway()
                     }
 
-                    // 3.) print all variables to stdout as an indication that we are now live
-                    String banner = '====='
-                    ext.id.length().times { banner += '=' }
+                    summaryReport.network = foundNetwork
 
+                    // 3.) print banner to stdout as an indication that we are now live
                     logger.quiet '' // newline just to put a break between last output and this banner being printed
-                    logger.quiet banner
-                    logger.quiet "ID = ${ext.id}"
-                    logger.quiet "NAME = ${ext.name}"
-                    logger.quiet "IMAGE = ${ext.image}"
-                    logger.quiet "COMMAND = ${ext.command}"
-                    logger.quiet "CREATED = ${ext.created}"
-                    logger.quiet "PORTS = " + ((ext.ports) ? ext.ports.collect { k, v -> "${v}->${k}" }.join(',') : ext.ports.toString())
-                    logger.quiet "ADDRESS = ${ext.address}"
-                    logger.quiet "GATEWAY = ${ext.gateway}"
-                    logger.quiet banner
+                    logger.quiet summaryReport.banner()
                 }
             })
             executeTask(summaryContainerTask)
@@ -480,5 +479,9 @@ class DockerManageContainer extends DefaultTask {
         if (requestedGradleLock) {
             gradleLock = ConfigureUtil.configure(requestedGradleLock, gradleLock ?: new GradleLock())
         }
+    }
+
+    SummaryReport getSummaryReport() {
+        summaryReport
     }
 }

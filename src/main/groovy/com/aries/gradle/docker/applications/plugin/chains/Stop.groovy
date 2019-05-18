@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package com.aries.gradle.docker.applications.plugin.tasks
+package com.aries.gradle.docker.applications.plugin.chains
 
 import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
+import com.aries.gradle.docker.applications.plugin.tasks.DockerManageContainer
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.TaskContainer
