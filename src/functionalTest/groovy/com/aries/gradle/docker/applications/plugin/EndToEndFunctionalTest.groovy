@@ -68,8 +68,6 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             createCookie
         }
 
-        String uuid = randomString()
-        //String uuid = "gdap-f8b845c86e5e430282517b090a2a2262"
         buildFile << """
 
             configurations {
@@ -88,8 +86,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
 
             applications {
                 myPostgresStack {
-                    // id = "${uuid}"
-                    count = 2
+                    count = 1
                     dependsOn(configurations.dev, kicker)
                     main {
                         repository = 'postgres'
@@ -148,9 +145,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             task down(dependsOn: ['myPostgresStackDown'])  
             
             task up(dependsOn: ['myPostgresStackUp']) {
-                doLast {
-                    logger.quiet 'FOUND INSPECTION: ' + myPostgresStackUp.ext.applications.get(0).get().ext.inspection
-                }
+
             }
                    
         """
@@ -160,11 +155,9 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
 
         then:
             result.output.contains('In the KICKER')
-            result.output.contains('is not running or available to inspect')
             result.output.contains('Inspecting container with ID')
-            result.output.contains('PullDataImage_1 SKIPPED')
             result.output.contains('Created container with ID')
-            count(result.output, 'Copying file to container') == 10
+            count(result.output, 'Copying file to container') == 5
             result.output.contains('Creating network')
             result.output.contains('Copying file to container')
             result.output.contains('Starting liveness')
@@ -177,8 +170,6 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('pg_ctl: server is running')
             result.output.contains('max_connections                        | 200')
             result.output.contains('Removing container with ID')
-            result.output.contains('RestartContainer_1 SKIPPED')
             result.output.contains('Removing network')
-            !result.output.contains('ListImages_1 SKIPPED')
     }
 }

@@ -99,8 +99,7 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
         BuildResult result = buildAndFail('up')
 
         then:
-        result.output.contains('were not found locally: pull required')
-        result.output.contains('was not found remotely')
+        result.output.contains('manifest for postgres:idontexist not found"')
     }
 
     @Timeout(value = 5, unit = MINUTES)
@@ -162,6 +161,6 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
         BuildResult result = buildAndFail('up')
 
         then:
-        result.output.contains("The 'main' container was NOT in a running state after exec(s) finished. Was this expected?")
+        result.output.contains("was NOT in a running state after exec(s) finished. Was this expected?")
     }
 }

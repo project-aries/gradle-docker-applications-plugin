@@ -21,6 +21,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.TaskProvider
+import org.gradle.util.ConfigureUtil
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -94,6 +95,19 @@ class GradleDockerApplicationsPluginUtils {
      * and its doLast closures are run after.
      *
      * @param taskToExecute arbitrary task to execute.
+     * @param configsToApply configs to apply to task prior to executing.
+     */
+    static void executeTask(final Task taskToExecute,
+                            final List<Closure> configsToApply) {
+
+        executeTask(applyConfigs(taskToExecute, configsToApply))
+    }
+
+    /**
+     * Execute an arbitrary task ensuring it's doFirst closures are run before hand
+     * and its doLast closures are run after.
+     *
+     * @param taskToExecute arbitrary task to execute.
      */
     static void executeTask(final Task taskToExecute) {
         try {
@@ -115,7 +129,6 @@ class GradleDockerApplicationsPluginUtils {
                 it.execute(taskToExecute)
             }
         }
-
     }
 
     /**
@@ -124,7 +137,7 @@ class GradleDockerApplicationsPluginUtils {
      * @param taskToConfig the task to further configure.
      * @param configsToApply list of Closure's to configure against task.
      */
-    static void applyConfigs(final Task taskToConfig,
+    static Task applyConfigs(final Task taskToConfig,
                              final List<Closure> configsToApply) {
 
         taskToConfig.configure { tsk ->
@@ -132,6 +145,8 @@ class GradleDockerApplicationsPluginUtils {
                 tsk.configure(cnf)
             }
         }
+
+        taskToConfig
     }
 
     /**
@@ -146,6 +161,54 @@ class GradleDockerApplicationsPluginUtils {
         taskToConfig.configure { tsk ->
             configsToApply.each { cnf ->
                 tsk.configure(cnf)
+            }
+        }
+    }
+
+    static void acquireLock(final Project project, final String lockName) {
+
+        project.logger.debug "Acquiring execution lock with '${lockName}'."
+
+        if(!project.gradle.ext.has(lockName)) {
+            synchronized (GradleDockerApplicationsPluginUtils) {
+                if(!project.gradle.ext.has(lockName)) {
+                    final AtomicBoolean executionLock = new AtomicBoolean(false);
+                    project.gradle.ext.set(lockName, executionLock)
+                }
+            }
+        }
+
+        final def progressLogger = getProgressLogger(project, GradleDockerApplicationsPluginUtils)
+        progressLogger.started()
+
+        int pollTimes = 0
+        long pollInterval = 5000
+        long totalMillis = 0
+        final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
+        while(!executionLock.compareAndSet(false, true)) {
+            pollTimes += 1
+
+            totalMillis = pollTimes * pollInterval
+            long totalMinutes = TimeUnit.MILLISECONDS.toMinutes(totalMillis)
+
+            progressLogger.progress("Waiting on lock for ${totalMinutes}m...")
+            sleep(pollInterval)
+        }
+        progressLogger.completed()
+
+        project.logger.debug "Lock took ${totalMillis}m to acquire."
+    }
+
+    static void releaseLock(final Project project, final String lockName) {
+
+        project.logger.debug "Releasing execution lock with '${lockName}'."
+
+        if(project.gradle.ext.has(lockName)) {
+            synchronized (GradleDockerApplicationsPluginUtils) {
+                if(project.gradle.ext.has(lockName)) {
+                    final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
+                    executionLock.set(false)
+                }
             }
         }
     }
@@ -224,5 +287,9 @@ class GradleDockerApplicationsPluginUtils {
                 }
             }
         }
+    }
+
+    static boolean isNullOrEmpty(String checkString) {
+        return !(checkString?.trim())
     }
 }

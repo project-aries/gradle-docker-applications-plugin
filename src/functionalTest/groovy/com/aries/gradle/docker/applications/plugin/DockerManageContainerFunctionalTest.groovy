@@ -23,23 +23,29 @@ import static java.util.concurrent.TimeUnit.MINUTES
 
 /**
  *
- *  Functional tests to execute DockerRunContainer.
+ *  Functional tests to execute DockerManageContainer.
  *
  */
-class DockerRunContainerFunctionalTest extends AbstractFunctionalTest {
+class DockerManageContainerFunctionalTest extends AbstractFunctionalTest {
 
     @Timeout(value = 5, unit = MINUTES)
-    def "Execute DockerRunContainer"() {
+    def "Execute DockerManageContainer"() {
 
         String uuid = "devops"
-        //String uuid = randomString()
         buildFile << """
 
-            task runC(type: com.aries.gradle.docker.applications.plugin.tasks.DockerRunContainer) {
+            task runC(type: com.aries.gradle.docker.applications.plugin.tasks.DockerManageContainer) {
                 id = "${uuid}"
                 repository = 'postgres'
                 tag = 'alpine'
                 network = "${uuid}"
+                
+                command = 'down'
+                
+                doFirst {
+                    println 'In the KICKER'
+                }
+                
                 create {
                     withEnvVar("CI", "TRUE")
                     withEnvVar("DEVOPS", "ROCKS")
@@ -48,6 +54,13 @@ class DockerRunContainerFunctionalTest extends AbstractFunctionalTest {
                 }
                 liveness {
                     livenessProbe(300000, 10000, 'database system is ready to accept connections')
+                }
+                
+                stop {
+                    withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"])
+                    successOnExitCodes = [0, 127, 137]
+                    awaitStatusTimeout = 60000
+                    execStopProbe(60000, 10000)
                 }
             }
                    
