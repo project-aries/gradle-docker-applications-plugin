@@ -1,3 +1,8 @@
+### Version 1.4.0 (May 18, 2019)
+* Introduction of `DockerManageContainer` task.
+* Overall refactor of internal code to use less gradle tasks and take advantage of `DockerManageContainer` task.
+* All `Up` tasks will now have a list of `SummaryReport` objects attached to them for downstreaming querying of running applications.
+
 ### Version 1.3.0 (May 10, 2019)
 * `main` and `data` containers now lazily initialized.
 * application dsl gained `lock` and `dependsOn`.
