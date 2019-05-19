@@ -173,6 +173,5 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('max_connections                        | 200')
             result.output.contains('Removing container with ID')
             result.output.contains('Removing network')
-            result.output.contains('Removing networkfda')
     }
 }
