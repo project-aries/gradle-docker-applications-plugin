@@ -38,7 +38,7 @@ final class Down {
         final Collection<TaskProvider<Task>> taskList = ArrayList.newInstance()
 
         for (int i = 0; i < appContainer.count(); i++) {
-            final TaskProvider<Task> singleTaskChain = _createTaskChain(project, appContainer, "_" + (i + 1))
+            final TaskProvider<Task> singleTaskChain = _createTaskChain(project, appContainer, String.valueOf(i + 1))
             taskList.add(singleTaskChain)
         }
 
@@ -48,17 +48,17 @@ final class Down {
     // create required tasks for invoking the "down" chain.
     private static TaskProvider<Task> _createTaskChain(final Project project,
                                                        final AbstractApplication appContainer,
-                                                       final String appender) {
+                                                       final String index) {
 
-        final String dataId = appContainer.dataId() + appender
-        final String mainId = appContainer.mainId() + appender
+        final String dataId = appContainer.dataId() + "-${index}"
+        final String mainId = appContainer.mainId() + "-${index}"
         final String appName = appContainer.getName()
         final String lockName = appContainer.lock() ?: mainId
         final String networkName = appContainer.network()
 
         final TaskContainer tasks = project.tasks;
 
-        final TaskProvider<DockerManageContainer> dataContainer = tasks.register("${appName}_Data_Down" + appender, DockerManageContainer) {
+        final TaskProvider<DockerManageContainer> dataContainer = tasks.register("${appName}Down-data-${index}", DockerManageContainer) {
 
             group: appName
             description: "Delete '${appName}' data container if not already deleted."
@@ -69,11 +69,11 @@ final class Down {
 
             lock {
                 name = lockName
-                lock = true
+                acquire = true
             }
         }
 
-        final TaskProvider<DockerManageContainer> mainContainer = tasks.register("${appName}_Main_Down" + appender, DockerManageContainer) {
+        final TaskProvider<DockerManageContainer> mainContainer = tasks.register("${appName}Down-main-${index}", DockerManageContainer) {
 
             dependsOn(dataContainer)
 
@@ -86,7 +86,7 @@ final class Down {
 
             lock {
                 name = lockName
-                unlock = true
+                release = true
             }
         }
 

@@ -16,9 +16,9 @@
 
 package com.aries.gradle.docker.applications.plugin.domain
 
-import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
-import org.gradle.api.GradleException
+
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.util.ConfigureUtil
 
@@ -66,7 +66,7 @@ class AbstractApplication {
         this.id
     }
 
-    // if set will be used as a shared lock amongst all tasks.
+    // if set will be used as a shared acquire amongst all tasks.
     @Input
     @Optional
     String lock
@@ -74,7 +74,12 @@ class AbstractApplication {
         this.lock
     }
 
-    // if set will be used as a shared lock amongst all tasks.
+    // internal helper collection to hold AbstractApplication names
+    // that this AbstractApplication dependsOn.
+    @Internal
+    Collection<String> applicationDependsOn = ArrayList.newInstance()
+
+    // if set will be used as a shared acquire amongst all tasks.
     @Input
     @Optional
     Collection<Object> dependsOn
@@ -84,8 +89,18 @@ class AbstractApplication {
         }
 
         if (paths) {
-            this.dependsOn.addAll(paths)
+            paths.each { dep ->
+                if (dep) {
+                    def arbitraryDep = dep
+                    if (arbitraryDep instanceof AbstractApplication) {
+                        this.applicationDependsOn.add(dep.getName())
+                        arbitraryDep = dep.getName() + "Up"
+                    }
+                    this.dependsOn.add(arbitraryDep)
+                }
+            }
         }
+
         this.dependsOn
     }
 

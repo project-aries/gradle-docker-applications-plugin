@@ -38,7 +38,7 @@ final class Up {
         final Collection<TaskProvider<Task>> taskList = ArrayList.newInstance()
 
         for (int i = 0; i < appContainer.count(); i++) {
-            final TaskProvider<Task> singleTaskChain = _createTaskChain(project, appContainer, "_" + (i + 1))
+            final TaskProvider<Task> singleTaskChain = _createTaskChain(project, appContainer, String.valueOf(i + 1))
             taskList.add(singleTaskChain)
         }
 
@@ -48,16 +48,16 @@ final class Up {
     // create required tasks for invoking the "up" chain.
     private static TaskProvider<DockerManageContainer> _createTaskChain(final Project project,
                                                                         final AbstractApplication appContainer,
-                                                                        final String appender) {
-        final String dataId = appContainer.dataId() + appender
-        final String mainId = appContainer.mainId() + appender
+                                                                        final String index) {
+        final String dataId = appContainer.dataId() + "-${index}"
+        final String mainId = appContainer.mainId() + "-${index}"
         final String appName = appContainer.getName()
         final String lockName = appContainer.lock() ?: mainId
         final String networkName = appContainer.network()
 
         final TaskContainer tasks = project.tasks;
 
-        final TaskProvider<DockerManageContainer> dataContainer = tasks.register("${appName}_Data_Up" + appender, DockerManageContainer) {
+        final TaskProvider<DockerManageContainer> dataContainer = tasks.register("${appName}Up-data-${index}", DockerManageContainer) {
 
             group: appName
             description: "Start '${appName}' data container if not already started."
@@ -74,11 +74,11 @@ final class Up {
 
             lock {
                 name = lockName
-                lock = true
+                acquire = true
             }
         }
 
-        final TaskProvider<DockerManageContainer> mainContainer = tasks.register("${appName}_Main_Up" + appender, DockerManageContainer) {
+        final TaskProvider<DockerManageContainer> mainContainer = tasks.register("${appName}Up-main-${index}", DockerManageContainer) {
 
             dependsOn(dataContainer)
 
@@ -99,7 +99,7 @@ final class Up {
 
             lock {
                 name = lockName
-                unlock = true
+                release = true
             }
         }
 

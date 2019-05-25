@@ -16,12 +16,10 @@
 
 package com.aries.gradle.docker.applications.plugin
 
-import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
-import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.specs.AndSpec
 import org.gradle.api.tasks.TaskProvider
-import org.gradle.util.ConfigureUtil
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -29,9 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import static com.bmuschko.gradle.docker.utils.IOUtils.getProgressLogger
 
 /**
- *
- * Place to house project wide static methods.
- *
+ * Project wide static methods.
  */
 class GradleDockerApplicationsPluginUtils {
 
@@ -77,56 +73,52 @@ class GradleDockerApplicationsPluginUtils {
     }
 
     /**
-     * Throw the passed Throwable IF its a valid error otherwise re-throw as GradleException.
+     * Execute an arbitrary tasks code ensuring its `doFirst` closures are run before hand
+     * and its `doLast` closures are run after.
      *
-     * @param throwable the Exception to validate and potentially re-throw.
-     * @param message the message to insert into potentially re-thrown GradleException.
-     */
-    static void throwOnValidErrorElseGradleException(final Throwable throwable, final String message) {
-        if (isValidError(throwable)) {
-            throw throwable
-        } else {
-            throw new GradleException(message, throwable)
-        }
-    }
-
-    /**
-     * Execute an arbitrary task ensuring it's doFirst closures are run before hand
-     * and its doLast closures are run after.
+     * It's important to note that the task is not actually run in the gradle sense
+     * but that its code is called much like any other piece of code.
      *
      * @param taskToExecute arbitrary task to execute.
      * @param configsToApply configs to apply to task prior to executing.
      */
-    static void executeTask(final Task taskToExecute,
-                            final List<Closure> configsToApply) {
+    static void executeTaskCode(final Task taskToExecute,
+                                final List<Closure> configsToApply) {
 
-        executeTask(applyConfigs(taskToExecute, configsToApply))
+        executeTaskCode(applyConfigs(taskToExecute, configsToApply))
     }
 
     /**
-     * Execute an arbitrary task ensuring it's doFirst closures are run before hand
-     * and its doLast closures are run after.
+     * Execute an arbitrary tasks code ensuring its `doFirst` closures are run before hand
+     * and its `doLast` closures are run after.
+     *
+     * It's important to note that the task is not actually run in the gradle sense
+     * but that its code is called much like any other piece of code.
      *
      * @param taskToExecute arbitrary task to execute.
      */
-    static void executeTask(final Task taskToExecute) {
-        try {
+    static void executeTaskCode(final Task taskToExecute) {
 
-            // Execute doFirst actions in an ad-hoc manner
-            taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('doFirst') }.each {
-                it.execute(taskToExecute)
-            }
+        // ensure any and all `onlyIf` blocks resolve to true
+        if (taskToExecute.getOnlyIf().isSatisfiedBy(taskToExecute)) {
+            try {
 
-            // Execute start action(s) in an ad-hoc manner (this should only return 1)
-            taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('start') }.each {
-                it.execute(taskToExecute)
-            }
+                // Execute doFirst actions in an ad-hoc manner
+                taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('doFirst') }.each {
+                    it.execute(taskToExecute)
+                }
 
-        } finally {
+                // Execute start action(s) in an ad-hoc manner (this should only return 1)
+                taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('start') }.each {
+                    it.execute(taskToExecute)
+                }
 
-            // Execute doLast actions in an ad-hoc manner
-            taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('doLast') }.each {
-                it.execute(taskToExecute)
+            } finally {
+
+                // Execute doLast actions in an ad-hoc manner
+                taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('doLast') }.each {
+                    it.execute(taskToExecute)
+                }
             }
         }
     }
@@ -167,7 +159,7 @@ class GradleDockerApplicationsPluginUtils {
 
     static void acquireLock(final Project project, final String lockName) {
 
-        project.logger.debug "Acquiring execution lock with '${lockName}'."
+        project.logger.debug "Acquiring execution acquire with '${lockName}'."
 
         if(!project.gradle.ext.has(lockName)) {
             synchronized (GradleDockerApplicationsPluginUtils) {
@@ -191,7 +183,7 @@ class GradleDockerApplicationsPluginUtils {
             totalMillis = pollTimes * pollInterval
             long totalMinutes = TimeUnit.MILLISECONDS.toMinutes(totalMillis)
 
-            progressLogger.progress("Waiting on lock for ${totalMinutes}m...")
+            progressLogger.progress("Waiting on acquire for ${totalMinutes}m...")
             sleep(pollInterval)
         }
         progressLogger.completed()
@@ -201,89 +193,13 @@ class GradleDockerApplicationsPluginUtils {
 
     static void releaseLock(final Project project, final String lockName) {
 
-        project.logger.debug "Releasing execution lock with '${lockName}'."
+        project.logger.debug "Releasing execution acquire with '${lockName}'."
 
         if(project.gradle.ext.has(lockName)) {
             synchronized (GradleDockerApplicationsPluginUtils) {
                 if(project.gradle.ext.has(lockName)) {
                     final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
                     executionLock.set(false)
-                }
-            }
-        }
-    }
-
-    // create task which will acquire an execution lock for a given task chain
-    static TaskProvider<Task> buildAcquireExecutionLockTask(final Project project,
-                                                            final String appName,
-                                                            final String lockName) {
-
-        // using random string as this method is called ad-hoc in multiple places
-        // and so the name must be unique but still named appropriately.
-        return project.tasks.register("${appName}AcquireExecutionLock_${randomString(null)}") {
-            outputs.upToDateWhen { false }
-
-            group: appName
-            description: "Acquire execution lock for '${appName}'."
-
-            doLast {
-                logger.quiet "Acquiring execution lock with '${lockName}'."
-
-                if(!project.gradle.ext.has(lockName)) {
-                    synchronized (GradleDockerApplicationsPluginUtils) {
-                        if(!project.gradle.ext.has(lockName)) {
-                            final AtomicBoolean executionLock = new AtomicBoolean(false);
-                            project.gradle.ext.set(lockName, executionLock)
-                        }
-                    }
-                }
-
-                final def progressLogger = getProgressLogger(project, GradleDockerApplicationsPluginUtils)
-                progressLogger.started()
-
-                int pollTimes = 0
-                long pollInterval = 5000
-                long totalMillis = 0
-                final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
-                while(!executionLock.compareAndSet(false, true)) {
-                    pollTimes += 1
-
-                    totalMillis = pollTimes * pollInterval
-                    long totalMinutes = TimeUnit.MILLISECONDS.toMinutes(totalMillis)
-
-                    progressLogger.progress("Waiting on lock for ${totalMinutes}m...")
-                    sleep(pollInterval)
-                }
-                progressLogger.completed()
-
-                logger.info "Lock took ${totalMillis}m to acquire."
-            }
-        }
-    }
-
-    // create task which will release an execution lock for a given task chain
-    static TaskProvider<Task> buildReleaseExecutionLockTask(final Project project,
-                                                            final String appName,
-                                                            final String lockName) {
-
-        // using random string as this method is called ad-hoc in multiple places
-        // and so the name must be unique but still named appropriately.
-        return project.tasks.register("${appName}ReleaseExecutionLock_${randomString(null)}") {
-            outputs.upToDateWhen { false }
-
-            group: appName
-            description: "Release execution lock for '${appName}'."
-
-            doLast {
-                logger.quiet "Releasing execution lock with '${lockName}'."
-
-                if(project.gradle.ext.has(lockName)) {
-                    synchronized (GradleDockerApplicationsPluginUtils) {
-                        if(project.gradle.ext.has(lockName)) {
-                            final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
-                            executionLock.set(false)
-                        }
-                    }
                 }
             }
         }

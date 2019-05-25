@@ -85,9 +85,66 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             }
 
             applications {
-                myPostgresStack {
-                    count = 1
+
+                myPostgresStackFish {
+                    count = 3
                     dependsOn(configurations.dev, kicker)
+                    main {
+                        repository = 'postgres'
+                        tag = 'alpine'
+                        create {
+                            withEnvVar("CI", "TRUE")
+                            withEnvVar("DEVOPS", "ROCKS")
+                            portBindings = [':5432']
+                            entrypoint = ["/${mySpecialEntryPoint.getName()}"]
+                            cmd = ['postgres', '-c', 'shared_buffers=256MB', '-c', 'max_connections=200']
+                        }
+                        files {
+                            withFile("${mySpecialEntryPoint.path}", '/') // demo with strings
+                            withFile("${createDatabase.path}", '/docker-entrypoint-initdb.d') // demo with strings
+                            withFile( { "${createUser.path}" }, { '/docker-entrypoint-initdb.d' }) // demo with closures
+                            withFile(project.file("${grantPrivileges.path}"), '/docker-entrypoint-initdb.d') // mixed demo with files
+                        }
+                        stop {
+                            withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl stop -m fast"])
+                            successOnExitCodes = [0, 127, 137]
+                            awaitStatusTimeout = 60000
+                            execStopProbe(60000, 10000)
+                        }
+                        liveness {
+                            livenessProbe(300000, 10000, 'database system is ready to accept connections')
+                        }
+                        exec {
+                        
+                            // can define as many of these commands as you'd like
+                            // which will kick on initial **UP** only.
+                            withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE DATABASE devops'"])
+                            withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE USER devops'"])
+                            withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'GRANT ALL PRIVILEGES ON DATABASE devops TO devops'"])
+                            
+                            // sleeping as below calls can fail while the above is still catching up
+                            withCommand(['sleep', '5'])
+                            withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'SELECT * FROM pg_settings'"])
+                            withCommand(['su', 'postgres', "-c", "/usr/local/bin/pg_ctl status"])
+                            withCommand(['printenv'])
+                            successOnExitCodes = [0]
+                        }
+                    }
+                    data {
+                        create {
+                            volumes = ["/var/lib/postgresql/data"]
+                        }
+                        files {
+                            withFile(project.file("$projectDir/cookie.txt"), project.file('/')) // demo with files
+                        }
+                    }
+                }
+                
+                def upperObj = getByName('myPostgresStackFish')
+                
+                myPostgresStack {
+                    count = 2
+                    dependsOn(configurations.dev, kicker, upperObj)
                     main {
                         repository = 'postgres'
                         tag = 'alpine'

@@ -86,17 +86,17 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         final Collection<TaskProvider<Task>> taskChains = Up.createTaskChain(project, appContainer)
         final String appName = appContainer.getName()
 
-        final TaskProvider<Task> upDependencies = project.tasks.register("${appName}Up_Dependencies") {
+        final TaskProvider<Task> upDependencies = project.tasks.register("${appName}UpDependencies") {
             onlyIf { appContainer.dependsOn() }
             outputs.upToDateWhen { false }
 
             dependsOn(appContainer.dependsOn())
 
             group: appName
-            description: "Trigger all '${appName}' dependencies if not already triggered."
+            description: "Trigger all start dependencies for '${appName}' if not already triggered."
         }
 
-        final TaskProvider<Task> upChain = project.tasks.register("${appName}Up_Chain") {
+        final TaskProvider<Task> upChain = project.tasks.register("${appName}UpChain") {
             outputs.upToDateWhen { false }
 
             mustRunAfter(upDependencies)
@@ -123,14 +123,34 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         final Collection<TaskProvider<Task>> taskChains = Stop.createTaskChain(project, appContainer)
         final String appName = appContainer.getName()
 
-        return project.tasks.register("${appName}Stop") {
+        final TaskProvider<Task> stopDependencies = project.tasks.register("${appName}StopDependencies") {
             outputs.upToDateWhen { false }
 
             dependsOn(taskChains)
+
+            group: appName
+            description: "Trigger all stop dependencies for '${appName}' if not already triggered."
+        }
+
+        final TaskProvider<Task> stopChain = project.tasks.register("${appName}StopChain") {
+            onlyIf { appContainer.applicationDependsOn }
+            outputs.upToDateWhen { false }
+
+            mustRunAfter(stopDependencies)
+            dependsOn(appContainer.applicationDependsOn.collect { "${it}Stop" })
+
+            group: appName
+            description: "Stop all '${appName}' container application(s) if not already started."
+        }
+
+        return project.tasks.register("${appName}Stop") {
+            outputs.upToDateWhen { false }
+
+            dependsOn(stopChain, stopDependencies)
             ext.applications = taskChains
 
             group: appName
-            description: "Pause all '${appName}' container application(s) if not already paused."
+            description: "Wrapper for stopping all '${appName}' container application(s) if not already stopped."
         }
     }
 
@@ -140,14 +160,34 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         final Collection<TaskProvider<Task>> taskChains = Down.createTaskChain(project, appContainer)
         final String appName = appContainer.getName()
 
-        return project.tasks.register("${appName}Down") {
+        final TaskProvider<Task> downDependencies = project.tasks.register("${appName}DownDependencies") {
             outputs.upToDateWhen { false }
 
             dependsOn(taskChains)
-            ext.applications = taskChains
+
+            group: appName
+            description: "Trigger all delete dependencies for '${appName}' if not already triggered."
+        }
+
+        final TaskProvider<Task> stopChain = project.tasks.register("${appName}DownChain") {
+            onlyIf { appContainer.applicationDependsOn }
+            outputs.upToDateWhen { false }
+
+            mustRunAfter(downDependencies)
+            dependsOn(appContainer.applicationDependsOn.collect { "${it}Down" })
 
             group: appName
             description: "Delete all '${appName}' container application(s) if not already deleted."
+        }
+
+        return project.tasks.register("${appName}Down") {
+            outputs.upToDateWhen { false }
+
+            dependsOn(stopChain, downDependencies)
+            ext.applications = taskChains
+
+            group: appName
+            description: "Wrapper for deleting all '${appName}' container application(s) if not already deleted."
         }
     }
 }

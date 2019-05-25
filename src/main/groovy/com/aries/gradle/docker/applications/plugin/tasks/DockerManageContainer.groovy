@@ -27,15 +27,14 @@ import com.bmuschko.gradle.docker.tasks.image.DockerPullImage
 import com.bmuschko.gradle.docker.tasks.network.DockerCreateNetwork
 import com.bmuschko.gradle.docker.tasks.network.DockerInspectNetwork
 import com.bmuschko.gradle.docker.tasks.network.DockerRemoveNetwork
-import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.api.model.ContainerNetwork
-import groovy.transform.Internal
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.Task
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
 import org.gradle.util.ConfigureUtil
@@ -102,7 +101,7 @@ class DockerManageContainer extends DefaultTask {
     final ListProperty<Closure<DockerExecStopContainer>> stopConfigs = project.objects.listProperty(Closure)
 
     @Internal
-    private GradleLock gradleLock
+    private GradleLock lock
 
     @Internal
     private SummaryReport summaryReport
@@ -124,20 +123,20 @@ class DockerManageContainer extends DefaultTask {
 
         // sanity check for potentially requested lock(s)
         String lockName
-        boolean lock = false
-        boolean unlock = false
-        if (gradleLock) {
-            lockName = gradleLock.name
+        boolean acquire = false
+        boolean release = false
+        if (this.lock) {
+            lockName = this.lock.name
             if (isNullOrEmpty(lockName)) {
                 throw new GradleException("'lock' not defined with a valid name")
             }
-            lock = gradleLock.lock
-            unlock = gradleLock.unlock
+            acquire = this.lock.acquire
+            release = this.lock.release
         }
 
         try {
 
-            if (lock) { acquireLock(project, lockName) }
+            if (acquire) { acquireLock(project, lockName) }
 
             final String requestedAction = (command.getOrNull() ?: CommandTypes.UP.toString()).trim().toUpperCase()
             switch(CommandTypes.valueOf(requestedAction)) {
@@ -149,7 +148,7 @@ class DockerManageContainer extends DefaultTask {
 
         } finally {
 
-            if (unlock) { releaseLock(project, lockName) }
+            if (release) { releaseLock(project, lockName) }
         }
     }
 
@@ -178,25 +177,23 @@ class DockerManageContainer extends DefaultTask {
                 throwOnValidError(err)
             }
         })
-        executeTask(availableContainerTask)
+        executeTaskCode(availableContainerTask)
 
         // 2.) Create network if requested and not present
         if (networkName && !availableContainerTask.ext.hasNetwork) {
-            final Task inspectNetworkTask = project.tasks.create(randomString(), DockerInspectNetwork, {
-                ext.hasNetwork = true
-                networkId = networkName
-                onError {
-                    ext.hasNetwork = false
+            final Task createNetworkTask = project.tasks.create(randomString(), DockerCreateNetwork, {
+                onlyIf {
+                    try {
+                        dockerClient.inspectNetworkCmd().withNetworkId(networkName).exec()
+                        false
+                    } catch (Exception e) {
+                        true
+                    }
                 }
-            })
-            executeTask(inspectNetworkTask)
 
-            if (!inspectNetworkTask.ext.hasNetwork) {
-                final Task createNetworkTask = project.tasks.create(randomString(), DockerCreateNetwork, {
-                    networkId = networkName
-                })
-                executeTask(createNetworkTask)
-            }
+                networkId = networkName
+            })
+            executeTaskCode(createNetworkTask)
         }
 
         boolean restartedContainer = false
@@ -211,7 +208,7 @@ class DockerManageContainer extends DefaultTask {
                     cnf.targetContainerId(containerId)
                     cnf.waitTime = 3000
                 })
-                executeTask(restartContainerTask)
+                executeTaskCode(restartContainerTask)
                 restartedContainer = true
             }
 
@@ -228,7 +225,7 @@ class DockerManageContainer extends DefaultTask {
                     throwOnValidError(err)
                 }
             })
-            executeTask(inspectImageTask)
+            executeTaskCode(inspectImageTask)
 
             if (inspectImageTask.ext.hasImage == false) {
                 final Task pullImageTask = project.tasks.create(randomString(), DockerPullImage, { cnf ->
@@ -238,7 +235,7 @@ class DockerManageContainer extends DefaultTask {
                         throwOnValidError(err)
                     }
                 })
-                executeTask(pullImageTask)
+                executeTaskCode(pullImageTask)
             }
 
             // 5.) create, copy files to, and start container if it didn't previously exist
@@ -248,13 +245,13 @@ class DockerManageContainer extends DefaultTask {
                 cnf.containerName = containerId
                 cnf.volumesFrom = volumesFromContainers
             })
-            executeTask(createContainerTask, createContainerConfigs.get())
+            executeTaskCode(createContainerTask, createContainerConfigs.get())
 
             if (copyFileConfigs.get()) {
                 final Task copyFilesToContainerTask = project.tasks.create(randomString(), DockerCopyFileToContainer, {
                     targetContainerId(containerId)
                 })
-                executeTask(copyFilesToContainerTask, copyFileConfigs.get())
+                executeTaskCode(copyFilesToContainerTask, copyFileConfigs.get())
             }
 
             if (createOnly == false) {
@@ -262,7 +259,7 @@ class DockerManageContainer extends DefaultTask {
                     ext.startTime = new Date()
                     targetContainerId(containerId)
                 })
-                executeTask(startContainerTask)
+                executeTaskCode(startContainerTask)
             }
         }
 
@@ -292,7 +289,7 @@ class DockerManageContainer extends DefaultTask {
                     sleep(2000)
                 }
             })
-            executeTask(livenessContainerTask, livenessConfigs.get())
+            executeTaskCode(livenessContainerTask, livenessConfigs.get())
 
             // 7.) run any "exec" tasks inside the container now that it's started
             boolean execStarted = false
@@ -308,7 +305,7 @@ class DockerManageContainer extends DefaultTask {
                         sleep(2000)
                     }
                 })
-                executeTask(execContainerTask, execConfigs.get())
+                executeTaskCode(execContainerTask, execConfigs.get())
                 execStarted = true
             }
 
@@ -383,7 +380,7 @@ class DockerManageContainer extends DefaultTask {
                     logger.quiet summaryReport.banner()
                 }
             })
-            executeTask(summaryContainerTask)
+            executeTaskCode(summaryContainerTask)
         }
     }
 
@@ -402,7 +399,7 @@ class DockerManageContainer extends DefaultTask {
                 throwOnValidError(err)
             }
         })
-        executeTask(execStopContainerTask, stopConfigs.get())
+        executeTaskCode(execStopContainerTask, stopConfigs.get())
     }
 
     private command_DOWN() {
@@ -420,10 +417,17 @@ class DockerManageContainer extends DefaultTask {
                 throwOnValidError(err)
             }
         })
-        executeTask(deleteContainerTask)
+        executeTaskCode(deleteContainerTask)
 
         if (networkName) {
             final Task removeNetworkTask = project.tasks.create(randomString(), DockerRemoveNetwork, {
+                onlyIf {
+                    try {
+                        dockerClient.inspectNetworkCmd().withNetworkId(networkName).exec().containers.size() == 0
+                    } catch (Exception e) {
+                        false
+                    }
+                }
 
                 targetNetworkId(networkName)
 
@@ -431,7 +435,7 @@ class DockerManageContainer extends DefaultTask {
                     throwOnValidError(err)
                 }
             })
-            executeTask(removeNetworkTask)
+            executeTaskCode(removeNetworkTask)
         }
     }
 
@@ -475,9 +479,9 @@ class DockerManageContainer extends DefaultTask {
         if (stopConfig) { stopConfigs.add(stopConfig) }
     }
 
-    void lock(final Closure<GradleLock> requestedGradleLock) {
-        if (requestedGradleLock) {
-            gradleLock = ConfigureUtil.configure(requestedGradleLock, gradleLock ?: new GradleLock())
+    void lock(final Closure<GradleLock> requestedLock) {
+        if (requestedLock) {
+            lock = ConfigureUtil.configure(requestedLock, lock ?: new GradleLock())
         }
     }
 
