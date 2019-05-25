@@ -1,3 +1,8 @@
+### Version 1.4.1 (May 25, 2019)
+* `AbstractApplication` can now dependOn other `AbstractApplications` and ensures all ordering of operations (up, stop, down) is done correctly.
+* Ad-hoc execution of gradle task-code now takes into account `onlyIf` blocks.
+* Bump `gradle-docker-plugin` to `4.9.0`.
+
 ### Version 1.4.0 (May 18, 2019)
 * Introduction of `DockerManageContainer` task.
 * Overall refactor of internal code to use less gradle tasks and take advantage of `DockerManageContainer` task.
