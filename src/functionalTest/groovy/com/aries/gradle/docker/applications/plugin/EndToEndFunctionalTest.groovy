@@ -16,8 +16,6 @@
 
 package com.aries.gradle.docker.applications.plugin
 
-import spock.lang.Ignore
-
 import static java.util.concurrent.TimeUnit.MINUTES
 
 import org.gradle.testkit.runner.BuildResult
@@ -84,9 +82,12 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                 }
             }
 
+            def sharedNetworkName = 'postgres-stack'
+
             applications {
 
-                myPostgresStackFish {
+                myPostgresStackDep {
+                    network = sharedNetworkName
                     count = 3
                     dependsOn(configurations.dev, kicker)
                     main {
@@ -140,11 +141,12 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                     }
                 }
                 
-                def upperObj = getByName('myPostgresStackFish')
+                def applicationDep = getByName('myPostgresStackDep')
                 
                 myPostgresStack {
+                    network = sharedNetworkName
                     count = 2
-                    dependsOn(configurations.dev, kicker, upperObj)
+                    dependsOn(configurations.dev, kicker, applicationDep)
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
@@ -216,7 +218,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             result.output.contains('In the KICKER')
             result.output.contains('Inspecting container with ID')
             result.output.contains('Created container with ID')
-            count(result.output, 'Copying file to container') == 5
+            count(result.output, 'Copying file to container') == 25
             result.output.contains('Creating network')
             result.output.contains('Copying file to container')
             result.output.contains('Starting liveness')

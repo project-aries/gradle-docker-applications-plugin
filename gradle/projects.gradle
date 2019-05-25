@@ -26,10 +26,6 @@ allprojects {
         compile localGroovy(), gradleApi()
         compile group: 'com.bmuschko', name: 'gradle-docker-plugin', version: '4.9.0'
 
-        testCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
-            exclude group: 'org.codehaus.groovy'
-        }
-
         testCompile "junit:junit:4.12"
         testCompile ('org.assertj:assertj-core:3.8.0')
     }

@@ -37,6 +37,9 @@ task functionalTest(type: Test) {
 
 dependencies {
     functionalTestCompile 'commons-lang:commons-lang:2.6'
+    functionalTestCompile("org.spockframework:spock-core:1.2-groovy-2.5") {
+        exclude group: 'org.codehaus.groovy'
+    }
 }
 
 gradlePlugin {
