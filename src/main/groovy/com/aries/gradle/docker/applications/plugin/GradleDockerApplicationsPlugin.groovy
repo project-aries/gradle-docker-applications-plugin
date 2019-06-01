@@ -66,6 +66,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         appContainers.each { appContainer ->
 
+            project.extensions.add(appContainer.getName(), appContainer)
+
             // Must be run after evaluation has happened but prior to tasks
             // being built. This ensures our main and data container were
             // properly setup and in the case of the latter we will inherit
@@ -87,10 +89,10 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         final String appName = appContainer.getName()
 
         final TaskProvider<Task> upDependencies = project.tasks.register("${appName}UpDependencies") {
-            onlyIf { appContainer.dependsOn() }
+            onlyIf { appContainer.options().dependsOn() }
             outputs.upToDateWhen { false }
 
-            dependsOn(appContainer.dependsOn())
+            dependsOn(appContainer.options().dependsOn())
 
             group: appName
             description: "Trigger all start dependencies for '${appName}' if not already triggered."
@@ -133,11 +135,11 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         }
 
         final TaskProvider<Task> stopChain = project.tasks.register("${appName}StopChain") {
-            onlyIf { appContainer.applicationDependsOn }
+            onlyIf { appContainer.options().applicationDependsOn }
             outputs.upToDateWhen { false }
 
             mustRunAfter(stopDependencies)
-            dependsOn(appContainer.applicationDependsOn.collect { "${it}Stop" })
+            dependsOn(appContainer.options().applicationDependsOn.collect { "${it}Stop" })
 
             group: appName
             description: "Stop all '${appName}' container application(s) if not already started."
@@ -170,11 +172,11 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         }
 
         final TaskProvider<Task> stopChain = project.tasks.register("${appName}DownChain") {
-            onlyIf { appContainer.applicationDependsOn }
+            onlyIf { appContainer.options().applicationDependsOn }
             outputs.upToDateWhen { false }
 
             mustRunAfter(downDependencies)
-            dependsOn(appContainer.applicationDependsOn.collect { "${it}Down" })
+            dependsOn(appContainer.options().applicationDependsOn.collect { "${it}Down" })
 
             group: appName
             description: "Delete all '${appName}' container application(s) if not already deleted."

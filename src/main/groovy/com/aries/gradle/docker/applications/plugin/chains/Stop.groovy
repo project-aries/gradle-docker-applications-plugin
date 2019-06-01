@@ -37,7 +37,7 @@ final class Stop {
 
         final Collection<TaskProvider<Task>> taskList = ArrayList.newInstance()
 
-        for (int i = 0; i < appContainer.count(); i++) {
+        for (int i = 0; i < appContainer.options().count(); i++) {
             final TaskProvider<Task> singleTaskChain = _createTaskChain(project, appContainer, String.valueOf(i + 1))
             taskList.add(singleTaskChain)
         }
@@ -52,7 +52,7 @@ final class Stop {
 
         final String mainId = appContainer.mainId() + "-${index}"
         final String appName = appContainer.getName()
-        final String lockName = appContainer.lock() ?: mainId
+        final String lockName = appContainer.options().lock() ?: mainId
 
         final TaskContainer tasks = project.tasks;
 

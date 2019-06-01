@@ -16,7 +16,6 @@
 
 package com.aries.gradle.docker.applications.plugin.domain
 
-
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
@@ -34,74 +33,16 @@ class AbstractApplication {
         this.name = name
     }
 
-    // if set will pass along a network name to use (will create custom network if not present) for application.
-    @Input
-    @Optional
-    String network
-    String network() {
-        return Boolean.valueOf(skipNetwork()).booleanValue() ? null : (this.network ?: mainId())
-    }
-
-    // if set to true we will skip custom network creation and/or connecting to.
-    @Input
-    @Optional
-    boolean skipNetwork = false
-    String skipNetwork() {
-        this.skipNetwork
-    }
-
-    // if set to true we will skip custom network creation and/or connecting to.
-    @Input
-    @Optional
-    int count = 1
-    int count() {
-        this.count <= 0 ? 1 : this.count
-    }
-
-    // if set will override the application-name part of the docker container.
-    @Input
-    @Optional
-    String id
-    String id() {
-        this.id
-    }
-
-    // if set will be used as a shared acquire amongst all tasks.
-    @Input
-    @Optional
-    String lock
-    String lock() {
-        this.lock
-    }
-
-    // internal helper collection to hold AbstractApplication names
-    // that this AbstractApplication dependsOn.
-    @Internal
-    Collection<String> applicationDependsOn = ArrayList.newInstance()
-
-    // if set will be used as a shared acquire amongst all tasks.
-    @Input
-    @Optional
-    Collection<Object> dependsOn
-    Collection<Object> dependsOn(Object... paths) {
-        if (this.dependsOn == null) {
-            this.dependsOn = ArrayList.newInstance()
+    // methods and properties used to configure the data container
+    protected Options options
+    final List<Closure<Options>> optionsConfigs = []
+    void options(final Closure<Options> optionConfig) {
+        if (optionConfig) {
+            optionsConfigs.add(optionConfig)
         }
-
-        if (paths) {
-            paths.each { dep ->
-                if (dep) {
-                    def arbitraryDep = dep
-                    if (arbitraryDep instanceof AbstractApplication) {
-                        this.applicationDependsOn.add(dep.getName())
-                        arbitraryDep = dep.getName() + "Up"
-                    }
-                    this.dependsOn.add(arbitraryDep)
-                }
-            }
-        }
-
-        this.dependsOn
+    }
+    Options options() {
+        options
     }
 
     // methods and properties used to configure the main container.
@@ -116,7 +57,7 @@ class AbstractApplication {
         mainContainer
     }
     String mainId() {
-        id() ?: getName()
+        options().id() ?: getName()
     }
 
     // methods and properties used to configure the data container
@@ -137,7 +78,13 @@ class AbstractApplication {
     // internal method to check that our main and data containers are setup properly
     protected AbstractApplication initializeApplication() {
 
-        // 1.) `main`, and all its properties, are required to be set and defined.
+        // 1.) initialize options.
+        options = new Options()
+        for (final Closure<Options> cnf : this.optionsConfigs) {
+            options = ConfigureUtil.configure(cnf, options)
+        }
+
+        // 2.) `main`, and all its properties, are required to be set and defined.
         mainContainer = new MainContainer()
         for (final Closure<MainContainer> cnf : mainContainerConfigs) {
             mainContainer = ConfigureUtil.configure(cnf, mainContainer)
@@ -145,7 +92,7 @@ class AbstractApplication {
 
         Objects.requireNonNull(mainContainer.repository(), "'main' must have a valid repository defined")
 
-        // 2.) `data` is not required to be defined as it will/can inherit properties from main.
+        // 3.) `data` is not required to be defined as it will/can inherit properties from main.
         dataContainer = new DataContainer()
         for (final Closure<DataContainer> cnf : dataContainerConfigs) {
             dataContainer = ConfigureUtil.configure(cnf, dataContainer)

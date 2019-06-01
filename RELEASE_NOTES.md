@@ -1,3 +1,6 @@
+### Version 1.4.2 (May 31, 2019)
+* `AbstractApplication` now has options defined within an `options` closure so that we can further delay resolving them.
+
 ### Version 1.4.1 (May 25, 2019)
 * `AbstractApplication` can now dependOn other `AbstractApplications` and ensures all ordering of operations (up, stop, down) is done correctly.
 * Ad-hoc execution of gradle task-code now takes into account `onlyIf` blocks.

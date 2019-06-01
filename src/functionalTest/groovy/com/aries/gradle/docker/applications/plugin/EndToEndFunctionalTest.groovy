@@ -87,9 +87,11 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             applications {
 
                 myPostgresStackDep {
-                    network = sharedNetworkName
-                    count = 3
-                    dependsOn(configurations.dev, kicker)
+                    options {
+                        network = sharedNetworkName
+                        count = 3
+                        dependsOn(configurations.dev, kicker)
+                    }
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
@@ -144,9 +146,11 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                 def applicationDep = getByName('myPostgresStackDep')
                 
                 myPostgresStack {
-                    network = sharedNetworkName
-                    count = 2
-                    dependsOn(configurations.dev, kicker, applicationDep)
+                    options {
+                        network = sharedNetworkName
+                        count = 2
+                        dependsOn(configurations.dev, kicker, applicationDep)
+                    }
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
