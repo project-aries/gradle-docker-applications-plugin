@@ -65,9 +65,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                                    final NamedDomainObjectContainer<AbstractApplication> appContainers) {
 
         appContainers.each { appContainer ->
-
-            project.extensions.add(appContainer.getName(), appContainer)
-
+            
             // Must be run after evaluation has happened but prior to tasks
             // being built. This ensures our main and data container were
             // properly setup and in the case of the latter we will inherit
