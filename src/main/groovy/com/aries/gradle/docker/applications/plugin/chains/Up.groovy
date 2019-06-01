@@ -53,7 +53,9 @@ final class Up {
         final String mainId = appContainer.mainId() + "-${index}"
         final String appName = appContainer.getName()
         final String lockName = appContainer.options().lock() ?: mainId
-        final String networkName = appContainer.options().network()
+
+        final boolean skipNetwork = appContainer.options().skipNetwork()
+        final String networkName = skipNetwork ? null : (appContainer.options().network() ?: appContainer.mainId())
 
         final TaskContainer tasks = project.tasks;
 

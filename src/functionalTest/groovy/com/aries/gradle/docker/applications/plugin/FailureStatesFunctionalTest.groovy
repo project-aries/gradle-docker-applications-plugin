@@ -37,7 +37,9 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
 
             applications {
                 someStack {
-                    id = "${uuid}"
+                    options {
+                        id = "${uuid}"
+                    }
                 }
             }
             
@@ -59,7 +61,9 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
 
             applications {
                 someStack {
-                    id = "${uuid}"
+                    options {
+                        id = "${uuid}"
+                    }   
                     main {
                     
                     }
@@ -84,7 +88,9 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
 
             applications {
                 someStack {
-                    id = "${uuid}"
+                    options {
+                        id = "${uuid}"
+                    }
                     main {
                         repository = 'postgres'
                         tag = 'idontexist'
@@ -110,7 +116,9 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
 
             applications {
                 someStack {
-                    id = "${uuid}"
+                    options {
+                        id = "${uuid}"
+                    }
                     main {
                         repository = 'alpine'
                         tag = 'latest'
@@ -136,7 +144,9 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
 
             applications {
                 someStack {
-                    id = "${uuid}"
+                    options {
+                        id = "${uuid}"
+                    }
                     main {
                         repository = 'postgres'
                         tag = 'alpine'

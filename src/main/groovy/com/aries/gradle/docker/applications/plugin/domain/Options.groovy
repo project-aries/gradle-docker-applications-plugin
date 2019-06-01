@@ -35,7 +35,7 @@ class Options {
     @Optional
     String network
     String network() {
-        return Boolean.valueOf(skipNetwork()).booleanValue() ? null : (this.network ?: mainId())
+        this.network
     }
 
     // if set to true we will skip custom network creation and/or connecting to.
