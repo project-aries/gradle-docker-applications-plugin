@@ -42,7 +42,7 @@ class Options {
     @Input
     @Optional
     boolean skipNetwork = false
-    String skipNetwork() {
+    boolean skipNetwork() {
         this.skipNetwork
     }
 
