@@ -157,11 +157,12 @@ class GradleDockerApplicationsPluginUtils {
 
         project.logger.debug "Acquiring lock with '${lockName}'."
 
-        if(!project.gradle.ext.has(lockName)) {
+        final String hashedLockName = lockName.md5()
+        if(!project.gradle.ext.has(hashedLockName)) {
             synchronized (GradleDockerApplicationsPluginUtils) {
-                if(!project.gradle.ext.has(lockName)) {
+                if(!project.gradle.ext.has(hashedLockName)) {
                     final AtomicBoolean executionLock = new AtomicBoolean(false);
-                    project.gradle.ext.set(lockName, executionLock)
+                    project.gradle.ext.set(hashedLockName, executionLock)
                 }
             }
         }
@@ -172,7 +173,7 @@ class GradleDockerApplicationsPluginUtils {
         int pollTimes = 0
         long pollInterval = 5000
         long totalMillis = 0
-        final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
+        final AtomicBoolean executionLock = project.gradle.ext.get(hashedLockName)
         while(!executionLock.compareAndSet(false, true)) {
             pollTimes += 1
 
@@ -191,10 +192,11 @@ class GradleDockerApplicationsPluginUtils {
 
         project.logger.debug "Releasing lock for '${lockName}'."
 
-        if(project.gradle.ext.has(lockName)) {
+        final String hashedLockName = lockName.md5()
+        if(project.gradle.ext.has(hashedLockName)) {
             synchronized (GradleDockerApplicationsPluginUtils) {
-                if(project.gradle.ext.has(lockName)) {
-                    final AtomicBoolean executionLock = project.gradle.ext.get(lockName)
+                if(project.gradle.ext.has(hashedLockName)) {
+                    final AtomicBoolean executionLock = project.gradle.ext.get(hashedLockName)
                     executionLock.set(false)
                 }
             }

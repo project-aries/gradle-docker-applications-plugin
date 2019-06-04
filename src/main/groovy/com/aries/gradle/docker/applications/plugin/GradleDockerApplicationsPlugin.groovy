@@ -25,6 +25,7 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.plugins.UnknownPluginException
+import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.TaskProvider
 
 /**
@@ -34,12 +35,16 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
     public static final String EXTENSION_NAME = 'applications'
 
+    // setting/exposing here because injecting these into POJO's is currently
+    // not working as of 6/4/19 or maybe I'm just doing something wrong. IDK.
     public static ObjectFactory objectFactory
+    public static ProviderFactory providerFactory
 
     @Override
     void apply(final Project project) {
 
         objectFactory = project.objects
+        providerFactory = project.providers
 
         // 1.) apply required plugins
         try {
@@ -101,7 +106,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             data = appContainer.data()
 
             group: appName
-            description: "Start all '${appName}' container application(s), and their dependencies, if not already done."
+            description: "Start all '${appName}' container application(s), and their dependencies, if not already started."
         })
     }
 
@@ -157,7 +162,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             dependsOn(appContainer.applicationDependsOn.collect { "${it}Down" })
 
             group: appName
-            description: "Delete all '${appName}' dependencies if not already done."
+            description: "Delete all '${appName}' dependencies if not already deleted."
         }
 
         final TaskProvider<Task> downApp = project.tasks.register("${appName}Down_App", DockerManageContainerExt, {
@@ -172,7 +177,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             data = appContainer.data()
 
             group: appName
-            description: "Delete '${appName}' if not already done."
+            description: "Delete '${appName}' if not already deleted."
         })
 
         return project.tasks.register("${appName}Down") {
@@ -181,7 +186,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             dependsOn(downApp, downDependencies)
 
             group: appName
-            description: "Wrapper for deleting all '${appName}' container application(s), and their dependencies, if not already done."
+            description: "Wrapper for deleting all '${appName}' container application(s), and their dependencies, if not already deleted."
         }
     }
 }

@@ -26,8 +26,8 @@ class DockerWorker implements Runnable {
     final WorkerObject workerObject
 
     @Inject
-    DockerWorker(final String hash) {
-        this.workerObject = WorkerObjectCache.get(hash)
+    DockerWorker(final String cacheKey) {
+        this.workerObject = WorkerObjectCache.get(cacheKey)
     }
 
     @Override

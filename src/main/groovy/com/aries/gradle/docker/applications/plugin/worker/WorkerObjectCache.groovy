@@ -10,11 +10,11 @@ class WorkerObjectCache {
         throw new RuntimeException('Purposefully not implemented')
     }
 
-    static void put(final String hash, final WorkerObject workerObject) {
-        objectCache.put(hash, workerObject)
+    static void put(final String cacheKey, final WorkerObject workerObject) {
+        objectCache.put(cacheKey, workerObject)
     }
 
-    static WorkerObject get(final String hash) {
-        objectCache.remove(hash)
+    static WorkerObject get(final String cacheKey) {
+        objectCache.remove(cacheKey)
     }
 }

@@ -19,6 +19,7 @@ package com.aries.gradle.docker.applications.plugin.domain
 import com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPlugin
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
@@ -36,25 +37,52 @@ class AbstractApplication {
     @Internal
     private ObjectFactory objectFactory = GradleDockerApplicationsPlugin.objectFactory
 
+    @Internal
+    private ProviderFactory providerFactory = GradleDockerApplicationsPlugin.providerFactory
+
     // if set will pass along a network name to use (will create custom network if not present) for application.
     @Input
     @Optional
     final Property<String> network = objectFactory.property(String)
+    void network(final String requestedNetwork) {
+        if (requestedNetwork) { network.set(providerFactory.provider{ requestedNetwork })}
+    }
+    void network(final Closure<String> requestedNetwork) {
+        if (requestedNetwork) { network.set(providerFactory.provider(requestedNetwork))}
+    }
 
     // if set to true we will skip custom network creation and/or connecting to.
     @Input
     @Optional
     final Property<Boolean> skipNetwork = objectFactory.property(Boolean)
+    void skipNetwork(final Boolean requestedSkipNetwork) {
+        if (requestedSkipNetwork) { skipNetwork.set(providerFactory.provider{ requestedSkipNetwork })}
+    }
+    void skipNetwork(final Closure<Boolean> requestedSkipNetwork) {
+        if (requestedSkipNetwork) { skipNetwork.set(providerFactory.provider(requestedSkipNetwork))}
+    }
 
     // if set to true we will skip custom network creation and/or connecting to.
     @Input
     @Optional
     final Property<Integer> count = objectFactory.property(Integer)
+    void count(final Integer requestedCount) {
+        if (requestedCount) { count.set(providerFactory.provider{ requestedCount })}
+    }
+    void count(final Closure<Integer> requestedCount) {
+        if (requestedCount) { count.set(providerFactory.provider(requestedCount))}
+    }
 
     // if set will override the application-name part of the docker container.
     @Input
     @Optional
     final Property<String> id = objectFactory.property(String)
+    void id(final String requestedId) {
+        if (requestedId) { id.set(providerFactory.provider{ requestedId })}
+    }
+    void id(final Closure<String> requestedId) {
+        if (requestedId) { id.set(providerFactory.provider(requestedId))}
+    }
 
     // internal helper collection to hold AbstractApplication names
     // that this AbstractApplication dependsOn.

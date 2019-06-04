@@ -100,7 +100,7 @@ class DockerManageContainerExt extends DefaultTask {
             reports.add(summaryReport)
 
             final WorkerObject workerObject = new WorkerObject(resolvedCommand, project, resolvedId, index, resolvedNetwork, mainContainer, dataContainer, summaryReport)
-            final String hash = UUID.randomUUID().toString()
+            final String hash = UUID.randomUUID().toString().md5()
             WorkerObjectCache.put(hash, workerObject)
 
             workerExecutor.submit(DockerWorker, { cfg ->
