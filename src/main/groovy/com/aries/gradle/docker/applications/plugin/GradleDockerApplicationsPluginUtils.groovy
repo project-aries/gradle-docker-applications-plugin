@@ -18,9 +18,8 @@ package com.aries.gradle.docker.applications.plugin
 
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.api.specs.AndSpec
-import org.gradle.api.tasks.TaskProvider
 
+import javax.annotation.Nullable
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -88,6 +87,7 @@ class GradleDockerApplicationsPluginUtils {
         executeTaskCode(applyConfigs(taskToExecute, configsToApply))
     }
 
+
     /**
      * Execute an arbitrary tasks code ensuring its `doFirst` closures are run before hand
      * and its `doLast` closures are run after.
@@ -95,30 +95,42 @@ class GradleDockerApplicationsPluginUtils {
      * It's important to note that the task is not actually run in the gradle sense
      * but that its code is called much like any other piece of code.
      *
+     * @param lockKey if non-null will surround execution with a lock given this key.
      * @param taskToExecute arbitrary task to execute.
      */
-    static void executeTaskCode(final Task taskToExecute) {
+    static void executeTaskCode(final Task taskToExecute, @Nullable final String lockKey = null) {
 
-        // ensure any and all `onlyIf` blocks resolve to true
-        if (taskToExecute.getOnlyIf().isSatisfiedBy(taskToExecute)) {
-            try {
+        try {
 
-                // Execute doFirst actions in an ad-hoc manner
-                taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('doFirst') }.each {
-                    it.execute(taskToExecute)
+            if (lockKey != null) {
+                acquireLock(taskToExecute.getProject(), lockKey)
+            }
+
+            // ensure any and all `onlyIf` blocks resolve to true
+            if (taskToExecute.getOnlyIf().isSatisfiedBy(taskToExecute)) {
+                try {
+
+                    // Execute doFirst actions in an ad-hoc manner
+                    taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('doFirst') }.each {
+                        it.execute(taskToExecute)
+                    }
+
+                    // Execute start action(s) in an ad-hoc manner (this should only return 1)
+                    taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('start') }.each {
+                        it.execute(taskToExecute)
+                    }
+
+                } finally {
+
+                    // Execute doLast actions in an ad-hoc manner
+                    taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('doLast') }.each {
+                        it.execute(taskToExecute)
+                    }
                 }
-
-                // Execute start action(s) in an ad-hoc manner (this should only return 1)
-                taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('start') }.each {
-                    it.execute(taskToExecute)
-                }
-
-            } finally {
-
-                // Execute doLast actions in an ad-hoc manner
-                taskToExecute.getTaskActions().findAll { act -> act.getDisplayName().contains('doLast') }.each {
-                    it.execute(taskToExecute)
-                }
+            }
+        } finally {
+            if (lockKey != null) {
+                releaseLock(taskToExecute.getProject(), lockKey)
             }
         }
     }
@@ -141,25 +153,9 @@ class GradleDockerApplicationsPluginUtils {
         taskToConfig
     }
 
-    /**
-     * Configure the passed TaskProvider against a list of Closures.
-     *
-     * @param taskToConfig the task to further configure.
-     * @param configsToApply list of Closure's to configure against task.
-     */
-    static void applyConfigs(final TaskProvider<?> taskToConfig,
-                             final List<Closure> configsToApply) {
-
-        taskToConfig.configure { tsk ->
-            configsToApply.each { cnf ->
-                tsk.configure(cnf)
-            }
-        }
-    }
-
     static void acquireLock(final Project project, final String lockName) {
 
-        project.logger.debug "Acquiring execution acquire with '${lockName}'."
+        project.logger.debug "Acquiring lock with '${lockName}'."
 
         if(!project.gradle.ext.has(lockName)) {
             synchronized (GradleDockerApplicationsPluginUtils) {
@@ -183,7 +179,7 @@ class GradleDockerApplicationsPluginUtils {
             totalMillis = pollTimes * pollInterval
             long totalMinutes = TimeUnit.MILLISECONDS.toMinutes(totalMillis)
 
-            progressLogger.progress("Waiting on acquire for ${totalMinutes}m...")
+            progressLogger.progress("Waiting to acquire lock '${lockName}' for ${totalMinutes}m...")
             sleep(pollInterval)
         }
         progressLogger.completed()
@@ -193,7 +189,7 @@ class GradleDockerApplicationsPluginUtils {
 
     static void releaseLock(final Project project, final String lockName) {
 
-        project.logger.debug "Releasing execution acquire with '${lockName}'."
+        project.logger.debug "Releasing lock for '${lockName}'."
 
         if(project.gradle.ext.has(lockName)) {
             synchronized (GradleDockerApplicationsPluginUtils) {
@@ -203,9 +199,5 @@ class GradleDockerApplicationsPluginUtils {
                 }
             }
         }
-    }
-
-    static boolean isNullOrEmpty(String checkString) {
-        return !(checkString?.trim())
     }
 }

@@ -17,14 +17,13 @@
 package com.aries.gradle.docker.applications.plugin
 
 import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
-import com.aries.gradle.docker.applications.plugin.chains.Down
-import com.aries.gradle.docker.applications.plugin.chains.Stop
-import com.aries.gradle.docker.applications.plugin.chains.Up
+import com.aries.gradle.docker.applications.plugin.tasks.DockerManageContainerExt
 import com.bmuschko.gradle.docker.DockerRemoteApiPlugin
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.model.ObjectFactory
 import org.gradle.api.plugins.UnknownPluginException
 import org.gradle.api.tasks.TaskProvider
 
@@ -35,8 +34,12 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
     public static final String EXTENSION_NAME = 'applications'
 
+    public static ObjectFactory objectFactory
+
     @Override
     void apply(final Project project) {
+
+        objectFactory = project.objects
 
         // 1.) apply required plugins
         try {
@@ -65,7 +68,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                                    final NamedDomainObjectContainer<AbstractApplication> appContainers) {
 
         appContainers.each { appContainer ->
-            
+
             // Must be run after evaluation has happened but prior to tasks
             // being built. This ensures our main and data container were
             // properly setup and in the case of the latter we will inherit
@@ -81,73 +84,60 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
     }
 
     private TaskProvider<Task> createUpChain(final Project project,
-                                               final AbstractApplication appContainer) {
+                                             final AbstractApplication appContainer) {
 
-        final Collection<TaskProvider<Task>> taskChains = Up.createTaskChain(project, appContainer)
         final String appName = appContainer.getName()
+        final String networkName = appContainer.skipNetwork.getOrElse(false) ? null : (appContainer.network.getOrNull() ?: (appContainer.id() ?: appName))
 
-        final TaskProvider<Task> upDependencies = project.tasks.register("${appName}UpDependencies") {
-            onlyIf { appContainer.options().dependsOn() }
-            outputs.upToDateWhen { false }
+        return project.tasks.register("${appName}Up", DockerManageContainerExt, {
 
-            dependsOn(appContainer.options().dependsOn())
+            dependsOn(appContainer.dependsOn)
 
-            group: appName
-            description: "Trigger all start dependencies for '${appName}' if not already triggered."
-        }
-
-        final TaskProvider<Task> upChain = project.tasks.register("${appName}UpChain") {
-            outputs.upToDateWhen { false }
-
-            mustRunAfter(upDependencies)
-            dependsOn(taskChains)
+            command = 'UP'
+            count = appContainer.count.getOrElse(1)
+            id = appContainer.id.getOrNull() ?: appName
+            network = networkName
+            main = appContainer.main()
+            data = appContainer.data()
 
             group: appName
-            description: "Start all '${appName}' container application(s) if not already started."
-        }
-
-        return project.tasks.register("${appName}Up") {
-            outputs.upToDateWhen { false }
-
-            dependsOn(upChain, upDependencies)
-            ext.applications = taskChains
-
-            group: appName
-            description: "Wrapper for starting all '${appName}' container application(s), and their dependencies, if not already done."
-        }
+            description: "Start all '${appName}' container application(s), and their dependencies, if not already done."
+        })
     }
 
     private TaskProvider<Task> createStopChain(final Project project,
                                                final AbstractApplication appContainer) {
 
-        final Collection<TaskProvider<Task>> taskChains = Stop.createTaskChain(project, appContainer)
         final String appName = appContainer.getName()
 
-        final TaskProvider<Task> stopDependencies = project.tasks.register("${appName}StopDependencies") {
+        final TaskProvider<Task> stopDependencies = project.tasks.register("${appName}Stop_Dependencies") {
+            onlyIf { appContainer.applicationDependsOn }
             outputs.upToDateWhen { false }
 
-            dependsOn(taskChains)
+            dependsOn(appContainer.applicationDependsOn.collect { "${it}Stop" })
 
             group: appName
-            description: "Trigger all stop dependencies for '${appName}' if not already triggered."
+            description: "Stop all '${appName}' dependencies if not already stopped."
         }
 
-        final TaskProvider<Task> stopChain = project.tasks.register("${appName}StopChain") {
-            onlyIf { appContainer.options().applicationDependsOn }
-            outputs.upToDateWhen { false }
+        final TaskProvider<Task> stopApp = project.tasks.register("${appName}Stop_App", DockerManageContainerExt, {
 
             mustRunAfter(stopDependencies)
-            dependsOn(appContainer.options().applicationDependsOn.collect { "${it}Stop" })
+
+            command = 'STOP'
+            count = appContainer.count.getOrElse(1)
+            id = appContainer.id.getOrNull() ?: appName
+            main = appContainer.main()
+            data = appContainer.data()
 
             group: appName
-            description: "Stop all '${appName}' container application(s) if not already started."
-        }
+            description: "Stop '${appName}' if not already stopped."
+        })
 
         return project.tasks.register("${appName}Stop") {
             outputs.upToDateWhen { false }
 
-            dependsOn(stopChain, stopDependencies)
-            ext.applications = taskChains
+            dependsOn(stopApp, stopDependencies)
 
             group: appName
             description: "Wrapper for stopping all '${appName}' container application(s) if not already stopped."
@@ -157,37 +147,41 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
     private TaskProvider<Task> createDownChain(final Project project,
                                                final AbstractApplication appContainer) {
 
-        final Collection<TaskProvider<Task>> taskChains = Down.createTaskChain(project, appContainer)
         final String appName = appContainer.getName()
+        final String networkName = appContainer.skipNetwork.getOrElse(false) ? null : (appContainer.network.getOrNull() ?: (appContainer.id.getOrNull() ?: appName))
 
-        final TaskProvider<Task> downDependencies = project.tasks.register("${appName}DownDependencies") {
+        final TaskProvider<Task> downDependencies = project.tasks.register("${appName}Down_Dependencies") {
+            onlyIf { appContainer.applicationDependsOn }
             outputs.upToDateWhen { false }
 
-            dependsOn(taskChains)
+            dependsOn(appContainer.applicationDependsOn.collect { "${it}Down" })
 
             group: appName
-            description: "Trigger all delete dependencies for '${appName}' if not already triggered."
+            description: "Delete all '${appName}' dependencies if not already done."
         }
 
-        final TaskProvider<Task> stopChain = project.tasks.register("${appName}DownChain") {
-            onlyIf { appContainer.options().applicationDependsOn }
-            outputs.upToDateWhen { false }
+        final TaskProvider<Task> downApp = project.tasks.register("${appName}Down_App", DockerManageContainerExt, {
 
             mustRunAfter(downDependencies)
-            dependsOn(appContainer.options().applicationDependsOn.collect { "${it}Down" })
+
+            command = 'DOWN'
+            count = appContainer.count.getOrElse(1)
+            id = appContainer.id.getOrNull() ?: appName
+            network = networkName
+            main = appContainer.main()
+            data = appContainer.data()
 
             group: appName
-            description: "Delete all '${appName}' container application(s) if not already deleted."
-        }
+            description: "Delete '${appName}' if not already done."
+        })
 
         return project.tasks.register("${appName}Down") {
             outputs.upToDateWhen { false }
 
-            dependsOn(stopChain, downDependencies)
-            ext.applications = taskChains
+            dependsOn(downApp, downDependencies)
 
             group: appName
-            description: "Wrapper for deleting all '${appName}' container application(s) if not already deleted."
+            description: "Wrapper for deleting all '${appName}' container application(s), and their dependencies, if not already done."
         }
     }
 }

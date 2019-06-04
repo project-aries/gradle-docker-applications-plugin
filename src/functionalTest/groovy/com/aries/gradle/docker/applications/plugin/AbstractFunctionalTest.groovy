@@ -77,7 +77,7 @@ abstract class AbstractFunctionalTest extends Specification {
             '--warning-mode=all',
             '--parallel',
             '-Dorg.gradle.parallel=true',
-            '-Dorg.gradle.workers.max=4',
+            '-Dorg.gradle.worker.max=4',
             '-Dorg.gradle.daemon=false',
             '-Dorg.gradle.jvmargs=-XX:+CMSPermGenSweepingEnabled -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -XX:+HeapDumpOnOutOfMemoryError']
         if (Boolean.valueOf(possibleOffline).booleanValue() == true) {

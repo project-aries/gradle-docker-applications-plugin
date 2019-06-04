@@ -28,7 +28,7 @@ import spock.lang.Timeout
  */
 class EndToEndFunctionalTest extends AbstractFunctionalTest {
 
-    @Timeout(value = 5, unit = MINUTES)
+    @Timeout(value = 2, unit = MINUTES)
     def "Can start, stop, and remove a postgres application stack"() {
 
         final File mySpecialEntryPoint = new File("$projectDir/special-docker-entrypoint.sh")
@@ -87,11 +87,9 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             applications {
 
                 myPostgresStackDep {
-                    options {
-                        network = sharedNetworkName
-                        count = 3
-                        dependsOn(configurations.dev, kicker)
-                    }
+                    network.set(sharedNetworkName)
+                    count.set(1)
+                    dependsOn(configurations.dev, kicker)
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
@@ -146,11 +144,9 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                 def applicationDep = getByName('myPostgresStackDep')
                 
                 myPostgresStack {
-                    options {
-                        network = sharedNetworkName
-                        count = 2
-                        dependsOn(configurations.dev, kicker, applicationDep)
-                    }
+                    network.set(sharedNetworkName)
+                    count.set(2)
+                    dependsOn(configurations.dev, kicker, applicationDep)
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
@@ -209,32 +205,37 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             
             task up(dependsOn: ['myPostgresStackUp']) {
                 doLast {
-                    println "FOUND REPORT: " + myPostgresStackUp.applications.get(0).get().getSummaryReport()
+                    println "FOUND REPORT: " + myPostgresStackUp.reports().get(0)
                 }
             }
                    
         """
 
         when:
-            BuildResult result = build('up', 'stop', 'down')
+            BuildResult resultUp = build( 'up')
+            BuildResult resultStop = build( 'stop')
+            BuildResult resultDown = build( 'down')
+
 
         then:
-            result.output.contains('In the KICKER')
-            result.output.contains('Inspecting container with ID')
-            result.output.contains('Created container with ID')
-            count(result.output, 'Copying file to container') == 25
-            result.output.contains('Creating network')
-            result.output.contains('Copying file to container')
-            result.output.contains('Starting liveness')
-            result.output.contains('CI=TRUE')
-            result.output.contains('DEVOPS=ROCKS')
-            result.output.contains('Running exec-stop on container with ID')
-            result.output.contains('CREATE DATABASE')
-            result.output.contains('CREATE ROLE')
-            result.output.contains('GRANT')
-            result.output.contains('pg_ctl: server is running')
-            result.output.contains('max_connections                        | 200')
-            result.output.contains('Removing container with ID')
-            result.output.contains('Removing network')
+        resultUp.output.contains('In the KICKER')
+        resultUp.output.contains('Inspecting container with ID')
+        resultUp.output.contains('Created container with ID')
+        count(resultUp.output, 'Copying file to container') == 15
+        resultUp.output.contains('Creating network')
+        resultUp.output.contains('Copying file to container')
+        resultUp.output.contains('Starting liveness')
+        resultUp.output.contains('CI=TRUE')
+        resultUp.output.contains('DEVOPS=ROCKS')
+        resultUp.output.contains('CREATE DATABASE')
+        resultUp.output.contains('CREATE ROLE')
+        resultUp.output.contains('GRANT')
+        resultUp.output.contains('pg_ctl: server is running')
+        resultUp.output.contains('max_connections                        | 200')
+
+        resultStop.output.contains('Running exec-stop on container with ID')
+
+        resultDown.output.contains('Removing container with ID')
+        resultDown.output.contains('Removing network')
     }
 }
