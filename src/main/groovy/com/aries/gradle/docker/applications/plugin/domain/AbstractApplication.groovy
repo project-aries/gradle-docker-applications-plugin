@@ -25,7 +25,8 @@ import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.util.ConfigureUtil
 
-import javax.inject.Inject
+import javax.annotation.Nullable
+
 
 /**
  *
@@ -44,22 +45,11 @@ class AbstractApplication {
     @Input
     @Optional
     final Property<String> network = objectFactory.property(String)
-    void network(final String requestedNetwork) {
-        if (requestedNetwork) { network.set(providerFactory.provider{ requestedNetwork })}
+    void network(@Nullable final String requestedNetwork) {
+        network.set(requestedNetwork)
     }
     void network(final Closure<String> requestedNetwork) {
         if (requestedNetwork) { network.set(providerFactory.provider(requestedNetwork))}
-    }
-
-    // if set to true we will skip custom network creation and/or connecting to.
-    @Input
-    @Optional
-    final Property<Boolean> skipNetwork = objectFactory.property(Boolean)
-    void skipNetwork(final Boolean requestedSkipNetwork) {
-        if (requestedSkipNetwork) { skipNetwork.set(providerFactory.provider{ requestedSkipNetwork })}
-    }
-    void skipNetwork(final Closure<Boolean> requestedSkipNetwork) {
-        if (requestedSkipNetwork) { skipNetwork.set(providerFactory.provider(requestedSkipNetwork))}
     }
 
     // if set to true we will skip custom network creation and/or connecting to.
@@ -94,75 +84,40 @@ class AbstractApplication {
     @Optional
     final Collection<Object> dependsOn = []
     Collection<Object> dependsOn(final Object... paths = null) {
-        if (paths) {
-            paths.each { dep ->
-                if (dep) {
-                    def arbitraryDep = dep
-                    if (arbitraryDep instanceof AbstractApplication) {
-                        this.applicationDependsOn.add(dep.getName())
-                        arbitraryDep = dep.getName() + "Up"
-                    }
-                    this.dependsOn.add(arbitraryDep)
+        paths?.each { dep ->
+            if (dep) {
+                def arbitraryDep = dep
+                if (arbitraryDep instanceof AbstractApplication) {
+                    this.applicationDependsOn.add(dep.getName())
+                    arbitraryDep = dep.getName() + "Up"
                 }
+                this.dependsOn.add(arbitraryDep)
             }
         }
 
         dependsOn
     }
 
-    final String name
-    AbstractApplication(final String name) {
-        this.name = name
-        this.skipNetwork.set(false)
-        this.count.set(1)
-    }
-
     // methods and properties used to configure the main container.
-    protected MainContainer mainContainer
-    final List<Closure<MainContainer>> mainContainerConfigs = []
-    void main(final Closure<MainContainer> mainContainerConfig) {
-        if (mainContainerConfig) {
-            mainContainerConfigs.add(mainContainerConfig)
+    final List<Closure<MainContainer>> mainConfigs = []
+    void main(final Closure<MainContainer> mainConfig) {
+        if (mainConfig) {
+            mainConfigs.add(mainConfig)
         }
-    }
-    MainContainer main() {
-        mainContainer
     }
 
     // methods and properties used to configure the data container
-    protected DataContainer dataContainer
-    final List<Closure<DataContainer>> dataContainerConfigs = []
-    void data(final Closure<DataContainer> dataContainerConfig) {
-        if (dataContainerConfig) {
-            dataContainerConfigs.add(dataContainerConfig)
+    final List<Closure<DataContainer>> dataConfigs = []
+    void data(final Closure<DataContainer> dataConfig) {
+        if (dataConfig) {
+            dataConfigs.add(dataConfig)
         }
     }
-    DataContainer data() {
-        dataContainer
-    }
 
-    // internal method to check that our main and data containers are setup properly
-    protected AbstractApplication initializeApplication() {
-
-        // 1.) `main`, and all its properties, are required to be set and defined.
-        mainContainer = new MainContainer()
-        for (final Closure<MainContainer> cnf : mainContainerConfigs) {
-            mainContainer = ConfigureUtil.configure(cnf, mainContainer)
-        }
-
-        Objects.requireNonNull(mainContainer.repository(), "'main' must have a valid repository defined")
-
-        // 2.) `data` is not required to be defined as it will/can inherit properties from main.
-        dataContainer = new DataContainer()
-        for (final Closure<DataContainer> cnf : dataContainerConfigs) {
-            dataContainer = ConfigureUtil.configure(cnf, dataContainer)
-        }
-
-        if (!dataContainer.repository()) {
-            dataContainer.repository = mainContainer.repository()
-            dataContainer.tag = mainContainer.tag()
-        }
-
-        this
+    final String name
+    AbstractApplication(final String name) {
+        this.name = name
+        this.count.set(1)
+        this.network.set('generate')
     }
 }

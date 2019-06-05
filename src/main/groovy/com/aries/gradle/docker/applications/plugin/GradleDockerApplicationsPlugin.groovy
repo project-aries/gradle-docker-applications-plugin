@@ -74,12 +74,6 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         appContainers.each { appContainer ->
 
-            // Must be run after evaluation has happened but prior to tasks
-            // being built. This ensures our main and data container were
-            // properly setup and in the case of the latter we will inherit
-            // its properties from the former if it wasn't defined.
-            appContainer.initializeApplication()
-
             // create tasks after evaluation so that we can pick up any changes
             // made to our various extension points.
             final TaskProvider<Task> upTaskChain = createUpChain(project, appContainer)
@@ -92,7 +86,6 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                                              final AbstractApplication appContainer) {
 
         final String appName = appContainer.getName()
-        final String networkName = appContainer.skipNetwork.getOrElse(false) ? null : (appContainer.network.getOrNull() ?: (appContainer.id() ?: appName))
 
         return project.tasks.register("${appName}Up", DockerManageContainerExt, {
 
@@ -101,9 +94,15 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             command = 'UP'
             count = appContainer.count.getOrElse(1)
             id = appContainer.id.getOrNull() ?: appName
-            network = networkName
-            main = appContainer.main()
-            data = appContainer.data()
+            network = project.provider {
+                String networkName = appContainer.network.getOrNull()
+                if (networkName && networkName.equals('generate')) {
+                    networkName = appContainer.id() ?: appName
+                }
+                networkName
+            }
+            main(appContainer.mainConfigs)
+            data(appContainer.dataConfigs)
 
             group: appName
             description: "Start all '${appName}' container application(s), and their dependencies, if not already started."
@@ -132,8 +131,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             command = 'STOP'
             count = appContainer.count.getOrElse(1)
             id = appContainer.id.getOrNull() ?: appName
-            main = appContainer.main()
-            data = appContainer.data()
+            main(appContainer.mainConfigs)
+            data(appContainer.dataConfigs)
 
             group: appName
             description: "Stop '${appName}' if not already stopped."
@@ -153,7 +152,6 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                                                final AbstractApplication appContainer) {
 
         final String appName = appContainer.getName()
-        final String networkName = appContainer.skipNetwork.getOrElse(false) ? null : (appContainer.network.getOrNull() ?: (appContainer.id.getOrNull() ?: appName))
 
         final TaskProvider<Task> downDependencies = project.tasks.register("${appName}Down_Dependencies") {
             onlyIf { appContainer.applicationDependsOn }
@@ -172,9 +170,15 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             command = 'DOWN'
             count = appContainer.count.getOrElse(1)
             id = appContainer.id.getOrNull() ?: appName
-            network = networkName
-            main = appContainer.main()
-            data = appContainer.data()
+            network = project.provider {
+                String networkName = appContainer.network.getOrNull()
+                if (networkName && networkName.equals('generate')) {
+                    networkName = appContainer.id() ?: appName
+                }
+                networkName
+            }
+            main(appContainer.mainConfigs)
+            data(appContainer.dataConfigs)
 
             group: appName
             description: "Delete '${appName}' if not already deleted."

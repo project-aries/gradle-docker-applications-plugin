@@ -27,6 +27,7 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
+import org.gradle.util.ConfigureUtil
 import org.gradle.workers.IsolationMode
 import org.gradle.workers.WorkerExecutor
 
@@ -55,13 +56,11 @@ class DockerManageContainerExt extends DefaultTask {
     @Optional
     final Property<String> network = project.objects.property(String)
 
-    @Input
-    @Optional
-    final Property<MainContainer> main = project.objects.property(MainContainer)
+    @Internal
+    private final List<Closure<MainContainer>> mainConfigs = []
 
-    @Input
-    @Optional
-    final Property<DataContainer> data = project.objects.property(DataContainer)
+    @Internal
+    private final List<Closure<DataContainer>> dataConfigs = []
 
     @Internal
     private final List<SummaryReport> reports = []
@@ -83,16 +82,26 @@ class DockerManageContainerExt extends DefaultTask {
         final String resolvedId = id.getOrElse(project.getName())
         final String resolvedNetwork = network.getOrNull()
 
-        final MainContainer mainContainer = requireNonNull(main.getOrNull(), "'main' container must be defined")
+        // 2.) Build `main` container
+        MainContainer mainContainer = new MainContainer()
+        for (final Closure<MainContainer> cnf : mainConfigs) {
+            mainContainer = ConfigureUtil.configure(cnf, mainContainer)
+        }
+
         requireNonNull(mainContainer.repository(), "'main' must have a valid repository defined")
 
-        final DataContainer dataContainer = data.getOrElse(new DataContainer())
+        // 3.) Build `data` container which is not required to be defined as it will/can inherit properties from main.
+        DataContainer dataContainer = new DataContainer()
+        for (final Closure<DataContainer> cnf : dataConfigs) {
+            dataContainer = ConfigureUtil.configure(cnf, dataContainer)
+        }
+
         if (!dataContainer.repository()) {
             dataContainer.repository = mainContainer.repository()
             dataContainer.tag = mainContainer.tag()
         }
 
-        // 2.) kick off worker to do our processing in parallel
+        // 4.) kick off worker(s) to do our processing in parallel
         for (int index = 1; index <= resolvedCount; index++) {
 
             // report will be filled out by worker and available once task execution has completed
@@ -111,18 +120,20 @@ class DockerManageContainerExt extends DefaultTask {
         }
     }
 
-    Task main(final Closure<MainContainer> mataContainerConfig) {
-        if (mataContainerConfig) {
-            main.set(project.provider(mataContainerConfig))
-        }
-        this
+    void main(final List<Closure<MainContainer>> mainConfigList) {
+        mainConfigList?.each { cfg -> main(cfg) }
     }
 
-    Task data(final Closure<DataContainer> dataContainerConfig) {
-        if (dataContainerConfig) {
-            data.set(project.provider(dataContainerConfig))
-        }
-        this
+    void main(final Closure<MainContainer> mainConfig) {
+        if (mainConfig) { mainConfigs.add(mainConfig) }
+    }
+
+    void data(final List<Closure<DataContainer>> dataConfigList) {
+        dataConfigList?.each { cfg ->  data(cfg) }
+    }
+
+    void data(final Closure<DataContainer> dataConfig) {
+        if (dataConfig) { dataConfigs.add(dataConfig) }
     }
 
     List<SummaryReport> reports() {
