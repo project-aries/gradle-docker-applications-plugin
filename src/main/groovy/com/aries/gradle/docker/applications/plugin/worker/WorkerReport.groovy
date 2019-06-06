@@ -1,8 +1,15 @@
-package com.aries.gradle.docker.applications.plugin.domain
+package com.aries.gradle.docker.applications.plugin.worker
 
 import com.github.dockerjava.api.command.InspectContainerResponse
 
-class SummaryReport {
+class WorkerReport {
+
+    enum Status {
+        SUBMITTED, // work is submitted and waiting to be run
+        WAITING, // work has started but waiting on lock to proceed
+        WORKING, // work is underway
+        FINISHED // work has finished
+    }
 
     InspectContainerResponse inspection
 
@@ -14,8 +21,14 @@ class SummaryReport {
     final Map<String, String> ports = new HashMap<>()
     String address
     String gateway
-    String network = 'bridge' // docker default
+    String network = 'bridge' // docker default network
+    Status status = Status.SUBMITTED
 
+    /**
+     * Generate a banner to be displayed ... wherever!!!
+     *
+     * @return banner in string format.
+     */
     String banner() {
 
         final StringBuilder builder = new StringBuilder()
@@ -39,6 +52,16 @@ class SummaryReport {
             .append(banner)
 
         return builder.toString()
+    }
+
+    /**
+     * The `status` of this WorkerReport is updated as the execution of the
+     * task at hand moves from submission to working to finished.
+     *
+     * @return current status in String format.
+     */
+    String status() {
+        status.toString()
     }
 
     @Override

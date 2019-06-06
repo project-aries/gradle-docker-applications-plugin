@@ -93,12 +93,9 @@ like so:
 ```
 applications {
     myPostgresStack {
-        options {
-            network = 'hello-world' // Optional. Sets the custom network name. Defaults to app-name if not set.
-            skipNetwork = false // Optional. Whether to skip creating/connecting to custom network. Defaults to false.
-            count = 2 // Optional. Number of instances to start. Defaults to 1.
-            lock = 'some-shared-lock' // Optional. Sets the custom lock name to use across all task chains. Defaults to internal generated value.
-        }
+        id('hello-world-123') // Optional. Overrides the appName (e.g. myPostgresStack) when naming containers. Defaults to null.
+        network('hello-world') // Optional. Sets custom network name. Defaults to appName if not set. Set to null to skip custom network.
+        count(2) // Optional. Number of instances to start. Defaults to 1.
         main {
             repository = 'postgres'
             tag = 'alpine' // optional and defaults to 'latest' if not set

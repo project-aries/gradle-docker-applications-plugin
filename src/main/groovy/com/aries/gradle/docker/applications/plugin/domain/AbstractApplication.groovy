@@ -23,7 +23,6 @@ import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
-import org.gradle.util.ConfigureUtil
 
 import javax.annotation.Nullable
 

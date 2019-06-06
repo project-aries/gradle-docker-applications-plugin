@@ -3,10 +3,14 @@ package com.aries.gradle.docker.applications.plugin.worker
 import com.aries.gradle.docker.applications.plugin.domain.CommandTypes
 import com.aries.gradle.docker.applications.plugin.domain.DataContainer
 import com.aries.gradle.docker.applications.plugin.domain.MainContainer
-import com.aries.gradle.docker.applications.plugin.domain.SummaryReport
 import org.gradle.api.Project
 
-class WorkerObject {
+/**
+ *
+ * MetaData for the eventual worker thread to pick up and use for execution.
+ *
+ */
+class WorkerMetaData {
 
     final CommandTypes command
     final Project project
@@ -15,19 +19,19 @@ class WorkerObject {
     final String network
     final MainContainer mainContainer
     final DataContainer dataContainer
-    final SummaryReport summaryReport
+    final WorkerReport summaryReport
 
     final String mainId
     final String dataId
 
-    WorkerObject(final CommandTypes command,
-                 final Project project,
-                 final String id,
-                 final int index,
-                 final String network,
-                 final MainContainer mainContainer,
-                 final DataContainer dataContainer,
-                 final SummaryReport summaryReport) {
+    WorkerMetaData(final CommandTypes command,
+                   final Project project,
+                   final String id,
+                   final int index,
+                   final String network,
+                   final MainContainer mainContainer,
+                   final DataContainer dataContainer,
+                   final WorkerReport summaryReport) {
 
         this.command = command
         this.project = project

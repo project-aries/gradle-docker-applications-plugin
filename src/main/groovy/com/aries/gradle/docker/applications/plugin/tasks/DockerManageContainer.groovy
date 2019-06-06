@@ -18,10 +18,10 @@ package com.aries.gradle.docker.applications.plugin.tasks
 
 import com.aries.gradle.docker.applications.plugin.domain.*
 import com.aries.gradle.docker.applications.plugin.worker.DockerWorker
-import com.aries.gradle.docker.applications.plugin.worker.WorkerObject
-import com.aries.gradle.docker.applications.plugin.worker.WorkerObjectCache
+import com.aries.gradle.docker.applications.plugin.worker.WorkerReport
+import com.aries.gradle.docker.applications.plugin.worker.WorkerMetaData
+import com.aries.gradle.docker.applications.plugin.worker.WorkerMetaDataCache
 import org.gradle.api.DefaultTask
-import org.gradle.api.Task
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
@@ -36,9 +36,11 @@ import javax.inject.Inject
 import static java.util.Objects.requireNonNull
 
 /**
+ *
  * Manage the lifecycle of dockerized application-container(s)
+ *
  */
-class DockerManageContainerExt extends DefaultTask {
+class DockerManageContainer extends DefaultTask {
 
     @Input
     @Optional
@@ -63,13 +65,13 @@ class DockerManageContainerExt extends DefaultTask {
     private final List<Closure<DataContainer>> dataConfigs = []
 
     @Internal
-    private final List<SummaryReport> reports = []
+    private final List<WorkerReport> reports = []
 
     @Internal
     private final WorkerExecutor workerExecutor
 
     @Inject
-    DockerManageContainerExt(final WorkerExecutor workerExecutor) {
+    DockerManageContainer(final WorkerExecutor workerExecutor) {
         this.workerExecutor = workerExecutor
     }
 
@@ -105,12 +107,12 @@ class DockerManageContainerExt extends DefaultTask {
         for (int index = 1; index <= resolvedCount; index++) {
 
             // report will be filled out by worker and available once task execution has completed
-            final SummaryReport summaryReport = new SummaryReport()
+            final WorkerReport summaryReport = new WorkerReport()
             reports.add(summaryReport)
 
-            final WorkerObject workerObject = new WorkerObject(resolvedCommand, project, resolvedId, index, resolvedNetwork, mainContainer, dataContainer, summaryReport)
+            final WorkerMetaData workerObject = new WorkerMetaData(resolvedCommand, project, resolvedId, index, resolvedNetwork, mainContainer, dataContainer, summaryReport)
             final String hash = UUID.randomUUID().toString().md5()
-            WorkerObjectCache.put(hash, workerObject)
+            WorkerMetaDataCache.put(hash, workerObject)
 
             workerExecutor.submit(DockerWorker, { cfg ->
                 cfg.setIsolationMode(IsolationMode.NONE)
@@ -136,7 +138,7 @@ class DockerManageContainerExt extends DefaultTask {
         if (dataConfig) { dataConfigs.add(dataConfig) }
     }
 
-    List<SummaryReport> reports() {
+    List<WorkerReport> reports() {
         reports
     }
 }

@@ -89,8 +89,8 @@ class GradleDockerApplicationsPluginUtils {
 
 
     /**
-     * Execute an arbitrary tasks code ensuring its `doFirst` closures are run before hand
-     * and its `doLast` closures are run after.
+     * Execute an arbitrary tasks code ensuring its `onlyIf`, `doFirst`, `start`, and `doLast`
+     * closures are executed almost as if gradle ran the task itself.
      *
      * It's important to note that the task is not actually run in the gradle sense
      * but that its code is called much like any other piece of code.
@@ -185,7 +185,7 @@ class GradleDockerApplicationsPluginUtils {
         }
         progressLogger.completed()
 
-        project.logger.debug "Lock took ${totalMillis}m to acquire."
+        project.logger.debug "Lock '${lockName}' took ${totalMillis}m to acquire."
     }
 
     static void releaseLock(final Project project, final String lockName) {

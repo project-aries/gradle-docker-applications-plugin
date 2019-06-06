@@ -133,7 +133,7 @@ abstract class AbstractFunctionalTest extends Specification {
                 tokensToReplaceWithValues.each { k, v ->
                     localLine = localLine.replaceAll(k, String.valueOf(v))
                 }
-                dest << localLine + System.getProperty('line.separator')
+                dest << localLine + System.lineSeparator()
             }
         }
     }

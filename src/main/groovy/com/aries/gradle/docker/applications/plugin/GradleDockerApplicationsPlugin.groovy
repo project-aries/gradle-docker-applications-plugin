@@ -17,7 +17,8 @@
 package com.aries.gradle.docker.applications.plugin
 
 import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
-import com.aries.gradle.docker.applications.plugin.tasks.DockerManageContainerExt
+import com.aries.gradle.docker.applications.plugin.domain.CommandTypes
+import com.aries.gradle.docker.applications.plugin.tasks.DockerManageContainer
 import com.bmuschko.gradle.docker.DockerRemoteApiPlugin
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
@@ -29,7 +30,9 @@ import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.TaskProvider
 
 /**
+ *
  *  Plugin providing common tasks for starting (*Up), stopping (*Stop), and deleting (*Down) dockerized applications.
+ *
  */
 class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
@@ -87,17 +90,17 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         final String appName = appContainer.getName()
 
-        return project.tasks.register("${appName}Up", DockerManageContainerExt, {
+        return project.tasks.register("${appName}Up", DockerManageContainer, {
 
             dependsOn(appContainer.dependsOn)
 
-            command = 'UP'
+            command = CommandTypes.UP.toString()
             count = appContainer.count.getOrElse(1)
             id = appContainer.id.getOrNull() ?: appName
             network = project.provider {
                 String networkName = appContainer.network.getOrNull()
                 if (networkName && networkName.equals('generate')) {
-                    networkName = appContainer.id() ?: appName
+                    networkName = appContainer.id.getOrNull() ?: appName
                 }
                 networkName
             }
@@ -124,11 +127,11 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             description: "Stop all '${appName}' dependencies if not already stopped."
         }
 
-        final TaskProvider<Task> stopApp = project.tasks.register("${appName}Stop_App", DockerManageContainerExt, {
+        final TaskProvider<Task> stopApp = project.tasks.register("${appName}Stop_App", DockerManageContainer, {
 
             mustRunAfter(stopDependencies)
 
-            command = 'STOP'
+            command = CommandTypes.STOP.toString()
             count = appContainer.count.getOrElse(1)
             id = appContainer.id.getOrNull() ?: appName
             main(appContainer.mainConfigs)
@@ -163,17 +166,17 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             description: "Delete all '${appName}' dependencies if not already deleted."
         }
 
-        final TaskProvider<Task> downApp = project.tasks.register("${appName}Down_App", DockerManageContainerExt, {
+        final TaskProvider<Task> downApp = project.tasks.register("${appName}Down_App", DockerManageContainer, {
 
             mustRunAfter(downDependencies)
 
-            command = 'DOWN'
+            command = CommandTypes.DOWN.toString()
             count = appContainer.count.getOrElse(1)
             id = appContainer.id.getOrNull() ?: appName
             network = project.provider {
                 String networkName = appContainer.network.getOrNull()
                 if (networkName && networkName.equals('generate')) {
-                    networkName = appContainer.id() ?: appName
+                    networkName = appContainer.id.getOrNull() ?: appName
                 }
                 networkName
             }

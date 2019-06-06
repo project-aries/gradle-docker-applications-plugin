@@ -3,7 +3,6 @@ package com.aries.gradle.docker.applications.plugin.worker
 import com.aries.gradle.docker.applications.plugin.domain.CommandTypes
 import com.aries.gradle.docker.applications.plugin.domain.DataContainer
 import com.aries.gradle.docker.applications.plugin.domain.MainContainer
-import com.aries.gradle.docker.applications.plugin.domain.SummaryReport
 import com.bmuschko.gradle.docker.tasks.DockerOperation
 import com.bmuschko.gradle.docker.tasks.container.*
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
@@ -21,13 +20,18 @@ import javax.inject.Inject
 
 import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.*
 
+/**
+ *
+ * Invokes the requested command (e.g. UP, STOP, DOWN) on a single dockerized application.
+ *
+ */
 class DockerWorker implements Runnable {
 
-    final WorkerObject workerObject
+    final WorkerMetaData workerObject
 
     @Inject
     DockerWorker(final String cacheKey) {
-        this.workerObject = WorkerObjectCache.get(cacheKey)
+        this.workerObject = WorkerMetaDataCache.get(cacheKey)
     }
 
     @Override
@@ -37,8 +41,16 @@ class DockerWorker implements Runnable {
 
         try {
 
+            // 1.) update status to denote we are now waiting for lock
+            workerObject.summaryReport.status = WorkerReport.Status.WAITING
+
+            // 2.) wait for lock to proceed on this work
             acquireLock(workerObject.project, lockName)
 
+            // 3.) update status to denote we are now working
+            workerObject.summaryReport.status = WorkerReport.Status.WORKING
+
+            // 4.) perform requested work
             switch (workerObject.command) {
                 case CommandTypes.UP:
                     up(true);
@@ -53,7 +65,12 @@ class DockerWorker implements Runnable {
                     break
             }
         } finally {
+
+            // 5.) release lock for this work
             releaseLock(workerObject.project, lockName)
+
+            // 6.) update status to denote we are now waiting for lock
+            workerObject.summaryReport.status = WorkerReport.Status.FINISHED
         }
     }
 
@@ -234,7 +251,7 @@ class DockerWorker implements Runnable {
             }
 
             // 8.) get the summary for the running container and print to stdout
-            final SummaryReport summaryReport = workerObject.summaryReport
+            final WorkerReport summaryReport = workerObject.summaryReport
             Task summaryContainerTask = project.tasks.create(randomString(), DockerOperation, {
 
                 onNext { dockerClient ->
