@@ -346,6 +346,7 @@ CREATED = 2018-06-30T12:05:48.222160433Z
 PORTS = 32789->8080
 ADDRESS = 172.23.0.2
 GATEWAY = 172.23.0.1
+NETWORK = myTomcatServer
 =====================================================================
 ```
 Once the **Up** task has completed this banner is displayed giving you some basic 
@@ -357,14 +358,15 @@ access these could look like:
 ```
 task myDownstreamTask(dependsOn: tomcatUp) {
     doLast {
-        println tomcatUp.ext.applications.get(0).get().ext.id // String
-        println tomcatUp.ext.applications.get(0).get().ext.name // String
-        println tomcatUp.ext.applications.get(0).get().ext.image // String
-        println tomcatUp.ext.applications.get(0).get().ext.command // List<String>
-        println tomcatUp.ext.applications.get(0).get().ext.created // String
-        println tomcatUp.ext.applications.get(0).get().ext.ports // Map<String, String>
-        println tomcatUp.ext.applications.get(0).get().ext.address // String
-        println tomcatUp.ext.applications.get(0).get().ext.gateway // String
+        println tomcatUp.reports().get(0).id // String
+        println tomcatUp.reports().get(0).name // String
+        println tomcatUp.reports().get(0).image // String
+        println tomcatUp.reports().get(0).command // List<String>
+        println tomcatUp.reports().get(0).created // String
+        println tomcatUp.reports().get(0).ports // Map<String, String>
+        println tomcatUp.reports().get(0).address // String
+        println tomcatUp.reports().get(0).gateway // String
+        println tomcatUp.reports().get(0).network // String
 
         // the actual inspection object itself which contains all of the
         // above as well as every other property/object attached to an
