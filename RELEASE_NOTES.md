@@ -1,3 +1,8 @@
+### Version 1.5.0 (June 7, 2019)
+* The `options` closure has been removed in favor of using gradle Property providers.
+* All dockerized applications now run in parallel via gradles worker api.
+* All around code simplification and refactoring across the entire codebase.
+
 ### Version 1.4.2 (May 31, 2019)
 * `AbstractApplication` now has options defined within an `options` closure so that we can further delay resolving them.
 
