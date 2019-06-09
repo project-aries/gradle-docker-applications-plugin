@@ -79,7 +79,7 @@ class DockerManageContainer extends DefaultTask {
     void execute() {
 
         // 1.) Initialize all properties and set defaults where necessary
-        final CommandTypes resolvedCommand = CommandTypes.valueOf(command.getOrElse(CommandTypes.UP.toString()))
+        final CommandTypes resolvedCommand = CommandTypes.valueOf(command.getOrElse(CommandTypes.UP.toString()).toUpperCase())
         final int resolvedCount = count.getOrElse(1)
         final String resolvedId = id.getOrElse(project.getName())
         final String resolvedNetwork = network.getOrNull()

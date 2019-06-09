@@ -146,7 +146,8 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                 myPostgresStack {
                     network(sharedNetworkName)
                     count(2)
-                    dependsOn(configurations.dev, kicker, applicationDep)
+                    dependsOnParallel(applicationDep)
+                    dependsOn(configurations.dev, kicker)
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
@@ -205,7 +206,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             
             task up(dependsOn: ['myPostgresStackUp']) {
                 doLast {
-                    println "FOUND REPORT: " + myPostgresStackUp.reports().get(0)
+                    println "FOUND REPORT: " + myPostgresStackUp.ext.reports.get(0)
                 }
             }
                    
@@ -221,6 +222,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
         resultUp.output.contains('In the KICKER')
         resultUp.output.contains('Inspecting container with ID')
         resultUp.output.contains('Created container with ID')
+        count(resultUp.output, 'NETWORK = postgres-stack') == 3
         count(resultUp.output, 'Copying file to container') == 15
         resultUp.output.contains('Creating network')
         resultUp.output.contains('Copying file to container')

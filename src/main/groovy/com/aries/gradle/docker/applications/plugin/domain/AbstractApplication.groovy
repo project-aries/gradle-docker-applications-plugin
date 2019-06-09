@@ -16,6 +16,10 @@
 
 package com.aries.gradle.docker.applications.plugin.domain
 
+import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPlugin.UP
+import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPlugin.STOP
+import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPlugin.DOWN
+
 import com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPlugin
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
@@ -76,25 +80,49 @@ class AbstractApplication {
     // internal helper collection to hold AbstractApplication names
     // that this AbstractApplication dependsOn.
     @Internal
-    final Collection<String> applicationDependsOn = ArrayList.newInstance()
+    final Map<String, Set<String>> dependsOnApp = new HashMap<String, Set<String>>()
 
-    // if set will be used as a shared acquire amongst all tasks.
     @Input
     @Optional
     final Collection<Object> dependsOn = []
     Collection<Object> dependsOn(final Object... paths = null) {
         paths?.each { dep ->
             if (dep) {
-                def arbitraryDep = dep
-                if (arbitraryDep instanceof AbstractApplication) {
-                    this.applicationDependsOn.add(dep.getName())
-                    arbitraryDep = dep.getName() + "Up"
+                if (dep instanceof AbstractApplication) {
+                    dependsOnApp.get(UP, new HashSet<String>()).add("${dep.getName()}${UP}")
+                    dependsOnApp.get(STOP, new HashSet<String>()).add("${dep.getName()}${STOP}")
+                    dependsOnApp.get(DOWN, new HashSet<String>()).add("${dep.getName()}${DOWN}")
+                } else {
+                    this.dependsOn.add(dep)
                 }
-                this.dependsOn.add(arbitraryDep)
             }
         }
 
         dependsOn
+    }
+
+    // internal helper collection to hold AbstractApplication names
+    // that this AbstractApplication dependsOn.
+    @Internal
+    final Map<String, Set<String>> dependsOnParallelApp = new HashMap<String, Set<String>>()
+
+    @Input
+    @Optional
+    final Collection<Object> dependsOnParallel = []
+    Collection<Object> dependsOnParallel(final Object... paths = null) {
+        paths?.each { dep ->
+            if (dep) {
+                if (dep instanceof AbstractApplication) {
+                    dependsOnParallelApp.get(UP, new HashSet<String>()).add("${dep.getName()}${UP}")
+                    dependsOnParallelApp.get(STOP, new HashSet<String>()).add("${dep.getName()}${STOP}")
+                    dependsOnParallelApp.get(DOWN, new HashSet<String>()).add("${dep.getName()}${DOWN}")
+                } else {
+                    this.dependsOnParallel.add(dep)
+                }
+            }
+        }
+
+        dependsOnParallel
     }
 
     // methods and properties used to configure the main container.

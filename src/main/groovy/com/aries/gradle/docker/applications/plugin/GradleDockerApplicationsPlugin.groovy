@@ -43,6 +43,12 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
     public static ObjectFactory objectFactory
     public static ProviderFactory providerFactory
 
+    private static final Set<String> EMPTY_SET = Collections.unmodifiableSet( new HashSet<String>() );
+
+    public static final String UP = CommandTypes.UP.type()
+    public static final String STOP = CommandTypes.STOP.type()
+    public static final String DOWN = CommandTypes.DOWN.type()
+
     @Override
     void apply(final Project project) {
 
@@ -90,13 +96,14 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         final String appName = appContainer.getName()
 
-        return project.tasks.register("${appName}Up", DockerManageContainer, {
+        final TaskProvider<DockerManageContainer> upApp = project.tasks.register("${appName}Up_App", DockerManageContainer, {
 
-            dependsOn(appContainer.dependsOn)
+            dependsOn(appContainer.dependsOn, appContainer.dependsOnApp.get(UP, EMPTY_SET))
 
-            command = CommandTypes.UP.toString()
+            command = UP
             count = appContainer.count.getOrElse(1)
             id = appContainer.id.getOrNull() ?: appName
+
             network = project.provider {
                 String networkName = appContainer.network.getOrNull()
                 if (networkName && networkName.equals('generate')) {
@@ -104,12 +111,23 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 }
                 networkName
             }
+
             main(appContainer.mainConfigs)
             data(appContainer.dataConfigs)
 
             group: appName
-            description: "Start all '${appName}' container application(s), and their dependencies, if not already started."
+            description: "Start '${appName}' if not already started."
         })
+
+        return project.tasks.register("${appName}${UP}") {
+            outputs.upToDateWhen { false }
+
+            doFirst { ext.reports = upApp.get().reports() }
+            dependsOn(upApp, appContainer.dependsOnParallel, appContainer.dependsOnParallelApp.get(UP, EMPTY_SET))
+
+            group: appName
+            description: "Start all '${appName}' container application(s), and their dependencies, if not already started."
+        }
     }
 
     private TaskProvider<Task> createStopChain(final Project project,
@@ -117,21 +135,11 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         final String appName = appContainer.getName()
 
-        final TaskProvider<Task> stopDependencies = project.tasks.register("${appName}Stop_Dependencies") {
-            onlyIf { appContainer.applicationDependsOn }
-            outputs.upToDateWhen { false }
-
-            dependsOn(appContainer.applicationDependsOn.collect { "${it}Stop" })
-
-            group: appName
-            description: "Stop all '${appName}' dependencies if not already stopped."
-        }
-
         final TaskProvider<Task> stopApp = project.tasks.register("${appName}Stop_App", DockerManageContainer, {
 
-            mustRunAfter(stopDependencies)
+            dependsOn(appContainer.dependsOnApp.get(STOP, EMPTY_SET))
 
-            command = CommandTypes.STOP.toString()
+            command = STOP
             count = appContainer.count.getOrElse(1)
             id = appContainer.id.getOrNull() ?: appName
             main(appContainer.mainConfigs)
@@ -141,10 +149,10 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             description: "Stop '${appName}' if not already stopped."
         })
 
-        return project.tasks.register("${appName}Stop") {
+        return project.tasks.register("${appName}${STOP}") {
             outputs.upToDateWhen { false }
 
-            dependsOn(stopApp, stopDependencies)
+            dependsOn(stopApp, appContainer.dependsOnParallelApp.get(STOP, EMPTY_SET))
 
             group: appName
             description: "Wrapper for stopping all '${appName}' container application(s) if not already stopped."
@@ -156,23 +164,14 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         final String appName = appContainer.getName()
 
-        final TaskProvider<Task> downDependencies = project.tasks.register("${appName}Down_Dependencies") {
-            onlyIf { appContainer.applicationDependsOn }
-            outputs.upToDateWhen { false }
-
-            dependsOn(appContainer.applicationDependsOn.collect { "${it}Down" })
-
-            group: appName
-            description: "Delete all '${appName}' dependencies if not already deleted."
-        }
-
         final TaskProvider<Task> downApp = project.tasks.register("${appName}Down_App", DockerManageContainer, {
 
-            mustRunAfter(downDependencies)
+            dependsOn(appContainer.dependsOnApp.get(DOWN, EMPTY_SET))
 
-            command = CommandTypes.DOWN.toString()
+            command = DOWN
             count = appContainer.count.getOrElse(1)
             id = appContainer.id.getOrNull() ?: appName
+
             network = project.provider {
                 String networkName = appContainer.network.getOrNull()
                 if (networkName && networkName.equals('generate')) {
@@ -180,6 +179,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 }
                 networkName
             }
+
             main(appContainer.mainConfigs)
             data(appContainer.dataConfigs)
 
@@ -187,10 +187,10 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             description: "Delete '${appName}' if not already deleted."
         })
 
-        return project.tasks.register("${appName}Down") {
+        return project.tasks.register("${appName}${DOWN}") {
             outputs.upToDateWhen { false }
 
-            dependsOn(downApp, downDependencies)
+            dependsOn(downApp, appContainer.dependsOnParallelApp.get(DOWN, EMPTY_SET))
 
             group: appName
             description: "Wrapper for deleting all '${appName}' container application(s), and their dependencies, if not already deleted."
