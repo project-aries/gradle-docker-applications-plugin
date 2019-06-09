@@ -96,6 +96,8 @@ applications {
         id('hello-world-123') // Optional. Overrides the appName (e.g. myPostgresStack) when naming containers. Defaults to null.
         network('hello-world') // Optional. Sets custom network name. Defaults to appName if not set. Set to null to skip custom network.
         count(2) // Optional. Number of instances to start. Defaults to 1.
+        dependsOn(Object...) // Optional. Sets these _dependsOn_ to the executing **Up** task.
+        dependsOnParallel(Object...) // Optional. Runs these _dependsOnParallel_ asynchronously to the executing **Up** task.
         main {
             repository = 'postgres'
             tag = 'alpine' // optional and defaults to 'latest' if not set
@@ -358,15 +360,15 @@ access these could look like:
 ```
 task myDownstreamTask(dependsOn: tomcatUp) {
     doLast {
-        println tomcatUp.reports().get(0).id // String
-        println tomcatUp.reports().get(0).name // String
-        println tomcatUp.reports().get(0).image // String
-        println tomcatUp.reports().get(0).command // List<String>
-        println tomcatUp.reports().get(0).created // String
-        println tomcatUp.reports().get(0).ports // Map<String, String>
-        println tomcatUp.reports().get(0).address // String
-        println tomcatUp.reports().get(0).gateway // String
-        println tomcatUp.reports().get(0).network // String
+        println tomcatUp.ext.reports.get(0).id // String
+        println tomcatUp.ext.reports.get(0).name // String
+        println tomcatUp.ext.reports.get(0).image // String
+        println tomcatUp.ext.reports.get(0).command // List<String>
+        println tomcatUp.ext.reports.get(0).created // String
+        println tomcatUp.ext.reports.get(0).ports // Map<String, String>
+        println tomcatUp.ext.reports.get(0).address // String
+        println tomcatUp.ext.reports.get(0).gateway // String
+        println tomcatUp.ext.reports.get(0).network // String
 
         // the actual inspection object itself which contains all of the
         // above as well as every other property/object attached to an

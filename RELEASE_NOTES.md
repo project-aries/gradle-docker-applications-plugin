@@ -1,3 +1,6 @@
+### Version 1.5.1 (June 8, 2019)
+* `AbsractApplication` gained optionally `dependsOnParallel` which behaves much like gradles `dependsOn` only executes this in parallel with the actual task execution.
+
 ### Version 1.5.0 (June 7, 2019)
 * The `options` closure has been removed in favor of using gradle Property providers.
 * All dockerized applications now run in parallel via gradles worker api.
