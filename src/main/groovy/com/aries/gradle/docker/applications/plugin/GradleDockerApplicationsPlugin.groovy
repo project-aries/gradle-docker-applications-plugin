@@ -19,6 +19,7 @@ package com.aries.gradle.docker.applications.plugin
 import com.aries.gradle.docker.applications.plugin.domain.AbstractApplication
 import com.aries.gradle.docker.applications.plugin.domain.CommandTypes
 import com.aries.gradle.docker.applications.plugin.tasks.DockerManageContainer
+import com.aries.gradle.docker.applications.plugin.tasks.SummaryReportCollector
 import com.bmuschko.gradle.docker.DockerRemoteApiPlugin
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
@@ -96,15 +97,15 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         final String appName = appContainer.getName()
 
-        final TaskProvider<DockerManageContainer> upApp = project.tasks.register("${appName}Up_App", DockerManageContainer, {
+        final TaskProvider<DockerManageContainer> upApp = project.tasks.register("${appName}Up_App", DockerManageContainer, { cfg ->
 
-            dependsOn(appContainer.dependsOn, appContainer.dependsOnApp.get(UP, EMPTY_SET))
+            cfg.dependsOn(appContainer.dependsOn, appContainer.dependsOnApp.get(UP, EMPTY_SET))
 
-            command = UP
-            count = appContainer.count.getOrElse(1)
-            id = appContainer.id.getOrNull() ?: appName
+            cfg.command = UP
+            cfg.count = appContainer.count.getOrElse(1)
+            cfg.id = appContainer.id.getOrNull() ?: appName
 
-            network = project.provider {
+            cfg.network = project.provider {
                 String networkName = appContainer.network.getOrNull()
                 if (networkName && networkName.equals('generate')) {
                     networkName = appContainer.id.getOrNull() ?: appName
@@ -112,22 +113,22 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 networkName
             }
 
-            main(appContainer.mainConfigs)
-            data(appContainer.dataConfigs)
+            cfg.main(appContainer.mainConfigs)
+            cfg.data(appContainer.dataConfigs)
 
-            group: appName
-            description: "Start '${appName}' if not already started."
+            cfg.group = appName
+            cfg.description = "Start '${appName}' if not already started."
         })
 
-        return project.tasks.register("${appName}${UP}") {
-            outputs.upToDateWhen { false }
+        return project.tasks.register("${appName}${UP}", SummaryReportCollector, { cfg ->
+            cfg.outputs.upToDateWhen { false }
 
-            doFirst { ext.reports = upApp.get().reports() }
-            dependsOn(upApp, appContainer.dependsOnParallel, appContainer.dependsOnParallelApp.get(UP, EMPTY_SET))
+            cfg.reports = upApp.get().reports()
+            cfg.dependsOn(upApp, appContainer.dependsOnParallel, appContainer.dependsOnParallelApp.get(UP, EMPTY_SET))
 
-            group: appName
-            description: "Start all '${appName}' container application(s), and their dependencies, if not already started."
-        }
+            cfg.group = appName
+            cfg.description = "Start all '${appName}' container application(s), and their dependencies, if not already started."
+        })
     }
 
     private TaskProvider<Task> createStopChain(final Project project,
@@ -135,28 +136,29 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         final String appName = appContainer.getName()
 
-        final TaskProvider<Task> stopApp = project.tasks.register("${appName}Stop_App", DockerManageContainer, {
+        final TaskProvider<DockerManageContainer> stopApp = project.tasks.register("${appName}Stop_App", DockerManageContainer, { cfg ->
 
-            dependsOn(appContainer.dependsOnApp.get(STOP, EMPTY_SET))
+            cfg.dependsOn(appContainer.dependsOnApp.get(STOP, EMPTY_SET))
 
-            command = STOP
-            count = appContainer.count.getOrElse(1)
-            id = appContainer.id.getOrNull() ?: appName
-            main(appContainer.mainConfigs)
-            data(appContainer.dataConfigs)
+            cfg.command = STOP
+            cfg.count = appContainer.count.getOrElse(1)
+            cfg.id = appContainer.id.getOrNull() ?: appName
+            cfg.main(appContainer.mainConfigs)
+            cfg.data(appContainer.dataConfigs)
 
-            group: appName
-            description: "Stop '${appName}' if not already stopped."
+            cfg.group = appName
+            cfg.description = "Stop '${appName}' if not already stopped."
         })
 
-        return project.tasks.register("${appName}${STOP}") {
-            outputs.upToDateWhen { false }
+        return project.tasks.register("${appName}${STOP}", SummaryReportCollector, { cfg ->
+            cfg.outputs.upToDateWhen { false }
 
-            dependsOn(stopApp, appContainer.dependsOnParallelApp.get(STOP, EMPTY_SET))
+            cfg.reports = stopApp.get().reports()
+            cfg.dependsOn(stopApp, appContainer.dependsOnParallelApp.get(STOP, EMPTY_SET))
 
-            group: appName
-            description: "Wrapper for stopping all '${appName}' container application(s) if not already stopped."
-        }
+            cfg.group = appName
+            cfg.description = "Wrapper for stopping all '${appName}' container application(s) if not already stopped."
+        })
     }
 
     private TaskProvider<Task> createDownChain(final Project project,
@@ -164,15 +166,15 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         final String appName = appContainer.getName()
 
-        final TaskProvider<Task> downApp = project.tasks.register("${appName}Down_App", DockerManageContainer, {
+        final TaskProvider<DockerManageContainer> downApp = project.tasks.register("${appName}Down_App", DockerManageContainer, { cfg ->
 
-            dependsOn(appContainer.dependsOnApp.get(DOWN, EMPTY_SET))
+            cfg.dependsOn(appContainer.dependsOnApp.get(DOWN, EMPTY_SET))
 
-            command = DOWN
-            count = appContainer.count.getOrElse(1)
-            id = appContainer.id.getOrNull() ?: appName
+            cfg.command = DOWN
+            cfg.count = appContainer.count.getOrElse(1)
+            cfg.id = appContainer.id.getOrNull() ?: appName
 
-            network = project.provider {
+            cfg.network = project.provider {
                 String networkName = appContainer.network.getOrNull()
                 if (networkName && networkName.equals('generate')) {
                     networkName = appContainer.id.getOrNull() ?: appName
@@ -180,20 +182,21 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
                 networkName
             }
 
-            main(appContainer.mainConfigs)
-            data(appContainer.dataConfigs)
+            cfg.main(appContainer.mainConfigs)
+            cfg.data(appContainer.dataConfigs)
 
-            group: appName
-            description: "Delete '${appName}' if not already deleted."
+            cfg.group = appName
+            cfg.description = "Delete '${appName}' if not already deleted."
         })
 
-        return project.tasks.register("${appName}${DOWN}") {
-            outputs.upToDateWhen { false }
+        return project.tasks.register("${appName}${DOWN}", SummaryReportCollector, { cfg ->
+            cfg.outputs.upToDateWhen { false }
 
-            dependsOn(downApp, appContainer.dependsOnParallelApp.get(DOWN, EMPTY_SET))
+            cfg.reports = downApp.get().reports()
+            cfg.dependsOn(downApp, appContainer.dependsOnParallelApp.get(DOWN, EMPTY_SET))
 
-            group: appName
-            description: "Wrapper for deleting all '${appName}' container application(s), and their dependencies, if not already deleted."
-        }
+            cfg.group = appName
+            cfg.description = "Wrapper for deleting all '${appName}' container application(s), and their dependencies, if not already deleted."
+        })
     }
 }

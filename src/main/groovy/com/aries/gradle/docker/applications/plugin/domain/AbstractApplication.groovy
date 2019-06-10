@@ -30,7 +30,6 @@ import org.gradle.api.tasks.Optional
 
 import javax.annotation.Nullable
 
-
 /**
  *
  *  Base class for all applications to inherit functionality from.
@@ -80,7 +79,7 @@ class AbstractApplication {
     // internal helper collection to hold AbstractApplication names
     // that this AbstractApplication dependsOn.
     @Internal
-    final Map<String, Set<String>> dependsOnApp = new HashMap<String, Set<String>>()
+    protected final Map<String, Set<String>> dependsOnApp = new HashMap<String, Set<String>>()
 
     @Input
     @Optional
@@ -102,9 +101,9 @@ class AbstractApplication {
     }
 
     // internal helper collection to hold AbstractApplication names
-    // that this AbstractApplication dependsOn.
+    // that this AbstractApplication will dependsOn in parallel.
     @Internal
-    final Map<String, Set<String>> dependsOnParallelApp = new HashMap<String, Set<String>>()
+    protected final Map<String, Set<String>> dependsOnParallelApp = new HashMap<String, Set<String>>()
 
     @Input
     @Optional
@@ -144,7 +143,6 @@ class AbstractApplication {
     final String name
     AbstractApplication(final String name) {
         this.name = name
-        this.count.set(1)
         this.network.set('generate')
     }
 }

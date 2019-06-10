@@ -200,23 +200,33 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                 }
             }
             
-            task stop(dependsOn: ['myPostgresStackStop'])
+            task stop(dependsOn: ['myPostgresStackStop']) {
+                doLast {
+                    println "REPORT SIZE: " + myPostgresStackStop.reports().size()
+                    println "FOUND REPORT: " + myPostgresStackStop.reports().get(0)
+                }
+            }
 
-            task down(dependsOn: ['myPostgresStackDown'])  
+            task down(dependsOn: ['myPostgresStackDown']) {
+                doLast {
+                    println "REPORT SIZE: " + myPostgresStackDown.reports().size()
+                    println "FOUND REPORT: " + myPostgresStackDown.reports().get(0)
+                }
+            }
             
             task up(dependsOn: ['myPostgresStackUp']) {
                 doLast {
-                    println "FOUND REPORT: " + myPostgresStackUp.ext.reports.get(0)
+                    println "REPORT SIZE: " + myPostgresStackUp.reports().size()
+                    println "FOUND REPORT: " + myPostgresStackUp.reports().get(0)
                 }
             }
                    
         """
 
         when:
-            BuildResult resultUp = build( 'up')
-            BuildResult resultStop = build( 'stop')
-            BuildResult resultDown = build( 'down')
-
+        BuildResult resultUp = build( 'up')
+        BuildResult resultStop = build( 'stop')
+        BuildResult resultDown = build( 'down')
 
         then:
         resultUp.output.contains('In the KICKER')
@@ -234,10 +244,13 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
         resultUp.output.contains('GRANT')
         resultUp.output.contains('pg_ctl: server is running')
         resultUp.output.contains('max_connections                        | 200')
+        resultUp.output.contains('REPORT SIZE: 2')
 
         resultStop.output.contains('Running exec-stop on container with ID')
+        resultStop.output.contains('REPORT SIZE: 2')
 
         resultDown.output.contains('Removing container with ID')
         resultDown.output.contains('Removing network')
+        resultDown.output.contains('REPORT SIZE: 2')
     }
 }

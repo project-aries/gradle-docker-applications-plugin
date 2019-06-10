@@ -360,20 +360,20 @@ access these could look like:
 ```
 task myDownstreamTask(dependsOn: tomcatUp) {
     doLast {
-        println tomcatUp.ext.reports.get(0).id // String
-        println tomcatUp.ext.reports.get(0).name // String
-        println tomcatUp.ext.reports.get(0).image // String
-        println tomcatUp.ext.reports.get(0).command // List<String>
-        println tomcatUp.ext.reports.get(0).created // String
-        println tomcatUp.ext.reports.get(0).ports // Map<String, String>
-        println tomcatUp.ext.reports.get(0).address // String
-        println tomcatUp.ext.reports.get(0).gateway // String
-        println tomcatUp.ext.reports.get(0).network // String
+        println tomcatUp.reports().get(0).id // String
+        println tomcatUp.reports().get(0).name // String
+        println tomcatUp.reports().get(0).image // String
+        println tomcatUp.reports().get(0).command // List<String>
+        println tomcatUp.reports().get(0).created // String
+        println tomcatUp.reports().get(0).ports // Map<String, String>
+        println tomcatUp.reports().get(0).address // String
+        println tomcatUp.reports().get(0).gateway // String
+        println tomcatUp.reports().get(0).network // String
 
         // the actual inspection object itself which contains all of the
         // above as well as every other property/object attached to an
         // inspection you can think of.
-        println tomcatUp.ext.applications.get(0).get().ext.inspection
+        println tomcatUp.reports().get(0).inspection
     }
 }
 ```

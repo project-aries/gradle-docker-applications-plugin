@@ -3,6 +3,7 @@ package com.aries.gradle.docker.applications.plugin.worker
 import com.aries.gradle.docker.applications.plugin.domain.CommandTypes
 import com.aries.gradle.docker.applications.plugin.domain.DataContainer
 import com.aries.gradle.docker.applications.plugin.domain.MainContainer
+import com.aries.gradle.docker.applications.plugin.report.SummaryReport
 import com.bmuschko.gradle.docker.tasks.DockerOperation
 import com.bmuschko.gradle.docker.tasks.container.*
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
@@ -27,31 +28,31 @@ import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicatio
  */
 class DockerWorker implements Runnable {
 
-    final WorkerMetaData workerObject
+    final WorkerMetaData workerMetaData
 
     @Inject
     DockerWorker(final String cacheKey) {
-        this.workerObject = WorkerMetaDataCache.get(cacheKey)
+        this.workerMetaData = WorkerMetaDataCache.get(cacheKey)
     }
 
     @Override
     void run() {
 
-        final String lockName = "execution-${workerObject.getMainId()}-lock"
+        final String lockName = "execution-${workerMetaData.getMainId()}-lock"
 
         try {
 
             // 1.) update status to denote we are now waiting for lock
-            workerObject.summaryReport.status = WorkerReport.Status.WAITING
+            workerMetaData.summaryReport.status = SummaryReport.Status.WAITING
 
             // 2.) wait for lock to proceed on this work
-            acquireLock(workerObject.project, lockName)
+            acquireLock(workerMetaData.project, lockName)
 
             // 3.) update status to denote we are now working
-            workerObject.summaryReport.status = WorkerReport.Status.WORKING
+            workerMetaData.summaryReport.status = SummaryReport.Status.WORKING
 
             // 4.) perform requested work
-            switch (workerObject.command) {
+            switch (workerMetaData.command) {
                 case CommandTypes.UP:
                     up(true);
                     up(false);
@@ -67,28 +68,28 @@ class DockerWorker implements Runnable {
         } finally {
 
             // 5.) release lock for this work
-            releaseLock(workerObject.project, lockName)
+            releaseLock(workerMetaData.project, lockName)
 
             // 6.) update status to denote we are now waiting for lock
-            workerObject.summaryReport.status = WorkerReport.Status.FINISHED
+            workerMetaData.summaryReport.status = SummaryReport.Status.FINISHED
         }
     }
 
     private void up(final boolean isDataContainer) {
 
-        final Project project = workerObject.project
+        final Project project = workerMetaData.project
 
-        final String mainId = workerObject.getMainId()
-        final String dataId = workerObject.getDataId()
+        final String mainId = workerMetaData.getMainId()
+        final String dataId = workerMetaData.getDataId()
 
-        final MainContainer mainContainer = workerObject.mainContainer
-        final DataContainer dataContainer = workerObject.dataContainer
+        final MainContainer mainContainer = workerMetaData.mainContainer
+        final DataContainer dataContainer = workerMetaData.dataContainer
 
         final String containerId = isDataContainer ? dataId : mainId
         final String repositoryId = isDataContainer ? dataContainer.repository() : mainContainer.repository()
         final String tagId = isDataContainer ? dataContainer.tag() : mainContainer.tag()
         final String imageId = isDataContainer ? dataContainer.image() : mainContainer.image()
-        final String networkName = workerObject.network
+        final String networkName = workerMetaData.network
 
         final List createContainerConfigs = isDataContainer ? dataContainer.createConfigs : mainContainer.createConfigs
         final List copyFileConfigs = isDataContainer ? dataContainer.filesConfigs : mainContainer.filesConfigs
@@ -98,19 +99,19 @@ class DockerWorker implements Runnable {
         final List<String> volumesFromContainers = isDataContainer ? [] : ["${dataId}"]
 
         // 1.) Check if container is currently available
-        Task availableContainerTask = project.tasks.create(randomString(), DockerInspectContainer, {
-            targetContainerId(containerId)
-            ext.exists = false
-            ext.inspection = null
-            ext.isRunning = false
-            ext.hasNetwork = false
-            onNext { possibleContainer ->
-                ext.exists = true
-                ext.inspection = possibleContainer
-                ext.isRunning = possibleContainer.state.running
-                ext.hasNetwork = possibleContainer.getNetworkSettings().getNetworks().containsKey(networkName)
+        Task availableContainerTask = createTask(project, DockerInspectContainer, { cnf ->
+            cnf.targetContainerId(containerId)
+            cnf.ext.exists = false
+            cnf.ext.inspection = null
+            cnf.ext.isRunning = false
+            cnf.ext.hasNetwork = false
+            cnf.onNext { possibleContainer ->
+                cnf.ext.exists = true
+                cnf.ext.inspection = possibleContainer
+                cnf.ext.isRunning = possibleContainer.state.running
+                cnf.ext.hasNetwork = possibleContainer.getNetworkSettings().getNetworks().containsKey(networkName)
             }
-            onError { err ->
+            cnf.onError { err ->
                 throwOnValidError(err)
             }
         })
@@ -118,17 +119,17 @@ class DockerWorker implements Runnable {
 
         // 2.) Create network if requested and not present
         if (networkName && !availableContainerTask.ext.hasNetwork) {
-            Task createNetworkTask = project.tasks.create(randomString(), DockerCreateNetwork, {
-                onlyIf {
+            Task createNetworkTask = createTask(project, DockerCreateNetwork, { cnf ->
+                cnf.onlyIf {
                     try {
-                        dockerClient.inspectNetworkCmd().withNetworkId(networkName).exec()
+                        cnf.dockerClient.inspectNetworkCmd().withNetworkId(networkName).exec()
                         false
                     } catch (Exception e) {
                         true
                     }
                 }
 
-                networkId = networkName
+                cnf.networkId = networkName
             })
 
             final String lockName = "network-${networkName}-lock"
@@ -141,7 +142,7 @@ class DockerWorker implements Runnable {
 
             // 3.) Restart container but only if it's available and not in a running state
             if (isDataContainer == false && availableContainerTask.ext.inspection.state.running == false) {
-                Task restartContainerTask = project.tasks.create(randomString(), DockerRestartContainer, { cnf ->
+                Task restartContainerTask = createTask(project, DockerRestartContainer, { cnf ->
                     restartDate = new Date()
 
                     cnf.targetContainerId(containerId)
@@ -154,20 +155,20 @@ class DockerWorker implements Runnable {
         } else {
 
             // 4.) Pull image for container if it does not already exist
-            Task inspectImageTask = project.tasks.create(randomString(), DockerInspectImage, {
-                targetImageId(imageId)
-                ext.hasImage = false
-                onNext {
-                    ext.hasImage = true
+            Task inspectImageTask = createTask(project, DockerInspectImage, { cnf ->
+                cnf.targetImageId(imageId)
+                cnf.ext.hasImage = false
+                cnf.onNext {
+                    cnf.ext.hasImage = true
                 }
-                onError { err ->
+                cnf.onError { err ->
                     throwOnValidError(err)
                 }
             })
             executeTaskCode(inspectImageTask)
 
             if (inspectImageTask.ext.hasImage == false) {
-                Task pullImageTask = project.tasks.create(randomString(), DockerPullImage, { cnf ->
+                Task pullImageTask = createTask(project, DockerPullImage, { cnf ->
                     cnf.repository = repositoryId
                     cnf.tag = tagId
                     cnf.onError { err ->
@@ -178,7 +179,7 @@ class DockerWorker implements Runnable {
             }
 
             // 5.) create, copy files to, and start container if it didn't previously exist
-            Task createContainerTask = project.tasks.create(randomString(), DockerCreateContainer, { cnf ->
+            Task createContainerTask = createTask(project, DockerCreateContainer, { cnf ->
                 cnf.network = networkName
                 cnf.targetImageId(imageId)
                 cnf.containerName = containerId
@@ -187,16 +188,16 @@ class DockerWorker implements Runnable {
             executeTaskCode(createContainerTask, createContainerConfigs)
 
             if (copyFileConfigs) {
-                Task copyFilesToContainerTask = project.tasks.create(randomString(), DockerCopyFileToContainer, {
-                    targetContainerId(containerId)
+                Task copyFilesToContainerTask = createTask(project, DockerCopyFileToContainer, { cnf ->
+                    cnf.targetContainerId(containerId)
                 })
                 executeTaskCode(copyFilesToContainerTask, copyFileConfigs)
             }
 
             if (isDataContainer == false) {
-                Task startContainerTask = project.tasks.create(randomString(), DockerStartContainer, {
-                    ext.startTime = new Date()
-                    targetContainerId(containerId)
+                Task startContainerTask = createTask(project, DockerStartContainer, { cnf ->
+                    cnf.ext.startTime = new Date()
+                    cnf.targetContainerId(containerId)
                 })
                 executeTaskCode(startContainerTask)
             }
@@ -209,17 +210,17 @@ class DockerWorker implements Runnable {
             sleep(2000)
 
             // 6.) perform liveness check to confirm container is running
-            Task livenessContainerTask = project.tasks.create(randomString(), DockerLivenessContainer, {
+            Task livenessContainerTask = createTask(project, DockerLivenessContainer, { cnf ->
 
-                targetContainerId(containerId)
+                cnf.targetContainerId(containerId)
 
                 // only 2 ways this task can kick so we will proceed to configure
                 // the `since` option based ONLY upon a "restart" scenario as we will
                 // use it to determine where in the logs we should start from whereas
                 // in the "start" scenario we simply start from the very beginning
                 // of the logs docker gives us.
-                since.set(restartDate ?: null)
-                onComplete {
+                cnf.since.set(restartDate ?: null)
+                cnf.onComplete {
 
                     // though we should be live at this point we sleep for
                     // another 2 seconds to give the potential application
@@ -235,11 +236,11 @@ class DockerWorker implements Runnable {
             //     execution if the container was already started or if we had to re-start it.
             boolean execStarted = false
             if (execConfigs && (availableContainerTask.ext.isRunning == false) && (restartedContainer == false)) {
-                Task execContainerTask = project.tasks.create(randomString(), DockerExecContainer, {
+                Task execContainerTask = createTask(project, DockerExecContainer, { cnf ->
 
-                    targetContainerId(containerId)
+                    cnf.targetContainerId(containerId)
 
-                    onComplete {
+                    cnf.onComplete {
 
                         // sleeping for 2 seconds just in-case any command caused this container to
                         // come down, potentially gracefully, before we presume things are live.
@@ -251,10 +252,10 @@ class DockerWorker implements Runnable {
             }
 
             // 8.) get the summary for the running container and print to stdout
-            final WorkerReport summaryReport = workerObject.summaryReport
-            Task summaryContainerTask = project.tasks.create(randomString(), DockerOperation, {
+            final SummaryReport summaryReport = workerMetaData.summaryReport
+            Task summaryContainerTask = createTask(project, DockerOperation, { cnf ->
 
-                onNext { dockerClient ->
+                cnf.onNext { dockerClient ->
 
                     // 1.) Set the last used "inspection" for potential downstream use
                     if (execStarted) {
@@ -317,8 +318,8 @@ class DockerWorker implements Runnable {
                     summaryReport.network = foundNetwork
 
                     // 3.) print banner to stdout as an indication that we are now live
-                    logger.quiet '' // newline just to put a break between last output and this banner being printed
-                    logger.quiet summaryReport.banner()
+                    cnf.logger.quiet '' // newline just to put a break between last output and this banner being printed
+                    cnf.logger.quiet summaryReport.banner()
                 }
             })
             executeTaskCode(summaryContainerTask)
@@ -327,59 +328,59 @@ class DockerWorker implements Runnable {
 
     private void stop() {
 
-        final Project project = workerObject.project
+        final Project project = workerMetaData.project
 
-        final String mainId = workerObject.getMainId()
+        final String mainId = workerMetaData.getMainId()
 
-        Task execStopContainerTask = project.tasks.create(randomString(), DockerExecStopContainer, {
+        Task execStopContainerTask = createTask(project, DockerExecStopContainer, { cnf ->
 
-            targetContainerId(mainId)
+            cnf.targetContainerId(mainId)
 
-            onNext { output ->
+            cnf.onNext { output ->
                 // pipe output to nowhere for the time being
             }
-            onError { err ->
+            cnf.onError { err ->
                 throwOnValidError(err)
             }
         })
-        executeTaskCode(execStopContainerTask, workerObject.mainContainer.stopConfigs)
+        executeTaskCode(execStopContainerTask, workerMetaData.mainContainer.stopConfigs)
     }
 
     private void down(final boolean isDataContainer) {
 
-        final Project project = workerObject.project
+        final Project project = workerMetaData.project
 
-        final String mainId = workerObject.getMainId()
-        final String dataId = workerObject.getDataId()
+        final String mainId = workerMetaData.getMainId()
+        final String dataId = workerMetaData.getDataId()
 
         final String containerId = isDataContainer ? dataId : mainId
-        final String networkName = workerObject.network
+        final String networkName = workerMetaData.network
 
-        Task deleteContainerTask = project.tasks.create(randomString(), DockerRemoveContainer, {
+        Task deleteContainerTask = createTask(project, DockerRemoveContainer, { cnf ->
 
-            removeVolumes = true
-            force = true
-            targetContainerId(containerId)
+            cnf.removeVolumes = true
+            cnf.force = true
+            cnf.targetContainerId(containerId)
 
-            onError { err ->
+            cnf.onError { err ->
                 throwOnValidError(err)
             }
         })
         executeTaskCode(deleteContainerTask)
 
         if (networkName) {
-            Task removeNetworkTask = project.tasks.create(randomString(), DockerRemoveNetwork, {
-                onlyIf {
+            Task removeNetworkTask = createTask(project, DockerRemoveNetwork, { cnf ->
+                cnf.onlyIf {
                     try {
-                        dockerClient.inspectNetworkCmd().withNetworkId(networkName).exec().containers.size() == 0
+                        cnf.dockerClient.inspectNetworkCmd().withNetworkId(networkName).exec().containers.size() == 0
                     } catch (final Exception e) {
                         false
                     }
                 }
 
-                targetNetworkId(networkName)
+                cnf.targetNetworkId(networkName)
 
-                onError { err ->
+                cnf.onError { err ->
                     throwOnValidError(err)
                 }
             })

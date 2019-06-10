@@ -16,6 +16,9 @@
 
 package com.aries.gradle.docker.applications.plugin
 
+import com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer
+import org.gradle.api.Action
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.Task
 
@@ -36,6 +39,8 @@ class GradleDockerApplicationsPluginUtils {
     public static final String CLASS_NAME_REGEX = '^(NotModifiedException|NotFoundException|ConflictException)$'
 
     public static final String EXCEPTION_MESSAGE_REGEX = 'not running'
+
+    public static final int MAX_TRIES = 3
 
     private GradleDockerApplicationsPluginUtils() {
         throw new RuntimeException('Purposefully not implemented')
@@ -69,6 +74,39 @@ class GradleDockerApplicationsPluginUtils {
      */
     static void throwOnValidError(final Throwable throwable) {
         if (isValidError(throwable)) { throw throwable }
+    }
+
+    /**
+     * Create an ad-hoc Task on the given project with the passed Action `MAX_TRIES` amount
+     * of times as it has come to pass that, for reasons that still elude me, creating a task
+     * in this manner randomly fails for some reason. So we'll put the task creation in a loop
+     * of sorts pausing between creations as _maybe_ it's a timing/sync issue? IDK.
+     *
+     * @param project
+     * @param clazz
+     * @param configuration
+     * @return
+     */
+    static Task createTask(final Project project, final Class clazz, final Action configuration) {
+        Exception lastException = null
+
+        int tries = 0
+        while (tries < MAX_TRIES) {
+            try {
+                return project.tasks.create(randomString() , clazz, configuration)
+            } catch (Exception e) {
+                lastException = e
+                tries++
+                if (tries == MAX_TRIES) {
+                    break
+                } else {
+                    project.logger.quiet("Failed to create task of type '${clazz.getName()}': trying again...")
+                    sleep 1
+                }
+            }
+        }
+
+        throw new GradleException("Failed to create task of type '${clazz.getName()}' after ${MAX_TRIES} attempts", lastException)
     }
 
     /**

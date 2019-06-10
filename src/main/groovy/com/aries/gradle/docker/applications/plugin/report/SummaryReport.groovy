@@ -1,8 +1,16 @@
-package com.aries.gradle.docker.applications.plugin.worker
+package com.aries.gradle.docker.applications.plugin.report
 
+import com.aries.gradle.docker.applications.plugin.domain.CommandTypes
 import com.github.dockerjava.api.command.InspectContainerResponse
 
-class WorkerReport {
+import static java.util.Objects.requireNonNull
+
+/**
+ *
+ * Provides a summary report of the execution performed by DockerManageContainer.
+ *
+ */
+class SummaryReport implements Serializable {
 
     enum Status {
         SUBMITTED, // work is submitted and waiting to be run
@@ -11,7 +19,9 @@ class WorkerReport {
         FINISHED // work has finished
     }
 
-    InspectContainerResponse inspection
+    transient InspectContainerResponse inspection
+
+    final CommandTypes commandType
 
     String id
     String name
@@ -23,6 +33,10 @@ class WorkerReport {
     String gateway
     String network = 'bridge' // docker default network
     Status status = Status.SUBMITTED
+
+    SummaryReport(final CommandTypes commandTypes) {
+        this.commandType = requireNonNull(commandTypes)
+    }
 
     /**
      * Generate a banner to be displayed ... wherever!!!
@@ -55,7 +69,7 @@ class WorkerReport {
     }
 
     /**
-     * The `status` of this WorkerReport is updated as the execution of the
+     * The `status` of this SummaryReport is updated as the execution of the
      * task at hand moves from submission to working to finished.
      *
      * @return current status in String format.

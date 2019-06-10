@@ -3,6 +3,7 @@ package com.aries.gradle.docker.applications.plugin.worker
 import com.aries.gradle.docker.applications.plugin.domain.CommandTypes
 import com.aries.gradle.docker.applications.plugin.domain.DataContainer
 import com.aries.gradle.docker.applications.plugin.domain.MainContainer
+import com.aries.gradle.docker.applications.plugin.report.SummaryReport
 import org.gradle.api.Project
 
 /**
@@ -19,7 +20,8 @@ class WorkerMetaData {
     final String network
     final MainContainer mainContainer
     final DataContainer dataContainer
-    final WorkerReport summaryReport
+
+    final SummaryReport summaryReport
 
     final String mainId
     final String dataId
@@ -31,7 +33,7 @@ class WorkerMetaData {
                    final String network,
                    final MainContainer mainContainer,
                    final DataContainer dataContainer,
-                   final WorkerReport summaryReport) {
+                   final SummaryReport summaryReport) {
 
         this.command = command
         this.project = project

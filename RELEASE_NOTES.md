@@ -1,3 +1,7 @@
+### Version 1.5.2 (June 10, 2019)
+* Tasks that are created in an ad-hoc manner sometimes fails for no reason given by gradle. When this happens we will attempt to recreate the task X number of times.
+* Task `SummaryReportCollector` was created to house all SummaryReports of a given execution and to be easily queried downstream.
+
 ### Version 1.5.1 (June 8, 2019)
 * `AbsractApplication` gained optionally `dependsOnParallel` which behaves much like gradles `dependsOn` only executes this in parallel with the actual task execution.
 

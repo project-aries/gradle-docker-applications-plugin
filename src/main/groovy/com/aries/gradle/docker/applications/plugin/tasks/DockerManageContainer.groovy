@@ -18,7 +18,7 @@ package com.aries.gradle.docker.applications.plugin.tasks
 
 import com.aries.gradle.docker.applications.plugin.domain.*
 import com.aries.gradle.docker.applications.plugin.worker.DockerWorker
-import com.aries.gradle.docker.applications.plugin.worker.WorkerReport
+import com.aries.gradle.docker.applications.plugin.report.SummaryReport
 import com.aries.gradle.docker.applications.plugin.worker.WorkerMetaData
 import com.aries.gradle.docker.applications.plugin.worker.WorkerMetaDataCache
 import org.gradle.api.DefaultTask
@@ -65,7 +65,7 @@ class DockerManageContainer extends DefaultTask {
     private final List<Closure<DataContainer>> dataConfigs = []
 
     @Internal
-    private final List<WorkerReport> reports = []
+    private final List<SummaryReport> reports = []
 
     @Internal
     private final WorkerExecutor workerExecutor
@@ -80,7 +80,12 @@ class DockerManageContainer extends DefaultTask {
 
         // 1.) Initialize all properties and set defaults where necessary
         final CommandTypes resolvedCommand = CommandTypes.valueOf(command.getOrElse(CommandTypes.UP.toString()).toUpperCase())
-        final int resolvedCount = count.getOrElse(1)
+        final int resolvedCount = count.getOrElse(0)
+        if (resolvedCount <= 0) {
+            logger.quiet("Requested '${resolvedCount}' instances. Returning...")
+            return
+        }
+
         final String resolvedId = id.getOrElse(project.getName())
         final String resolvedNetwork = network.getOrNull()
 
@@ -107,7 +112,7 @@ class DockerManageContainer extends DefaultTask {
         for (int index = 1; index <= resolvedCount; index++) {
 
             // report will be filled out by worker and available once task execution has completed
-            final WorkerReport summaryReport = new WorkerReport()
+            final SummaryReport summaryReport = new SummaryReport(resolvedCommand)
             reports.add(summaryReport)
 
             final WorkerMetaData workerObject = new WorkerMetaData(resolvedCommand, project, resolvedId, index, resolvedNetwork, mainContainer, dataContainer, summaryReport)
@@ -138,7 +143,7 @@ class DockerManageContainer extends DefaultTask {
         if (dataConfig) { dataConfigs.add(dataConfig) }
     }
 
-    List<WorkerReport> reports() {
+    List<SummaryReport> reports() {
         reports
     }
 }
