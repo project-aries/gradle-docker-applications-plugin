@@ -1,11 +1,15 @@
 package com.aries.gradle.docker.applications.plugin.tasks
 
 import com.aries.gradle.docker.applications.plugin.report.SummaryReport
+import com.aries.gradle.docker.applications.plugin.report.SummaryReportCache
 import org.gradle.api.DefaultTask
-import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
+
+import javax.annotation.Nullable
 
 /**
  *
@@ -16,10 +20,13 @@ class SummaryReportCollector extends DefaultTask {
 
     @Input
     @Optional
-    final ListProperty<SummaryReport> reports = project.objects.listProperty(SummaryReport)
+    final Property<String> appNamesMatching = project.objects.property(String)
+
+    @Internal
+    private final String appName
 
     SummaryReportCollector() {
-        reports.empty()
+        this.appName = getGroup() ?: project.getName()
     }
 
     @TaskAction
@@ -27,7 +34,7 @@ class SummaryReportCollector extends DefaultTask {
         logger.debug("Found ${reports().size()} reports...")
     }
 
-    List<SummaryReport> reports() {
-        reports.getOrElse([])
+    List<SummaryReport> reports(@Nullable final String matching = null) {
+        SummaryReportCache.matching(appName, matching, appNamesMatching.getOrNull())
     }
 }

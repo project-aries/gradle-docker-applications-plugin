@@ -17,6 +17,7 @@
 package com.aries.gradle.docker.applications.plugin.tasks
 
 import com.aries.gradle.docker.applications.plugin.domain.*
+import com.aries.gradle.docker.applications.plugin.report.SummaryReportCache
 import com.aries.gradle.docker.applications.plugin.worker.DockerWorker
 import com.aries.gradle.docker.applications.plugin.report.SummaryReport
 import com.aries.gradle.docker.applications.plugin.worker.WorkerMetaData
@@ -27,13 +28,11 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
-import org.gradle.util.ConfigureUtil
 import org.gradle.workers.IsolationMode
 import org.gradle.workers.WorkerExecutor
 
+import javax.annotation.Nullable
 import javax.inject.Inject
-
-import static java.util.Objects.requireNonNull
 
 /**
  *
@@ -65,10 +64,13 @@ class DockerManageContainer extends DefaultTask {
     private final List<Closure<DataContainer>> dataConfigs = []
 
     @Internal
-    private final List<SummaryReport> reports = []
+    private final List<Closure<FrontContainer>> frontConfigs = []
 
     @Internal
     private final WorkerExecutor workerExecutor
+
+    @Internal
+    private String appName
 
     @Inject
     DockerManageContainer(final WorkerExecutor workerExecutor) {
@@ -78,11 +80,13 @@ class DockerManageContainer extends DefaultTask {
     @TaskAction
     void execute() {
 
+        this.appName = getGroup() ?: project.getName()
+
         // 1.) Initialize all properties and set defaults where necessary
         final CommandTypes resolvedCommand = CommandTypes.valueOf(command.getOrElse(CommandTypes.UP.toString()).toUpperCase())
         final int resolvedCount = count.getOrElse(0)
         if (resolvedCount <= 0) {
-            logger.quiet("Requested '${resolvedCount}' instances. Returning...")
+            logger.quiet("Requested '${resolvedCount}' instances. Skipping...")
             return
         }
 
@@ -90,34 +94,33 @@ class DockerManageContainer extends DefaultTask {
         final String resolvedNetwork = network.getOrNull()
 
         // 2.) Build `main` container
-        MainContainer mainContainer = new MainContainer()
-        for (final Closure<MainContainer> cnf : mainConfigs) {
-            mainContainer = ConfigureUtil.configure(cnf, mainContainer)
-        }
-
-        requireNonNull(mainContainer.repository(), "'main' must have a valid repository defined")
+        final MainContainer mainContainer = MainContainer.buildFrom(mainConfigs)
 
         // 3.) Build `data` container which is not required to be defined as it will/can inherit properties from main.
-        DataContainer dataContainer = new DataContainer()
-        for (final Closure<DataContainer> cnf : dataConfigs) {
-            dataContainer = ConfigureUtil.configure(cnf, dataContainer)
-        }
+        final DataContainer dataContainer = DataContainer.buildFrom(mainContainer, dataConfigs)
 
-        if (!dataContainer.repository()) {
-            dataContainer.repository = mainContainer.repository()
-            dataContainer.tag = mainContainer.tag()
-        }
+        // 4.) Build `front` container but ONLY if requested
+        final FrontContainer frontContainer = FrontContainer.buildFrom(frontConfigs)
 
-        // 4.) kick off worker(s) to do our processing in parallel
+        // 4.1) front-end object will be passed to all workers/executors and the last
+        //      one to finish executing will be responsible for working with front-end.
+        final FrontEnd frontEnd = FrontEnd.buildFrom(frontContainer, resolvedCount)
+
+        // 5.) kick off worker(s) to do our processing in parallel
         for (int index = 1; index <= resolvedCount; index++) {
 
-            // report will be filled out by worker and available once task execution has completed
-            final SummaryReport summaryReport = new SummaryReport(resolvedCommand)
-            reports.add(summaryReport)
+            final WorkerMetaData workerMetaData = new WorkerMetaData(appName,
+                resolvedCommand,
+                project,
+                resolvedId,
+                index,
+                resolvedNetwork,
+                mainContainer,
+                dataContainer,
+                frontEnd)
 
-            final WorkerMetaData workerObject = new WorkerMetaData(resolvedCommand, project, resolvedId, index, resolvedNetwork, mainContainer, dataContainer, summaryReport)
             final String hash = UUID.randomUUID().toString().md5()
-            WorkerMetaDataCache.put(hash, workerObject)
+            WorkerMetaDataCache.put(hash, workerMetaData)
 
             workerExecutor.submit(DockerWorker, { cfg ->
                 cfg.setIsolationMode(IsolationMode.NONE)
@@ -143,7 +146,15 @@ class DockerManageContainer extends DefaultTask {
         if (dataConfig) { dataConfigs.add(dataConfig) }
     }
 
-    List<SummaryReport> reports() {
-        reports
+    void front(final List<Closure<FrontContainer>> frontConfigList) {
+        frontConfigList?.each { cfg ->  front(cfg) }
+    }
+
+    void front(final Closure<FrontContainer> frontConfig) {
+        if (frontConfig) { frontConfigs.add(frontConfig) }
+    }
+
+    List<SummaryReport> reports(@Nullable final String matching = null) {
+        SummaryReportCache.matching(appName, matching)
     }
 }

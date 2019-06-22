@@ -21,7 +21,7 @@ class SummaryReport implements Serializable {
 
     transient InspectContainerResponse inspection
 
-    final CommandTypes commandType
+    CommandTypes commandType
 
     String id
     String name
@@ -33,10 +33,6 @@ class SummaryReport implements Serializable {
     String gateway
     String network = 'bridge' // docker default network
     Status status = Status.SUBMITTED
-
-    SummaryReport(final CommandTypes commandTypes) {
-        this.commandType = requireNonNull(commandTypes)
-    }
 
     /**
      * Generate a banner to be displayed ... wherever!!!
@@ -90,5 +86,10 @@ class SummaryReport implements Serializable {
             "'address' : '$address', " +
             "'gateway' : '$gateway', " +
             "'network' : '$network' }"
+    }
+
+    SummaryReport newInstance() {
+        final SummaryReport summaryReport = new SummaryReport();
+        return summaryReport
     }
 }

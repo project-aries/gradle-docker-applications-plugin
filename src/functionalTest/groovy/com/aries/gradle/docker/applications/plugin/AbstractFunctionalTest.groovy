@@ -73,7 +73,7 @@ abstract class AbstractFunctionalTest extends Specification {
     }
 
     private GradleRunner createAndConfigureGradleRunner(String... arguments) {
-        def args = ['-s',
+        def args = ['--full-stacktrace',
             '--warning-mode=all',
             '--parallel',
             '-Dorg.gradle.parallel=true',

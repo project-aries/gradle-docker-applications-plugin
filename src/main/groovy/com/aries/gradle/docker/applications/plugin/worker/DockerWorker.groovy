@@ -20,6 +20,7 @@ import org.gradle.api.Task
 import javax.inject.Inject
 
 import static com.aries.gradle.docker.applications.plugin.GradleDockerApplicationsPluginUtils.*
+import static java.util.Objects.requireNonNull
 
 /**
  *
@@ -32,7 +33,7 @@ class DockerWorker implements Runnable {
 
     @Inject
     DockerWorker(final String cacheKey) {
-        this.workerMetaData = WorkerMetaDataCache.get(cacheKey)
+        this.workerMetaData = requireNonNull(WorkerMetaDataCache.remove(cacheKey), "No meta-data found for: key=${cacheKey}")
     }
 
     @Override
@@ -42,54 +43,72 @@ class DockerWorker implements Runnable {
 
         try {
 
-            // 1.) update status to denote we are now waiting for lock
-            workerMetaData.summaryReport.status = SummaryReport.Status.WAITING
-
-            // 2.) wait for lock to proceed on this work
+            // 1.) wait for lock to proceed on this work
             acquireLock(workerMetaData.project, lockName)
+
+            // 2.) update status to denote we are now waiting for lock
+            workerMetaData.summaryReport.status = SummaryReport.Status.WAITING
 
             // 3.) update status to denote we are now working
             workerMetaData.summaryReport.status = SummaryReport.Status.WORKING
 
-            // 4.) perform requested work
-            switch (workerMetaData.command) {
-                case CommandTypes.UP:
-                    up(true);
-                    up(false);
-                    break;
-                case CommandTypes.STOP:
-                    stop();
-                    break
-                case CommandTypes.DOWN:
-                    down(false);
-                    down(true);
-                    break
+            // 4.) perform work on primary application
+            work(workerMetaData)
+
+            // 5.) if requested front-end container then decrement latch and if
+            //     zero then we are the last one to finish and so can stand-up
+            //     the front-end container and potentially wire all other
+            //     finished containers to this one.
+            if (workerMetaData.frontEnd != null &&
+                workerMetaData.frontEnd.latch.decrementAndGet() == 0) {
+                final WorkerMetaData frontMetaData = workerMetaData.frontEndMetaData()
+                if (frontMetaData) {
+                    work(frontMetaData)
+                }
             }
+
         } finally {
 
-            // 5.) release lock for this work
-            releaseLock(workerMetaData.project, lockName)
-
-            // 6.) update status to denote we are now waiting for lock
+            // 6.) update status to denote we are now finished
             workerMetaData.summaryReport.status = SummaryReport.Status.FINISHED
+
+            // 7.) release lock for this work
+            releaseLock(workerMetaData.project, lockName)
         }
     }
 
-    private void up(final boolean isDataContainer) {
+    private void work(final WorkerMetaData metaData) {
+        switch (metaData.command) {
+            case CommandTypes.UP:
+                up(metaData, true);
+                up(metaData, false);
+                break;
+            case CommandTypes.STOP:
+                stop(metaData);
+                break
+            case CommandTypes.DOWN:
+                down(metaData, false);
+                down(metaData, true);
+                break
+        }
+    }
 
-        final Project project = workerMetaData.project
+    private void up(final WorkerMetaData metaData,
+                    final boolean isDataContainer) {
 
-        final String mainId = workerMetaData.getMainId()
-        final String dataId = workerMetaData.getDataId()
+        final Project project = metaData.project
 
-        final MainContainer mainContainer = workerMetaData.mainContainer
-        final DataContainer dataContainer = workerMetaData.dataContainer
+        final String mainId = metaData.getMainId()
+        final String dataId = metaData.getDataId()
+
+        final MainContainer mainContainer = metaData.mainContainer
+        final DataContainer dataContainer = metaData.dataContainer
 
         final String containerId = isDataContainer ? dataId : mainId
         final String repositoryId = isDataContainer ? dataContainer.repository() : mainContainer.repository()
         final String tagId = isDataContainer ? dataContainer.tag() : mainContainer.tag()
         final String imageId = isDataContainer ? dataContainer.image() : mainContainer.image()
-        final String networkName = workerMetaData.network
+        final String networkName = metaData.network // if null then `bridge` network will be used internally
 
         final List createContainerConfigs = isDataContainer ? dataContainer.createConfigs : mainContainer.createConfigs
         final List copyFileConfigs = isDataContainer ? dataContainer.filesConfigs : mainContainer.filesConfigs
@@ -178,7 +197,7 @@ class DockerWorker implements Runnable {
                 executeTaskCode(pullImageTask)
             }
 
-            // 5.) create, copy files to, and start container if it didn't previously exist
+            // 5.) of, copy files to, and start container if it didn't previously exist
             Task createContainerTask = createTask(project, DockerCreateContainer, { cnf ->
                 cnf.network = networkName
                 cnf.targetImageId(imageId)
@@ -232,7 +251,7 @@ class DockerWorker implements Runnable {
             executeTaskCode(livenessContainerTask, livenessConfigs)
 
             // 7.) Run any "exec" tasks inside the container now that it's started.
-            //     This task is ONLY meant to kick on first startup therefor we skip
+            //     This task is ONLY meant to kick on left startup therefor we skip
             //     execution if the container was already started or if we had to re-start it.
             boolean execStarted = false
             if (execConfigs && (availableContainerTask.ext.isRunning == false) && (restartedContainer == false)) {
@@ -252,7 +271,7 @@ class DockerWorker implements Runnable {
             }
 
             // 8.) get the summary for the running container and print to stdout
-            final SummaryReport summaryReport = workerMetaData.summaryReport
+            final SummaryReport summaryReport = metaData.summaryReport
             Task summaryContainerTask = createTask(project, DockerOperation, { cnf ->
 
                 cnf.onNext { dockerClient ->
@@ -326,11 +345,11 @@ class DockerWorker implements Runnable {
         }
     }
 
-    private void stop() {
+    private void stop(final WorkerMetaData metaData) {
 
-        final Project project = workerMetaData.project
+        final Project project = metaData.project
 
-        final String mainId = workerMetaData.getMainId()
+        final String mainId = metaData.getMainId()
 
         Task execStopContainerTask = createTask(project, DockerExecStopContainer, { cnf ->
 
@@ -343,18 +362,19 @@ class DockerWorker implements Runnable {
                 throwOnValidError(err)
             }
         })
-        executeTaskCode(execStopContainerTask, workerMetaData.mainContainer.stopConfigs)
+        executeTaskCode(execStopContainerTask, metaData.mainContainer.stopConfigs)
     }
 
-    private void down(final boolean isDataContainer) {
+    private void down(final WorkerMetaData metaData,
+                      final boolean isDataContainer) {
 
-        final Project project = workerMetaData.project
+        final Project project = metaData.project
 
-        final String mainId = workerMetaData.getMainId()
-        final String dataId = workerMetaData.getDataId()
+        final String mainId = metaData.getMainId()
+        final String dataId = metaData.getDataId()
 
         final String containerId = isDataContainer ? dataId : mainId
-        final String networkName = workerMetaData.network
+        final String networkName = metaData.network
 
         Task deleteContainerTask = createTask(project, DockerRemoveContainer, { cnf ->
 

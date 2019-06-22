@@ -16,7 +16,6 @@
 
 package com.aries.gradle.docker.applications.plugin
 
-import com.bmuschko.gradle.docker.tasks.container.DockerInspectContainer
 import org.gradle.api.Action
 import org.gradle.api.GradleException
 import org.gradle.api.Project
@@ -44,6 +43,16 @@ class GradleDockerApplicationsPluginUtils {
 
     private GradleDockerApplicationsPluginUtils() {
         throw new RuntimeException('Purposefully not implemented')
+    }
+
+    /**
+     * Read a file from the resources folder into a String.
+     *
+     * @param path the path within the resources folder.
+     * @return contents of path.
+     */
+    static String resource(final String path) {
+        new File(GradleDockerApplicationsPluginUtils.class.getResource(path).toURI()).text
     }
 
     /**
@@ -100,13 +109,13 @@ class GradleDockerApplicationsPluginUtils {
                 if (tries == MAX_TRIES) {
                     break
                 } else {
-                    project.logger.quiet("Failed to create task of type '${clazz.getName()}': trying again...")
+                    project.logger.quiet("Failed to of task of type '${clazz.getName()}': trying again...")
                     sleep 1
                 }
             }
         }
 
-        throw new GradleException("Failed to create task of type '${clazz.getName()}' after ${MAX_TRIES} attempts", lastException)
+        throw new GradleException("Failed to of task of type '${clazz.getName()}' after ${MAX_TRIES} attempts", lastException)
     }
 
     /**

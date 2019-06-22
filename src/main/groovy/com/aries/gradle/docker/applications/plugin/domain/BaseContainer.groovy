@@ -16,23 +16,27 @@
 
 package com.aries.gradle.docker.applications.plugin.domain
 
-import com.bmuschko.gradle.docker.tasks.container.DockerCopyFileToContainer
-import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
-
 /**
  *
- *  Base class for all dockerized container applications to inherit functionality from.
+ *  Base class for all containers to inherit minimal functionality from.
  *
  */
-class AbstractContainer extends BaseContainer {
+class BaseContainer {
 
-    final List<Closure<DockerCreateContainer>> createConfigs = []
-    void create(Closure<DockerCreateContainer> createConfig) {
-        if (createConfig) { createConfigs.add(createConfig) }
+    public static final String LATEST_TAG = 'latest'
+
+    // not required to be set and will be lazily checked at runtime for null
+    public String repository
+    String repository() {
+        this.repository
     }
 
-    final List<Closure<DockerCopyFileToContainer>> filesConfigs = []
-    void files(Closure<DockerCopyFileToContainer> filesConfig) {
-        if (filesConfig) { filesConfigs.add(filesConfig) }
+    public String tag
+    String tag() {
+        this.tag ?: LATEST_TAG
+    }
+
+    String image() {
+        "${this.repository()}:${this.tag()}"
     }
 }

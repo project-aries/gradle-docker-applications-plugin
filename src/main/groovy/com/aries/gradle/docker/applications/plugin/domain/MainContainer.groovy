@@ -19,6 +19,9 @@ package com.aries.gradle.docker.applications.plugin.domain
 import com.bmuschko.gradle.docker.tasks.container.DockerExecContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerExecStopContainer
 import com.bmuschko.gradle.docker.tasks.container.extras.DockerLivenessContainer
+import org.gradle.util.ConfigureUtil
+
+import static java.util.Objects.requireNonNull
 
 /**
  *
@@ -54,5 +57,27 @@ class MainContainer extends AbstractContainer {
     final List<Closure<DockerExecContainer>> execConfigs = []
     void exec(Closure<DockerExecStopContainer> execConfig) {
         if (execConfig) { execConfigs.add(execConfig) }
+    }
+
+    static MainContainer buildFrom(final Closure<MainContainer>... mainConfig) {
+        final List<Closure<MainContainer>> mainConfigs = new ArrayList<>(mainConfig as List)
+        buildFrom(mainConfigs)
+    }
+
+    static MainContainer buildFrom(final List<Closure<MainContainer>> mainConfigs) {
+
+        if (!mainConfigs) {
+            throw new IllegalArgumentException("Must pass at least 1 closure/config object to buildFrom MainContainer.")
+        } else {
+            final MainContainer mainContainer = new MainContainer()
+            for(final Closure<MainContainer> cnf : mainConfigs) {
+                if (cnf != null) {
+                    ConfigureUtil.configure(cnf, mainContainer)
+                }
+            }
+
+            requireNonNull(mainContainer.repository(), "'main' must have a valid repository defined")
+            return mainContainer
+        }
     }
 }

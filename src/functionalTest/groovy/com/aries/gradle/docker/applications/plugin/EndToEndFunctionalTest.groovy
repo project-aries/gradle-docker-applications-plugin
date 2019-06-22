@@ -93,7 +93,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
-                        create {
+                        of {
                             withEnvVar("CI", "TRUE")
                             withEnvVar("DEVOPS", "ROCKS")
                             portBindings = [':5432']
@@ -132,7 +132,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                         }
                     }
                     data {
-                        create {
+                        of {
                             volumes = ["/var/lib/postgresql/data"]
                         }
                         files {
@@ -151,7 +151,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
-                        create {
+                        of {
                             withEnvVar("CI", "TRUE")
                             withEnvVar("DEVOPS", "ROCKS")
                             portBindings = [':5432']
@@ -190,7 +190,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                         }
                     }
                     data {
-                        create {
+                        of {
                             volumes = ["/var/lib/postgresql/data"]
                         }
                         files {

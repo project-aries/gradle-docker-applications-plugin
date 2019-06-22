@@ -43,7 +43,7 @@ class AbstractApplication {
     @Internal
     private ProviderFactory providerFactory = GradleDockerApplicationsPlugin.providerFactory
 
-    // if set will pass along a network name to use (will create custom network if not present) for application.
+    // if set will pass along a network name to use (will of custom network if not present) for application.
     @Input
     @Optional
     final Property<String> network = objectFactory.property(String)
@@ -137,6 +137,14 @@ class AbstractApplication {
     void data(final Closure<DataContainer> dataConfig) {
         if (dataConfig) {
             dataConfigs.add(dataConfig)
+        }
+    }
+
+    // methods and properties used to configure the front-end container
+    final List<Closure<FrontContainer>> frontConfigs = []
+    void front(final Closure<FrontContainer> frontConfig) {
+        if (frontConfig) {
+            frontConfigs.add(frontConfig)
         }
     }
 

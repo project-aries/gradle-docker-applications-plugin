@@ -43,6 +43,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
     // not working as of 6/4/19 or maybe I'm just doing something wrong. IDK.
     public static ObjectFactory objectFactory
     public static ProviderFactory providerFactory
+    public static Project pluginProject
 
     private static final Set<String> EMPTY_SET = Collections.unmodifiableSet( new HashSet<String>() );
 
@@ -55,6 +56,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         objectFactory = project.objects
         providerFactory = project.providers
+        pluginProject = project
 
         // 1.) apply required plugins
         try {
@@ -63,15 +65,15 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             project.plugins.apply(DockerRemoteApiPlugin)
         }
 
-        // 2.) build domain-container for housing ad-hoc applications
+        // 2.) buildFrom domain-container for housing ad-hoc applications
         final NamedDomainObjectContainer<AbstractApplication> appContainers = project.container(AbstractApplication)
 
-        // 3.) build plugin extension point from domain-container
+        // 3.) buildFrom plugin extension point from domain-container
         project.extensions.add(EXTENSION_NAME, appContainers)
 
         project.afterEvaluate {
 
-            // 4.) create all application tasks
+            // 4.) of all application tasks
             createApplicationTasks(project, appContainers)
         }
     }
@@ -84,7 +86,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
         appContainers.each { appContainer ->
 
-            // create tasks after evaluation so that we can pick up any changes
+            // of tasks after evaluation so that we can pick up any changes
             // made to our various extension points.
             final TaskProvider<Task> upTaskChain = createUpChain(project, appContainer)
             final TaskProvider<Task> stopTaskChain = createStopChain(project, appContainer)
@@ -115,6 +117,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
             cfg.main(appContainer.mainConfigs)
             cfg.data(appContainer.dataConfigs)
+            cfg.front(appContainer.frontConfigs)
 
             cfg.group = appName
             cfg.description = "Start '${appName}' if not already started."
@@ -123,7 +126,6 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         return project.tasks.register("${appName}${UP}", SummaryReportCollector, { cfg ->
             cfg.outputs.upToDateWhen { false }
 
-            cfg.reports = upApp.get().reports()
             cfg.dependsOn(upApp, appContainer.dependsOnParallel, appContainer.dependsOnParallelApp.get(UP, EMPTY_SET))
 
             cfg.group = appName
@@ -145,6 +147,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             cfg.id = appContainer.id.getOrNull() ?: appName
             cfg.main(appContainer.mainConfigs)
             cfg.data(appContainer.dataConfigs)
+            cfg.front(appContainer.frontConfigs)
 
             cfg.group = appName
             cfg.description = "Stop '${appName}' if not already stopped."
@@ -153,7 +156,6 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         return project.tasks.register("${appName}${STOP}", SummaryReportCollector, { cfg ->
             cfg.outputs.upToDateWhen { false }
 
-            cfg.reports = stopApp.get().reports()
             cfg.dependsOn(stopApp, appContainer.dependsOnParallelApp.get(STOP, EMPTY_SET))
 
             cfg.group = appName
@@ -184,6 +186,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
             cfg.main(appContainer.mainConfigs)
             cfg.data(appContainer.dataConfigs)
+            cfg.front(appContainer.frontConfigs)
 
             cfg.group = appName
             cfg.description = "Delete '${appName}' if not already deleted."
@@ -192,7 +195,6 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
         return project.tasks.register("${appName}${DOWN}", SummaryReportCollector, { cfg ->
             cfg.outputs.upToDateWhen { false }
 
-            cfg.reports = downApp.get().reports()
             cfg.dependsOn(downApp, appContainer.dependsOnParallelApp.get(DOWN, EMPTY_SET))
 
             cfg.group = appName
