@@ -122,7 +122,9 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                             // can define as many of these commands as you'd like
                             // which will kick on initial **UP** only.
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE DATABASE devops'"])
+                            withCommand(['sleep', '5'])
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE USER devops'"])
+                            withCommand(['sleep', '5'])
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'GRANT ALL PRIVILEGES ON DATABASE devops TO devops'"])
                             
                             // sleeping as below calls can fail while the above is still catching up
@@ -181,7 +183,9 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                             // can define as many of these commands as you'd like
                             // which will kick on initial **UP** only.
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE DATABASE devops'"])
+                            withCommand(['sleep', '5'])
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'CREATE USER devops'"])
+                            withCommand(['sleep', '5'])
                             withCommand(['su', 'postgres', "-c", "/usr/local/bin/psql -c 'GRANT ALL PRIVILEGES ON DATABASE devops TO devops'"])
                             
                             // sleeping as below calls can fail while the above is still catching up
@@ -206,10 +210,6 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             task stop(dependsOn: ['myPostgresStackStop']) {
                 doLast {
                     println "REPORT SIZE: " + myPostgresStackStop.reports().size()
-                    myPostgresStackStop.reports().each { rep ->
-                        println "========fish" + rep
-                    }
-                    println "REPORT SIZE: " + myPostgresStackUp.reports()
                     println "FOUND REPORT: " + myPostgresStackStop.reports().get(0)
                 }
             }
@@ -217,10 +217,6 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             task down(dependsOn: ['myPostgresStackDown']) {
                 doLast {
                     println "REPORT SIZE: " + myPostgresStackDown.reports().size()
-                    myPostgresStackDown.reports().each { rep ->
-                        println "========fish" + rep
-                    }
-                    
                     println "FOUND REPORT: " + myPostgresStackDown.reports().get(0)
                 }
             }

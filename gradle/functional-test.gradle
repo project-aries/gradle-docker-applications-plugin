@@ -15,7 +15,7 @@ task functionalTest(type: Test) {
     group = 'verification'
     testClassesDirs = sourceSets.functionalTest.output.classesDirs
     classpath = sourceSets.functionalTest.runtimeClasspath
-    maxHeapSize = '512m'
+    maxHeapSize = '1024m'
     forkEvery = 1
     maxParallelForks = 1
     mustRunAfter test
@@ -25,8 +25,11 @@ task functionalTest(type: Test) {
         junitXml.destination = project.file("$junitXml.destination/functional")
     }
     testLogging {
+        showCauses = true
+        showExceptions = true
+        showStackTraces = true
         showStandardStreams = true
-        events 'started', 'passed', 'failed'
+        events 'started', 'passed', 'failed', 'standardOut', 'standardError'
     }
 
     def testingProperties = [:]

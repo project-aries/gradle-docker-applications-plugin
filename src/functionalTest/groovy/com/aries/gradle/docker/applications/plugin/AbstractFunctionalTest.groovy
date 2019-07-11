@@ -79,7 +79,7 @@ abstract class AbstractFunctionalTest extends Specification {
             '-Dorg.gradle.parallel=true',
             '-Dorg.gradle.worker.max=4',
             '-Dorg.gradle.daemon=false',
-            '-Dorg.gradle.jvmargs=-XX:+CMSPermGenSweepingEnabled -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -XX:+HeapDumpOnOutOfMemoryError']
+            '-Dorg.gradle.jvmargs=-Xms1g -Xmx1g -XX:+CMSPermGenSweepingEnabled -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -XX:+HeapDumpOnOutOfMemoryError']
         if (Boolean.valueOf(possibleOffline).booleanValue() == true) {
             args << '--offline'
         }
