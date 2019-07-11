@@ -16,7 +16,7 @@
 
 package com.aries.gradle.docker.applications.plugin.utils
 
-import com.aries.gradle.docker.applications.plugin.domain.Pair
+
 import com.aries.gradle.docker.applications.plugin.domain.Proxy
 import com.aries.gradle.docker.applications.plugin.report.SummaryReport
 
@@ -42,7 +42,7 @@ class NginxUtils {
     }
 
     static Pair<String, List<String>> buildConfig(final List<Proxy> proxies,
-                                                  final List<SummaryReport> reports) {
+                                                  final Set<SummaryReport> reports) {
 
         if (proxies) {
             if (reports) {

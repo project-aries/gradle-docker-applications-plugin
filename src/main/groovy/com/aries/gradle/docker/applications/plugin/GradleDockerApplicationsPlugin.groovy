@@ -119,7 +119,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             cfg.data(appContainer.dataConfigs)
             cfg.front(appContainer.frontConfigs)
 
-            cfg.group = appName
+            cfg.group = appContainer.group.getOrNull() ?: appName
             cfg.description = "Start '${appName}' if not already started."
         })
 
@@ -128,8 +128,8 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
             cfg.dependsOn(upApp, appContainer.dependsOnParallel, appContainer.dependsOnParallelApp.get(UP, EMPTY_SET))
 
-            cfg.group = appName
-            cfg.description = "Start all '${appName}' container application(s), and their dependencies, if not already started."
+            cfg.group = appContainer.group.getOrNull() ?: appName
+            cfg.description = "Wrapper for starting all '${appName}' container application(s), and their dependencies, if not already started."
         })
     }
 
@@ -149,7 +149,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             cfg.data(appContainer.dataConfigs)
             cfg.front(appContainer.frontConfigs)
 
-            cfg.group = appName
+            cfg.group = appContainer.group.getOrNull() ?: appName
             cfg.description = "Stop '${appName}' if not already stopped."
         })
 
@@ -158,7 +158,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
             cfg.dependsOn(stopApp, appContainer.dependsOnParallelApp.get(STOP, EMPTY_SET))
 
-            cfg.group = appName
+            cfg.group = appContainer.group.getOrNull() ?: appName
             cfg.description = "Wrapper for stopping all '${appName}' container application(s) if not already stopped."
         })
     }
@@ -188,7 +188,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
             cfg.data(appContainer.dataConfigs)
             cfg.front(appContainer.frontConfigs)
 
-            cfg.group = appName
+            cfg.group = appContainer.group.getOrNull() ?: appName
             cfg.description = "Delete '${appName}' if not already deleted."
         })
 
@@ -197,7 +197,7 @@ class GradleDockerApplicationsPlugin implements Plugin<Project> {
 
             cfg.dependsOn(downApp, appContainer.dependsOnParallelApp.get(DOWN, EMPTY_SET))
 
-            cfg.group = appName
+            cfg.group = appContainer.group.getOrNull() ?: appName
             cfg.description = "Wrapper for deleting all '${appName}' container application(s), and their dependencies, if not already deleted."
         })
     }

@@ -87,9 +87,4 @@ class SummaryReport implements Serializable {
             "'gateway' : '$gateway', " +
             "'network' : '$network' }"
     }
-
-    SummaryReport newInstance() {
-        final SummaryReport summaryReport = new SummaryReport();
-        return summaryReport
-    }
 }

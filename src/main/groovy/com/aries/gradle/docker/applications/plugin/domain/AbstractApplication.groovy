@@ -48,7 +48,7 @@ class AbstractApplication {
     @Optional
     final Property<String> network = objectFactory.property(String)
     void network(@Nullable final String requestedNetwork) {
-        network.set(requestedNetwork)
+        if (requestedNetwork) { network( { requestedNetwork })}
     }
     void network(final Closure<String> requestedNetwork) {
         if (requestedNetwork) { network.set(providerFactory.provider(requestedNetwork))}
@@ -59,7 +59,7 @@ class AbstractApplication {
     @Optional
     final Property<Integer> count = objectFactory.property(Integer)
     void count(final Integer requestedCount) {
-        if (requestedCount) { count.set(providerFactory.provider{ requestedCount })}
+        if (requestedCount) { count({ requestedCount })}
     }
     void count(final Closure<Integer> requestedCount) {
         if (requestedCount) { count.set(providerFactory.provider(requestedCount))}
@@ -70,10 +70,21 @@ class AbstractApplication {
     @Optional
     final Property<String> id = objectFactory.property(String)
     void id(final String requestedId) {
-        if (requestedId) { id.set(providerFactory.provider{ requestedId })}
+        if (requestedId) { id({ requestedId })}
     }
     void id(final Closure<String> requestedId) {
         if (requestedId) { id.set(providerFactory.provider(requestedId))}
+    }
+
+    // if set will override the application-name part of the docker container.
+    @Input
+    @Optional
+    final Property<String> group = objectFactory.property(String)
+    void group(final String requestedGroup) {
+        if (requestedGroup) { group({ requestedGroup })}
+    }
+    void group(final Closure<String> requestedGroup) {
+        if (requestedGroup) { group.set(providerFactory.provider(requestedGroup))}
     }
 
     // internal helper collection to hold AbstractApplication names

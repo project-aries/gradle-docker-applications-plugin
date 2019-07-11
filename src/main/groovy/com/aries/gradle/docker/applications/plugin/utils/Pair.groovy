@@ -1,4 +1,4 @@
-package com.aries.gradle.docker.applications.plugin.domain
+package com.aries.gradle.docker.applications.plugin.utils
 
 class Pair<L, R> {
 

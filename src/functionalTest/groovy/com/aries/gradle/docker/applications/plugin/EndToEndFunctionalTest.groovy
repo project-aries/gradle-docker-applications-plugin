@@ -28,7 +28,7 @@ import spock.lang.Timeout
  */
 class EndToEndFunctionalTest extends AbstractFunctionalTest {
 
-    @Timeout(value = 2, unit = MINUTES)
+    @Timeout(value = 3, unit = MINUTES)
     def "Can start, stop, and remove a postgres application stack"() {
 
         final File mySpecialEntryPoint = new File("$projectDir/special-docker-entrypoint.sh")
@@ -83,17 +83,19 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             }
 
             def sharedNetworkName = 'postgres-stack'
+            def sharedGroupName = 'postgres-stack'
 
             applications {
 
                 myPostgresStackDep {
                     network(sharedNetworkName)
                     count(1)
+                    group(sharedGroupName)
                     dependsOn(configurations.dev, kicker)
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
-                        of {
+                        create {
                             withEnvVar("CI", "TRUE")
                             withEnvVar("DEVOPS", "ROCKS")
                             portBindings = [':5432']
@@ -132,7 +134,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                         }
                     }
                     data {
-                        of {
+                        create {
                             volumes = ["/var/lib/postgresql/data"]
                         }
                         files {
@@ -145,13 +147,14 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                 
                 myPostgresStack {
                     network(sharedNetworkName)
-                    count(2)
+                    count(3)
+                    group(sharedGroupName)
                     dependsOnParallel(applicationDep)
                     dependsOn(configurations.dev, kicker)
                     main {
                         repository = 'postgres'
                         tag = 'alpine'
-                        of {
+                        create {
                             withEnvVar("CI", "TRUE")
                             withEnvVar("DEVOPS", "ROCKS")
                             portBindings = [':5432']
@@ -190,7 +193,7 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
                         }
                     }
                     data {
-                        of {
+                        create {
                             volumes = ["/var/lib/postgresql/data"]
                         }
                         files {
@@ -203,6 +206,10 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             task stop(dependsOn: ['myPostgresStackStop']) {
                 doLast {
                     println "REPORT SIZE: " + myPostgresStackStop.reports().size()
+                    myPostgresStackStop.reports().each { rep ->
+                        println "========fish" + rep
+                    }
+                    println "REPORT SIZE: " + myPostgresStackUp.reports()
                     println "FOUND REPORT: " + myPostgresStackStop.reports().get(0)
                 }
             }
@@ -210,6 +217,10 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
             task down(dependsOn: ['myPostgresStackDown']) {
                 doLast {
                     println "REPORT SIZE: " + myPostgresStackDown.reports().size()
+                    myPostgresStackDown.reports().each { rep ->
+                        println "========fish" + rep
+                    }
+                    
                     println "FOUND REPORT: " + myPostgresStackDown.reports().get(0)
                 }
             }
@@ -232,8 +243,8 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
         resultUp.output.contains('In the KICKER')
         resultUp.output.contains('Inspecting container with ID')
         resultUp.output.contains('Created container with ID')
-        count(resultUp.output, 'NETWORK = postgres-stack') == 3
-        count(resultUp.output, 'Copying file to container') == 15
+        count(resultUp.output, 'NETWORK = postgres-stack') == 4
+        count(resultUp.output, 'Copying file to container') == 20
         resultUp.output.contains('Creating network')
         resultUp.output.contains('Copying file to container')
         resultUp.output.contains('Starting liveness')
@@ -244,13 +255,15 @@ class EndToEndFunctionalTest extends AbstractFunctionalTest {
         resultUp.output.contains('GRANT')
         resultUp.output.contains('pg_ctl: server is running')
         resultUp.output.contains('max_connections                        | 200')
-        resultUp.output.contains('REPORT SIZE: 2')
+        resultUp.output.contains('REPORT SIZE: 4')
 
+        // we check for report size below to be 3 not because more are being
+        // added, which they are not, but because we want to ensure it's only 3
         resultStop.output.contains('Running exec-stop on container with ID')
-        resultStop.output.contains('REPORT SIZE: 2')
+        resultStop.output.contains('REPORT SIZE: 4')
 
         resultDown.output.contains('Removing container with ID')
         resultDown.output.contains('Removing network')
-        resultDown.output.contains('REPORT SIZE: 2')
+        resultDown.output.contains('REPORT SIZE: 4')
     }
 }

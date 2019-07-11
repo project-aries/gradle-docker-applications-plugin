@@ -4,7 +4,7 @@ import com.aries.gradle.docker.applications.plugin.domain.CommandTypes
 import com.aries.gradle.docker.applications.plugin.domain.DataContainer
 import com.aries.gradle.docker.applications.plugin.domain.FrontEnd
 import com.aries.gradle.docker.applications.plugin.domain.MainContainer
-import com.aries.gradle.docker.applications.plugin.domain.Pair
+import com.aries.gradle.docker.applications.plugin.utils.Pair
 import com.aries.gradle.docker.applications.plugin.report.SummaryReport
 import com.aries.gradle.docker.applications.plugin.report.SummaryReportCache
 import org.gradle.api.GradleException
@@ -12,6 +12,7 @@ import org.gradle.api.Project
 
 import javax.annotation.Nullable
 
+import static com.aries.gradle.docker.applications.plugin.report.SummaryReportCache.create
 import static com.aries.gradle.docker.applications.plugin.utils.NginxUtils.buildConfig
 import static java.util.Objects.requireNonNull
 
@@ -54,7 +55,8 @@ class WorkerMetaData {
         this.dataContainer = requireNonNull(dataContainer)
         this.frontEnd = frontEnd
 
-        this.summaryReport = SummaryReportCache.create(appName)
+        // we only care to keep track of SummaryReports if they came from an UP request
+        this.summaryReport = (command == CommandTypes.UP ? create(appName) : create(null))
         this.summaryReport.commandType = this.command
 
         final String appender = index != null ? "-${index}" : ""
@@ -73,7 +75,7 @@ class WorkerMetaData {
         if (frontEnd) {
 
             final List<Proxy> proxies = frontEnd.frontContainer.proxies()
-            final List<SummaryReport> reports = SummaryReportCache.matching(appName)
+            final Set<SummaryReport> reports = SummaryReportCache.matching(appName)
             final Pair<String, List<String>> config = buildConfig(proxies, reports)
             if (!config.empty()) {
 

@@ -2,11 +2,9 @@ package com.aries.gradle.docker.applications.plugin.tasks
 
 import com.aries.gradle.docker.applications.plugin.report.SummaryReport
 import com.aries.gradle.docker.applications.plugin.report.SummaryReportCache
+import com.bmuschko.gradle.docker.shaded.com.google.common.collect.Lists
+import com.bmuschko.gradle.docker.shaded.com.google.common.collect.Sets
 import org.gradle.api.DefaultTask
-import org.gradle.api.provider.Property
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.Internal
-import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
 
 import javax.annotation.Nullable
@@ -18,23 +16,15 @@ import javax.annotation.Nullable
  */
 class SummaryReportCollector extends DefaultTask {
 
-    @Input
-    @Optional
-    final Property<String> appNamesMatching = project.objects.property(String)
-
-    @Internal
-    private final String appName
-
-    SummaryReportCollector() {
-        this.appName = getGroup() ?: project.getName()
-    }
-
     @TaskAction
     void execute() {
-        logger.debug("Found ${reports().size()} reports...")
+        logger.debug("Invoke method 'reports()' on this task to get lazily initialized reports...")
     }
 
     List<SummaryReport> reports(@Nullable final String matching = null) {
-        SummaryReportCache.matching(appName, matching, appNamesMatching.getOrNull())
+        final Set<String> requestedNames = Sets.newHashSet()
+        requestedNames.add(getGroup())
+        requestedNames.add(matching)
+        return Lists.newArrayList(SummaryReportCache.matching(requestedNames))
     }
 }
