@@ -65,7 +65,7 @@ abstract class AbstractFunctionalTest extends Specification {
     }
 
     protected BuildResult build(String... arguments) {
-        createAndConfigureGradleRunner(arguments).build()
+        createAndConfigureGradleRunner(arguments).withDebug(true).build()
     }
 
     protected BuildResult buildAndFail(String... arguments) {
@@ -87,7 +87,7 @@ abstract class AbstractFunctionalTest extends Specification {
             args.addAll(arguments)
         }
 
-        GradleRunner.create().withProjectDir(projectDir).withArguments(args).withPluginClasspath()
+        GradleRunner.create().withProjectDir(projectDir).withArguments(args).withPluginClasspath().forwardOutput()
     }
 
     static String randomString() {

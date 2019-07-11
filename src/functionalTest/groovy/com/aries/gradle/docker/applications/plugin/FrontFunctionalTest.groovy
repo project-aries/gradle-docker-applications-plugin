@@ -33,7 +33,7 @@ class FrontFunctionalTest extends AbstractFunctionalTest {
 
         buildFile << """
 
-            def sharedNetworkName = 'bridge'
+            def sharedNetworkName = 'myTomcatStack-network'
 
             applications {
                 
@@ -43,7 +43,7 @@ class FrontFunctionalTest extends AbstractFunctionalTest {
                     main {
                         repository = 'tomcat'
                         tag = '9.0.21-jdk11-openjdk-slim'
-                        of {
+                        create {
                             portBindings = [':8080']
                         }
                         liveness {
@@ -90,18 +90,18 @@ class FrontFunctionalTest extends AbstractFunctionalTest {
 
         when:
         BuildResult resultUp = build( 'up')
-        BuildResult resultStop = build( 'tasks')
-        BuildResult resultDown = build( 'tasks')
+        BuildResult resultStop = build( 'stop')
+        BuildResult resultDown = build( 'down')
 
         then:
-        resultUp.output.contains('REPORT SIZE: 3')
+        resultUp.output.contains('REPORT SIZE: 4')
         resultUp.output.contains('-front')
 
         resultStop.output.contains('Running exec-stop on container with ID')
-        resultStop.output.contains('REPORT SIZE: 3')
+        resultStop.output.contains('REPORT SIZE: 4')
 
         resultDown.output.contains('Removing container with ID')
         resultDown.output.contains('Removing network')
-        resultDown.output.contains('REPORT SIZE: 3')
+        resultDown.output.contains('REPORT SIZE: 4')
     }
 }
