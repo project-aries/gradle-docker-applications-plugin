@@ -67,7 +67,7 @@ class MainContainer extends AbstractContainer {
     static MainContainer buildFrom(final List<Closure<MainContainer>> mainConfigs) {
 
         if (!mainConfigs) {
-            throw new IllegalArgumentException("Must pass at least 1 closure/config object to buildFrom MainContainer.")
+            throw new IllegalArgumentException("No closure/config object defined to build MainContainer.")
         } else {
             final MainContainer mainContainer = new MainContainer()
             for(final Closure<MainContainer> cnf : mainConfigs) {
@@ -76,7 +76,7 @@ class MainContainer extends AbstractContainer {
                 }
             }
 
-            requireNonNull(mainContainer.repository(), "'main' must have a valid repository defined")
+            requireNonNull(mainContainer.repository(), "'main' must have a valid repository defined.")
             return mainContainer
         }
     }

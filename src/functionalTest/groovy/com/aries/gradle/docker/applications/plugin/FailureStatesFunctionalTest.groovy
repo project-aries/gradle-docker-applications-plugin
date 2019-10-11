@@ -48,7 +48,7 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
             BuildResult result = buildAndFail('up')
 
         then:
-            result.output.contains('must have a valid repository defined')
+            result.output.contains('No closure/config object defined to build MainContainer')
     }
 
     @Timeout(value = 5, unit = MINUTES)
@@ -99,7 +99,7 @@ class FailureStatesFunctionalTest extends AbstractFunctionalTest {
         BuildResult result = buildAndFail('up')
 
         then:
-        result.output.contains('manifest for postgres:idontexist not found"')
+        result.output.contains('manifest for postgres:idontexist not found')
     }
 
     @Timeout(value = 5, unit = MINUTES)

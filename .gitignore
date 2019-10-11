@@ -9,6 +9,7 @@ test-output/
 .eclipse-pmd
 .pmd
 .ruleset
+.build.gradle.swp
 
 # OS generated files #
 ######################
